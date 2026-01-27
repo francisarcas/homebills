@@ -40,12 +40,12 @@ body {
 }
 
 h1 {
-  text-align: centre;
+  text-align: center; /* Corrected typo */
   margin-bottom: 6px;
 }
 
 .balance {
-  text-align: centre;
+  text-align: center; /* Corrected typo */
   color: var(--muted);
   margin-bottom: 16px;
 }
@@ -58,19 +58,20 @@ h1 {
 }
 
 .chart-wrapper {
-  max-width: 600px;
-  margin: auto;
+  max-width: 520px;
+  margin: 0 auto;
 }
 
 canvas {
-  max-height: 180px;
+  max-height: 160px;
 }
 
+/* MONTH TABS */
 .month-tabs {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  justify-content: centre;
+  justify-content: center; /* Corrected typo */
 }
 
 .month-tab {
@@ -79,16 +80,24 @@ canvas {
   background: #2a2a31;
   font-size: 0.85rem;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .month-tab.active {
   background: var(--accent1);
 }
 
+/* FORM */
 .form {
   display: grid;
-  grid-template-columns: 1fr 1fr auto auto;
+  grid-template-columns: 1fr 1fr 1fr auto;
   gap: 8px;
+}
+
+@media (max-width: 600px) {
+  .form {
+    grid-template-columns: 1fr;
+  }
 }
 
 input, select {
@@ -97,6 +106,7 @@ input, select {
   border-radius: 14px;
   padding: 12px;
   color: var(--text);
+  width: 100%;
 }
 
 button {
@@ -107,27 +117,25 @@ button {
   color: white;
   font-weight: 600;
   cursor: pointer;
+  width: 100%;
 }
 
 button:active {
   opacity: 0.85;
 }
 
+/* EXPENSE LIST */
 .expense {
   display: flex;
   justify-content: space-between;
-  align-items: centre;
+  align-items: center;
   padding: 10px 0;
   border-bottom: 1px solid #2a2a31;
 }
 
-.expense small {
-  color: var(--muted);
-}
-
 .expense-left {
   display: flex;
-  align-items: centre;
+  align-items: center;
   gap: 8px;
 }
 
@@ -151,11 +159,13 @@ button:active {
   color: var(--danger);
 }
 
+/* PROFILES */
 .profiles {
   display: flex;
-  justify-content: centre;
+  justify-content: center; /* Corrected typo */
+  align-items: center;     /* Corrected typo */
   gap: 24px;
-  margin-top: 8px;
+  margin-top: 12px;
 }
 
 .profile {
@@ -170,9 +180,11 @@ button:active {
   border-color: var(--accent1);
 }
 
+/* EXPORT */
 .export {
   display: flex;
-  justify-content: centre;
+  justify-content: center;
+  align-items: center;
 }
 </style>
 </head>
@@ -222,6 +234,8 @@ button:active {
 </div>
 
 <script>
+const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+
 const BRAND_DOMAINS = {
   hyperoptic: "hyperoptic.com",
   hsbc: "hsbc.co.uk",
@@ -234,13 +248,49 @@ const BRAND_DOMAINS = {
   tesco: "tesco.com"
 };
 
+// Function to normalize month keys from YYYY-MM to YYYY-MMM
+function normalizeMonthKey(monthKey) {
+  if (monthKey && monthKey.match(/^\d{4}-\d{2}$/)) { // e.g., "2026-01"
+    const [year, monthNum] = monthKey.split('-');
+    const monthIndex = parseInt(monthNum, 10) - 1; // 0-indexed month
+    if (monthIndex >= 0 && monthIndex < 12) {
+      return `${year}-${MONTHS[monthIndex]}`;
+    }
+  }
+  return monthKey; // Return as is if already correct or unparseable
+}
+
+function currentMonthKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${MONTHS[d.getMonth()]}`;
+}
+
 let activePerson = "francis";
-let activeMonth = new Date().toISOString().slice(0,7);
+let activeMonth = currentMonthKey();
 
 const data = JSON.parse(localStorage.getItem("billData")) || {
   francis: [],
   fiona: []
 };
+
+// Migrate old month formats to the new YYYY-MMM format on load
+function migrateData() {
+  let changed = false;
+  ["francis", "fiona"].forEach(p => {
+    data[p].forEach(e => {
+      const normalized = normalizeMonthKey(e.month);
+      if (normalized !== e.month) {
+        e.month = normalized;
+        changed = true;
+      }
+    });
+  });
+  if (changed) {
+    save(); // Save the migrated data back to localStorage
+    console.log("Migrated old month formats in localStorage.");
+  }
+}
+migrateData(); // Run migration once on script load
 
 function save() {
   localStorage.setItem("billData", JSON.stringify(data));
@@ -257,11 +307,19 @@ function detectLogo(note) {
 }
 
 function getMonths() {
-  const set = new Set([activeMonth]);
+  const set = new Set();
+  set.add(normalizeMonthKey(activeMonth)); // Ensure activeMonth is also normalized when added
+
   ["francis","fiona"].forEach(p =>
-    data[p].forEach(e => set.add(e.month))
+    data[p].forEach(e => set.add(normalizeMonthKey(e.month))) // Normalize all stored months
   );
-  return [...set].sort().reverse();
+  // Sort months chronologically for display
+  return [...set].sort((a, b) => {
+    const [yearA, monthA] = a.split('-');
+    const [yearB, monthB] = b.split('-');
+    if (yearA !== yearB) return parseInt(yearA) - parseInt(yearB);
+    return MONTHS.indexOf(monthA) - MONTHS.indexOf(monthB);
+  });
 }
 
 function renderMonths() {
@@ -278,7 +336,9 @@ function renderMonths() {
 function applyRecurring() {
   ["francis","fiona"].forEach(p => {
     data[p].filter(e => e.recurring).forEach(e => {
-      if (!data[p].some(x => x.baseId === e.baseId && x.month === activeMonth)) {
+      // Use normalizeMonthKey for comparison to handle any edge cases
+      if (!data[p].some(x => x.baseId === e.baseId && normalizeMonthKey(x.month) === activeMonth)) {
+        // Create a copy and ensure the month is set to the current activeMonth format
         data[p].push({ ...e, month: activeMonth });
       }
     });
@@ -287,7 +347,7 @@ function applyRecurring() {
 
 function total(person) {
   return data[person]
-    .filter(e => e.month === activeMonth)
+    .filter(e => normalizeMonthKey(e.month) === activeMonth) // Normalize month for filtering
     .reduce((s,e) => s + e.amount, 0);
 }
 
@@ -306,19 +366,23 @@ function renderExpenses() {
   expenseList.innerHTML = "";
 
   data[activePerson]
-    .filter(e => e.month === activeMonth)
+    .filter(e => normalizeMonthKey(e.month) === activeMonth) // Normalize month for filtering
     .forEach((e,i) => {
       const row = document.createElement("div");
       row.className = "expense";
       const logo = e.logo ? `<img class="logo" src="${e.logo}" onerror="this.remove()">` : "";
+      // The index `i` for edit/delete needs to be based on the filtered list, not the original array.
+      // A better approach for edit/delete would be to pass the actual `baseId` or re-find the item.
+      // For simplicity here, we'll keep the current index-based approach, but be aware of its limitations
+      // if the original data array changes order or size unexpectedly.
       row.innerHTML = `
         <div class="expense-left">
           ${logo}
           <div>${e.note}<br><small>£${e.amount.toFixed(2)}</small></div>
         </div>
         <div class="actions">
-          <span class="action" onclick="editExpense(${i})">Edit</span>
-          <span class="action delete" onclick="deleteExpense(${i})">Delete</span>
+          <span class="action" onclick="editExpenseAtIndex(${data[activePerson].indexOf(e)})">Edit</span>
+          <span class="action delete" onclick="deleteExpenseAtIndex(${data[activePerson].indexOf(e)})">Delete</span>
         </div>
       `;
       expenseList.appendChild(row);
@@ -332,7 +396,7 @@ function addExpense() {
 
   data[activePerson].push({
     baseId: crypto.randomUUID(),
-    month: activeMonth,
+    month: activeMonth, // activeMonth is already in YYYY-MMM format
     amount,
     note,
     logo: detectLogo(note),
@@ -340,13 +404,14 @@ function addExpense() {
   });
 
   amountInput.value = "";
-  noteInput.value = "";
+    noteInput.value = "";
   save();
   updateAll();
 }
 
-function editExpense(i) {
-  const e = data[activePerson][i];
+// Renamed to avoid confusion, using original index for data manipulation
+function editExpenseAtIndex(originalIndex) {
+  const e = data[activePerson][originalIndex];
   const n = prompt("Description", e.note);
   const a = prompt("Amount", e.amount);
   if (!n || !a) return;
@@ -357,9 +422,10 @@ function editExpense(i) {
   updateAll();
 }
 
-function deleteExpense(i) {
+// Renamed to avoid confusion, using original index for data manipulation
+function deleteExpenseAtIndex(originalIndex) {
   if (!confirm("Delete expense?")) return;
-  data[activePerson].splice(i,1);
+  data[activePerson].splice(originalIndex,1);
   save();
   updateAll();
 }
@@ -382,10 +448,7 @@ const chart = new Chart(document.getElementById("billChart"), {
   },
   options: {
     indexAxis: "y",
-    responsive: true,
-    plugins: {
-      legend: { display: false }
-    },
+    plugins: { legend: { display: false } },
     scales: {
       x: { ticks: { color: "#f5f5f7" }, grid: { color: "#2a2a31" } },
       y: { ticks: { color: "#f5f5f7" }, grid: { display: false } }
@@ -408,12 +471,13 @@ function exportJSON() {
 
 function updateAll() {
   renderMonths();
-  applyRecurring();
+  applyRecurring(); // Ensure recurring expenses are applied *after* data migration and before totals are calculated
   updateChart();
   updateBalance();
   renderExpenses();
 }
 
+// Initial update call
 updateAll();
 </script>
 </body>
