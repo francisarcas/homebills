@@ -42,12 +42,12 @@ body {
 }
 
 h1 {
-  text-align: center; /* Corrected typo */
+  text-align: center;
   margin-bottom: 6px;
 }
 
 .balance {
-  text-align: center; /* Corrected typo */
+  text-align: center;
   color: var(--muted);
   margin-bottom: 16px;
 }
@@ -73,7 +73,7 @@ canvas {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  justify-content: center; /* Corrected typo */
+  justify-content: center;
 }
 
 .month-tab {
@@ -164,10 +164,11 @@ button:active {
 /* PROFILES */
 .profiles {
   display: flex;
-  justify-content: center; /* Corrected typo */
-  align-items: center;     /* Corrected typo */
+  justify-content: center;
+  align-items: center;
   gap: 24px;
-  margin-top: 12px;
+  margin-top: 12px; /* Kept existing margin-top for spacing from balance */
+  margin-bottom: 16px; /* Added margin-bottom for spacing before the next card */
 }
 
 .profile {
@@ -183,7 +184,7 @@ button:active {
 }
 
 /* EXPORT/IMPORT BUTTONS */
-.export { /* Renamed class for clarity, though `export` was already fine */
+.export {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -196,7 +197,6 @@ button:active {
   justify-content: center; /* This will center the icon and text horizontally */
   gap: 8px; /* Gap between icon and text */
 }
-
 </style>
 </head>
 
@@ -205,6 +205,13 @@ button:active {
 
 <h1>Home Bills</h1>
 <div class="balance" id="balanceText"></div>
+
+<!-- MOVED PROFILES DIV HERE -->
+<div class="profiles">
+  <img src="assets/person001.png" id="francisBtn" class="profile active" onclick="selectPerson('francis')">
+  <img src="assets/person002.png" id="fionaBtn" class="profile" onclick="selectPerson('fiona')">
+</div>
+<!-- END MOVED PROFILES DIV -->
 
 <div class="card">
   <div class="chart-wrapper">
@@ -242,10 +249,6 @@ button:active {
   </button>
 </div>
 
-<div class="profiles">
-  <img src="assets/person001.png" id="francisBtn" class="profile active" onclick="selectPerson('francis')">
-  <img src="assets/person002.png" id="fionaBtn" class="profile" onclick="selectPerson('fiona')">
-</div>
 
 </div>
 
