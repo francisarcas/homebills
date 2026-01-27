@@ -1,246 +1,420 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Home Bill Tracker</title>
+<meta charset="UTF-8">
+<title>Home Bill Tracker</title>
 
-  <!-- Mobile optimisation -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <style>
-    * {
-      box-sizing: border-box;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
+<style>
+:root {
+  --bg: #0e0e11;
+  --card: #1b1b20;
+  --text: #f5f5f7;
+  --muted: #9a9aa0;
+  --accent1: #0a84ff;
+  --accent2: #ff375f;
+  --danger: #ff453a;
+  --radius: 18px;
+}
 
-    body {
-      margin: 0;
-      padding: 16px;
-      background: #f5f5f7;
-      color: #111;
-    }
+* {
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
 
-    h1 {
-      text-align: centre;
-      font-size: 1.4rem;
-      margin-bottom: 8px;
-    }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  padding: 20px;
+}
 
-    .balance {
-      text-align: centre;
-      font-weight: 600;
-      margin-bottom: 16px;
-    }
+.container {
+  max-width: 900px;
+  margin: auto;
+}
 
-    .card {
-      background: white;
-      border-radius: 16px;
-      padding: 16px;
-      margin-bottom: 16px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    }
+h1 {
+  text-align: centre;
+  margin-bottom: 6px;
+}
 
-    canvas {
-      max-width: 100%;
-    }
+.balance {
+  text-align: centre;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
 
-    .profiles {
-      display: flex;
-      justify-content: centre;
-      gap: 24px;
-      margin-top: 12px;
-    }
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
 
-    .profile {
-      border-radius: 50%;
-      width: 64px;
-      height: 64px;
-      object-fit: cover;
-      border: 3px solid transparent;
-      cursor: pointer;
-    }
+.chart-wrapper {
+  max-width: 600px;
+  margin: auto;
+}
 
-    .profile.active {
-      border-color: #007aff;
-    }
+canvas {
+  max-height: 180px;
+}
 
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
+.month-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  justify-content: centre;
+}
 
-    input, button {
-      padding: 12px;
-      font-size: 1rem;
-      border-radius: 12px;
-      border: 1px solid #ddd;
-    }
+.month-tab {
+  padding: 8px 14px;
+  border-radius: 14px;
+  background: #2a2a31;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
 
-    button {
-      background: #007aff;
-      color: white;
-      border: none;
-      font-weight: 600;
-      cursor: pointer;
-    }
+.month-tab.active {
+  background: var(--accent1);
+}
 
-    button:active {
-      opacity: 0.85;
-    }
+.form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: 8px;
+}
 
-    .expenses {
-      margin-top: 12px;
-    }
+input, select {
+  background: #2a2a31;
+  border: none;
+  border-radius: 14px;
+  padding: 12px;
+  color: var(--text);
+}
 
-    .expense {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.9rem;
-      padding: 6px 0;
-      border-bottom: 1px solid #eee;
-    }
-  </style>
+button {
+  border: none;
+  border-radius: 14px;
+  padding: 12px 18px;
+  background: var(--accent1);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:active {
+  opacity: 0.85;
+}
+
+.expense {
+  display: flex;
+  justify-content: space-between;
+  align-items: centre;
+  padding: 10px 0;
+  border-bottom: 1px solid #2a2a31;
+}
+
+.expense small {
+  color: var(--muted);
+}
+
+.expense-left {
+  display: flex;
+  align-items: centre;
+  gap: 8px;
+}
+
+.logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.action {
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.action.delete {
+  color: var(--danger);
+}
+
+.profiles {
+  display: flex;
+  justify-content: centre;
+  gap: 24px;
+  margin-top: 8px;
+}
+
+.profile {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+}
+
+.profile.active {
+  border-color: var(--accent1);
+}
+
+.export {
+  display: flex;
+  justify-content: centre;
+}
+</style>
 </head>
+
 <body>
+<div class="container">
 
-  <h1>Home Bills</h1>
-  <div class="balance" id="balanceText"></div>
+<h1>Home Bills</h1>
+<div class="balance" id="balanceText"></div>
 
-  <div class="card">
-    <canvas id="chart"></canvas>
+<div class="card">
+  <div class="chart-wrapper">
+    <canvas id="billChart"></canvas>
   </div>
+</div>
 
-  <div class="card">
-    <div class="form-group">
-      <input type="number" id="amount" placeholder="Amount (£)" step="0.01">
-      <input type="text" id="note" placeholder="What was it for?">
-      <button onclick="addExpense()">Add expense</button>
-    </div>
+<div class="card">
+  <div class="month-tabs" id="monthTabs"></div>
+</div>
+
+<div class="card">
+  <div class="form">
+    <input id="amountInput" type="number" step="0.01" placeholder="£ amount">
+    <input id="noteInput" type="text" placeholder="Description or brand">
+    <select id="recurringInput">
+      <option value="no">One-off</option>
+      <option value="yes">Recurring</option>
+    </select>
+    <button onclick="addExpense()">Add</button>
   </div>
+</div>
 
-  <div class="card">
-    <strong id="expenseTitle"></strong>
-    <div class="expenses" id="expenseList"></div>
-  </div>
+<div class="card">
+  <strong id="expenseTitle"></strong>
+  <div id="expenseList"></div>
+</div>
 
-  <div class="profiles">
-    <img src="assets/person001.png" id="francisBtn" class="profile active" onclick="selectPerson('francis')">
-    <img src="assets/person002.png" id="fionaBtn" class="profile" onclick="selectPerson('fiona')">
-  </div>
+<div class="card export">
+  <button onclick="exportJSON()">Export JSON</button>
+</div>
 
-  <script>
-    let activePerson = "francis";
+<div class="profiles">
+  <img src="assets/person001.png" id="francisBtn" class="profile active" onclick="selectPerson('francis')">
+  <img src="assets/person002.png" id="fionaBtn" class="profile" onclick="selectPerson('fiona')">
+</div>
 
-    const defaultData = {
-      francis: [],
-      fiona: []
-    };
+</div>
 
-    const data = JSON.parse(localStorage.getItem("billTrackerData")) || defaultData;
+<script>
+const BRAND_DOMAINS = {
+  hyperoptic: "hyperoptic.com",
+  hsbc: "hsbc.co.uk",
+  barclays: "barclays.co.uk",
+  lloyds: "lloydsbank.com",
+  monzo: "monzo.com",
+  santander: "santander.co.uk",
+  lidl: "lidl.co.uk",
+  sainsbury: "sainsburys.co.uk",
+  tesco: "tesco.com"
+};
 
-    function saveData() {
-      localStorage.setItem("billTrackerData", JSON.stringify(data));
-    }
+let activePerson = "francis";
+let activeMonth = new Date().toISOString().slice(0,7);
 
-    function total(person) {
-      return data[person].reduce((sum, e) => sum + e.amount, 0);
-    }
+const data = JSON.parse(localStorage.getItem("billData")) || {
+  francis: [],
+  fiona: []
+};
 
-    function updateBalance() {
-      const fTotal = total("francis");
-      const fiTotal = total("fiona");
-      const diff = Math.abs(fTotal - fiTotal) / 2;
+function save() {
+  localStorage.setItem("billData", JSON.stringify(data));
+}
 
-      if (fTotal > fiTotal) {
-        balanceText.textContent = `Fiona owes Francis £${diff.toFixed(2)}`;
-      } else if (fiTotal > fTotal) {
-        balanceText.textContent = `Francis owes Fiona £${diff.toFixed(2)}`;
-      } else {
-        balanceText.textContent = "All settled up 🎉";
-      }
-    }
+function capitalise(name) {
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
 
-    function renderExpenses() {
-      expenseTitle.textContent = `${activePerson.charAt(0).toUpperCase() + activePerson.slice(1)}'s expenses`;
-      expenseList.innerHTML = "";
+function detectLogo(note) {
+  const key = Object.keys(BRAND_DOMAINS)
+    .find(k => note.toLowerCase().includes(k));
+  return key ? `https://logo.clearbit.com/${BRAND_DOMAINS[key]}` : null;
+}
 
-      data[activePerson].forEach(e => {
-        const div = document.createElement("div");
-        div.className = "expense";
-        div.innerHTML = `<span>${e.note}</span><span>£${e.amount.toFixed(2)}</span>`;
-        expenseList.appendChild(div);
-      });
-    }
+function getMonths() {
+  const set = new Set([activeMonth]);
+  ["francis","fiona"].forEach(p =>
+    data[p].forEach(e => set.add(e.month))
+  );
+  return [...set].sort().reverse();
+}
 
-    function addExpense() {
-      const amount = parseFloat(document.getElementById("amount").value);
-      const note = document.getElementById("note").value;
+function renderMonths() {
+  monthTabs.innerHTML = "";
+  getMonths().forEach(m => {
+    const tab = document.createElement("div");
+    tab.className = "month-tab" + (m === activeMonth ? " active" : "");
+    tab.textContent = m;
+    tab.onclick = () => { activeMonth = m; applyRecurring(); updateAll(); };
+    monthTabs.appendChild(tab);
+  });
+}
 
-      if (!amount || !note) return;
-
-      data[activePerson].push({
-        amount,
-        note,
-        date: new Date().toISOString()
-      });
-
-      document.getElementById("amount").value = "";
-      document.getElementById("note").value = "";
-
-      saveData();
-      updateAll();
-    }
-
-    function selectPerson(person) {
-      activePerson = person;
-      francisBtn.classList.toggle("active", person === "francis");
-      fionaBtn.classList.toggle("active", person === "fiona");
-      renderExpenses();
-    }
-
-    const ctx = document.getElementById("chart");
-
-    const chart = new Chart(ctx, {
-      type: "doughnut",
-      data: {
-        labels: ["Francis", "Fiona"],
-        datasets: [{
-          data: [0, 0],
-          backgroundColor: ["#007aff", "#ff2d55"]
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: {
-            position: "bottom"
-          }
-        }
+function applyRecurring() {
+  ["francis","fiona"].forEach(p => {
+    data[p].filter(e => e.recurring).forEach(e => {
+      if (!data[p].some(x => x.baseId === e.baseId && x.month === activeMonth)) {
+        data[p].push({ ...e, month: activeMonth });
       }
     });
+  });
+}
 
-    function updateChart() {
-      chart.data.datasets[0].data = [
-        total("francis"),
-        total("fiona")
-      ];
-      chart.update();
+function total(person) {
+  return data[person]
+    .filter(e => e.month === activeMonth)
+    .reduce((s,e) => s + e.amount, 0);
+}
+
+function updateBalance() {
+  const a = total("francis");
+  const b = total("fiona");
+  const diff = Math.abs(a - b) / 2;
+  balanceText.textContent =
+    a === b ? "All settled" :
+    a > b ? `Fiona owes Francis £${diff.toFixed(2)}` :
+            `Francis owes Fiona £${diff.toFixed(2)}`;
+}
+
+function renderExpenses() {
+  expenseTitle.textContent = `${capitalise(activePerson)} – ${activeMonth}`;
+  expenseList.innerHTML = "";
+
+  data[activePerson]
+    .filter(e => e.month === activeMonth)
+    .forEach((e,i) => {
+      const row = document.createElement("div");
+      row.className = "expense";
+      const logo = e.logo ? `<img class="logo" src="${e.logo}" onerror="this.remove()">` : "";
+      row.innerHTML = `
+        <div class="expense-left">
+          ${logo}
+          <div>${e.note}<br><small>£${e.amount.toFixed(2)}</small></div>
+        </div>
+        <div class="actions">
+          <span class="action" onclick="editExpense(${i})">Edit</span>
+          <span class="action delete" onclick="deleteExpense(${i})">Delete</span>
+        </div>
+      `;
+      expenseList.appendChild(row);
+    });
+}
+
+function addExpense() {
+  const amount = parseFloat(amountInput.value);
+  const note = noteInput.value.trim();
+  if (!amount || !note) return;
+
+  data[activePerson].push({
+    baseId: crypto.randomUUID(),
+    month: activeMonth,
+    amount,
+    note,
+    logo: detectLogo(note),
+    recurring: recurringInput.value === "yes"
+  });
+
+  amountInput.value = "";
+  noteInput.value = "";
+  save();
+  updateAll();
+}
+
+function editExpense(i) {
+  const e = data[activePerson][i];
+  const n = prompt("Description", e.note);
+  const a = prompt("Amount", e.amount);
+  if (!n || !a) return;
+  e.note = n;
+  e.amount = parseFloat(a);
+  e.logo = detectLogo(n);
+  save();
+  updateAll();
+}
+
+function deleteExpense(i) {
+  if (!confirm("Delete expense?")) return;
+  data[activePerson].splice(i,1);
+  save();
+  updateAll();
+}
+
+function selectPerson(p) {
+  activePerson = p;
+  francisBtn.classList.toggle("active", p === "francis");
+  fionaBtn.classList.toggle("active", p === "fiona");
+  renderExpenses();
+}
+
+const chart = new Chart(document.getElementById("billChart"), {
+  type: "bar",
+  data: {
+    labels: ["Francis", "Fiona"],
+    datasets: [{
+      data: [0,0],
+      backgroundColor: ["#0a84ff","#ff375f"]
+    }]
+  },
+  options: {
+    indexAxis: "y",
+    responsive: true,
+    plugins: {
+      legend: { display: false }
+    },
+    scales: {
+      x: { ticks: { color: "#f5f5f7" }, grid: { color: "#2a2a31" } },
+      y: { ticks: { color: "#f5f5f7" }, grid: { display: false } }
     }
+  }
+});
 
-    function updateAll() {
-      updateChart();
-      updateBalance();
-      renderExpenses();
-    }
+function updateChart() {
+  chart.data.datasets[0].data = [total("francis"), total("fiona")];
+  chart.update();
+}
 
-    updateAll();
-  </script>
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(data,null,2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "home-bills.json";
+  a.click();
+}
 
+function updateAll() {
+  renderMonths();
+  applyRecurring();
+  updateChart();
+  updateBalance();
+  renderExpenses();
+}
+
+updateAll();
+</script>
 </body>
 </html>
