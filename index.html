@@ -167,8 +167,8 @@ button:active {
   justify-content: center;
   align-items: center;
   gap: 24px;
-  margin-top: 12px; /* Kept existing margin-top for spacing from balance */
-  margin-bottom: 16px; /* Added margin-bottom for spacing before the next card */
+  margin-top: 12px;
+  margin-bottom: 16px;
 }
 
 .profile {
@@ -197,6 +197,35 @@ button:active {
   justify-content: center; /* This will center the icon and text horizontally */
   gap: 8px; /* Gap between icon and text */
 }
+
+/* Auto-suggestion Styles */
+.note-input-wrapper {
+  position: relative; /* Crucial for positioning the dropdown */
+}
+
+.suggestions-dropdown {
+  position: absolute;
+  top: calc(100% + 5px); /* Position below the input + a small gap */
+  left: 0;
+  right: 0;
+  background: var(--card);
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  max-height: 120px;
+  overflow-y: auto;
+  z-index: 100; /* Ensure it's above other elements */
+  display: none; /* Hidden by default */
+  width: 100%; /* Ensure it spans the width of the input */
+}
+
+.suggestions-dropdown div {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.suggestions-dropdown div:hover {
+  background: #2a2a31;
+}
 </style>
 </head>
 
@@ -206,12 +235,10 @@ button:active {
 <h1>Home Bills</h1>
 <div class="balance" id="balanceText"></div>
 
-<!-- MOVED PROFILES DIV HERE -->
 <div class="profiles">
   <img src="assets/person001.png" id="francisBtn" class="profile active" onclick="selectPerson('francis')">
   <img src="assets/person002.png" id="fionaBtn" class="profile" onclick="selectPerson('fiona')">
 </div>
-<!-- END MOVED PROFILES DIV -->
 
 <div class="card">
   <div class="chart-wrapper">
@@ -226,7 +253,10 @@ button:active {
 <div class="card">
   <div class="form">
     <input id="amountInput" type="number" step="0.01" placeholder="£ amount">
-    <input id="noteInput" type="text" placeholder="Description or brand">
+    <div class="note-input-wrapper">
+      <input id="noteInput" type="text" placeholder="Description or brand">
+      <div id="suggestions" class="suggestions-dropdown"></div>
+    </div>
     <select id="recurringInput">
       <option value="no">One-off</option>
       <option value="yes">Recurring</option>
@@ -249,25 +279,81 @@ button:active {
   </button>
 </div>
 
-
 </div>
 
 <script>
 const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 
-const BRAND_DOMAINS = {
-  hyperoptic: "hyperoptic.com",
-  hsbc: "hsbc.co.uk",
-  barclays: "barclays.co.uk",
-  lloyds: "lloydsbank.com",
-  monzo: "monzo.com",
-  santander: "santander.co.uk",
-  lidl: "lidl.co.uk",
-  sainsbury: "sainsburys.co.uk",
-  tesco: "tesco.com"
+// Updated BRAND_LOGOS mapping to local image paths
+const BRAND_LOGOS = {
+  "affinity water": "assets/logos/affinitywater.png",
+  "amazon": "assets/logos/amazon.png",
+  "costco": "assets/logos/costco.png",
+  "hyperoptic": "assets/logos/hyperoptic.png",
+  "insite energy": "assets/logos/insiteenergy.png",
+  "lidl": "assets/logos/lidl.png",
+  "lner": "assets/logos/lner.png",
+  "octopus energy": "assets/logos/octopusenergy.png",
+  "sainsbury's": "assets/logos/sainsburys.png",
+  "sainsburys": "assets/logos/sainsburys.png", // Also include without apostrophe for easier matching
+  "m&s": "assets/logos/mands.png",
+  "b&q": "assets/logos/bandq.png"
 };
 
-// Function to normalize month keys from YYYY-MM to YYYY-MMM
+// DOM elements for suggestions
+const noteInput = document.getElementById('noteInput');
+const suggestionsDiv = document.getElementById('suggestions');
+
+// Auto-suggestion functions
+function showSuggestions() {
+  const inputValue = noteInput.value.toLowerCase();
+  suggestionsDiv.innerHTML = ''; // Clear previous suggestions
+
+  if (inputValue.length === 0) {
+    suggestionsDiv.style.display = 'none';
+    return;
+  }
+
+  const matchingBrands = Object.keys(BRAND_LOGOS).filter(brand =>
+    brand.includes(inputValue)
+  ).sort(); // Sort alphabetically
+
+  if (matchingBrands.length > 0) {
+    matchingBrands.forEach(brand => {
+      const suggestionItem = document.createElement('div');
+      suggestionItem.textContent = brand.charAt(0).toUpperCase() + brand.slice(1); // Capitalize for display
+      suggestionItem.onclick = (event) => {
+        event.stopPropagation(); // Prevent blur from hiding immediately
+        selectSuggestion(brand);
+      };
+      suggestionsDiv.appendChild(suggestionItem);
+    });
+    suggestionsDiv.style.display = 'block';
+  } else {
+    suggestionsDiv.style.display = 'none';
+  }
+}
+
+function selectSuggestion(brandName) {
+  noteInput.value = brandName.charAt(0).toUpperCase() + brandName.slice(1); // Set input to selected capitalized brand
+  suggestionsDiv.style.display = 'none';
+}
+
+function hideSuggestions() {
+  // Delay hiding to allow click events on suggestions to register
+  setTimeout(() => {
+    if (document.activeElement !== noteInput && !suggestionsDiv.contains(document.activeElement)) {
+      suggestionsDiv.style.display = 'none';
+    }
+  }, 100);
+}
+
+// Attach event listeners
+noteInput.addEventListener('input', showSuggestions);
+noteInput.addEventListener('focus', showSuggestions); // Show suggestions if input is focused and has text
+noteInput.addEventListener('blur', hideSuggestions);
+
+
 function normalizeMonthKey(monthKey) {
   if (monthKey && monthKey.match(/^\d{4}-\d{2}$/)) { // e.g., "2026-01"
     const [year, monthNum] = monthKey.split('-');
@@ -319,10 +405,15 @@ function capitalise(name) {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
+// Updated detectLogo to use BRAND_LOGOS for local paths
 function detectLogo(note) {
-  const key = Object.keys(BRAND_DOMAINS)
-    .find(k => note.toLowerCase().includes(k));
-  return key ? `https://logo.clearbit.com/${BRAND_DOMAINS[key]}` : null;
+  const lowerCaseNote = note.toLowerCase();
+  for (const brand in BRAND_LOGOS) {
+    if (lowerCaseNote.includes(brand)) {
+      return BRAND_LOGOS[brand];
+    }
+  }
+  return null;
 }
 
 function getMonths() {
@@ -389,6 +480,7 @@ function renderExpenses() {
     .forEach((e,i) => {
       const row = document.createElement("div");
       row.className = "expense";
+      // The logo is displayed if e.logo exists
       const logo = e.logo ? `<img class="logo" src="${e.logo}" onerror="this.remove()">` : "";
       row.innerHTML = `
         <div class="expense-left">
@@ -414,12 +506,13 @@ function addExpense() {
     month: activeMonth, // activeMonth is already in YYYY-MMM format
     amount,
     note,
-    logo: detectLogo(note),
+    logo: detectLogo(note), // detect logo based on the note
     recurring: recurringInput.value === "yes"
   });
 
   amountInput.value = "";
-    noteInput.value = "";
+  noteInput.value = "";
+  suggestionsDiv.style.display = 'none'; // Hide suggestions after adding expense
   save();
   updateAll();
 }
@@ -432,7 +525,7 @@ function editExpenseAtIndex(originalIndex) {
   if (!n || !a) return;
   e.note = n;
   e.amount = parseFloat(a);
-  e.logo = detectLogo(n);
+  e.logo = detectLogo(n); // Re-detect logo in case description changed
   save();
   updateAll();
 }
