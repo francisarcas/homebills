@@ -346,6 +346,38 @@ button:active {
   border-bottom: 1px solid #2a2a31;
   margin-bottom: 10px; /* Space between separator and first expense item */
 }
+
+/* Footer Styling */
+.footer {
+  margin-top: 40px;
+  padding-bottom: 20px;
+  text-align: center;
+  font-size: 0.9em;
+  color: var(--muted);
+  line-height: 1; /* Ensure minimal line height for proper vertical alignment */
+}
+
+.footer-link {
+  color: var(--muted); /* Keep links consistent with muted text */
+  text-decoration: none; /* Remove underline */
+  display: inline-block; /* Make it inline-block for predictable layout */
+  vertical-align: middle; /* Align icons vertically */
+}
+
+.footer-link:hover {
+  color: var(--text); /* Lighter on hover */
+}
+
+.footer-link .footer-icon {
+  font-size: 1.5em; /* Slightly larger icon for better visibility without text */
+  padding: 0 5px; /* Add some padding around the icons */
+  color: inherit; /* Explicitly inherit color from parent link */
+}
+
+.footer span { /* Style for the separator span */
+  vertical-align: middle; /* Align separator with icons */
+}
+
 </style>
 </head>
 
@@ -408,6 +440,16 @@ button:active {
   </button>
 </div>
 
+</div>
+
+<div class="footer">
+  <a href="https://www.linkedin.com/in/francisarcas/" target="_blank" class="footer-link" title="Francis Arcas LinkedIn">
+    <i class="fa-brands fa-linkedin footer-icon"></i>
+  </a>
+  <span style="margin: 0 10px;">|</span>
+  <a href="https://github.com/francisarcas/homebills" target="_blank" class="footer-link" title="Home Bills GitHub Repository">
+    <i class="fa-brands fa-github footer-icon"></i>
+  </a>
 </div>
 
 <script>
