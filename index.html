@@ -50,28 +50,28 @@ h1 {
   text-align: center;
   color: var(--muted);
   margin-bottom: 16px;
-  display: flex; /* Make it a flex container */
-  flex-direction: column; /* Stack items vertically */
-  align-items: center; /* Center horizontally */
-  gap: 8px; /* Space between text and button */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Style for the new settlement action button */
 .balance .action-button {
-  background: #2a2a31; /* Slightly darker than card for contrast, or similar to month tabs */
+  background: #2a2a31;
   color: var(--accent1);
-  padding: 6px 16px; /* A little more horizontal padding for better look, but still compact */
+  padding: 6px 16px;
   border-radius: 10px;
-  font-weight: 500; /* Slightly less bold than main buttons */
+  font-weight: 500;
   font-size: 0.85rem;
   cursor: pointer;
-  border: none; /* Remove border */
+  border: none;
   display: inline-flex;
   align-items: center;
-  justify-content: center; /* Center icon and text within the button */
+  justify-content: center;
   gap: 6px;
-  width: auto; /* Explicitly ensure it's not 100% width */
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2); /* Subtle shadow for depth */
+  width: auto;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
 .balance .action-button:hover {
@@ -101,7 +101,16 @@ canvas {
   gap: 8px;
   overflow-x: auto;
   justify-content: center;
-  margin-bottom: 8px; /* Space between year and month tabs */
+  margin-bottom: 8px;
+}
+
+.year-tabs {
+    margin-bottom: 0; /* Remove default margin to control with separator */
+}
+
+.year-month-separator {
+    border-bottom: 1px solid #2a2a31;
+    margin: 8px 0 16px 0; /* Add margin below separator */
 }
 
 .month-tab, .year-tab {
@@ -122,9 +131,9 @@ canvas {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 15px; /* Space between buttons and text */
-  margin-top: 10px; /* Space from profiles */
-  margin-bottom: 10px; /* Space to chart card */
+  gap: 15px;
+  margin-top: 10px;
+  margin-bottom: 10px;
   color: var(--muted);
   font-size: 0.9rem;
 }
@@ -136,7 +145,7 @@ canvas {
   padding: 5px;
   cursor: pointer;
   font-size: 1.2rem;
-  width: auto; /* Override general button width */
+  width: auto;
 }
 
 .view-switcher button:hover {
@@ -147,7 +156,7 @@ canvas {
 /* FORM */
 .form {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr auto;
+  grid-template-columns: 0.6fr 1.5fr 0.6fr 0.6fr auto; /* Adjusted for amount, note, recurring, shared, button */
   gap: 8px;
 }
 
@@ -184,7 +193,7 @@ button:active {
 /* EXPENSE LIST */
 .expense {
   display: flex;
-  flex-wrap: wrap; /* Allow items to wrap to the next line */
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   padding: 10px 0;
@@ -205,7 +214,7 @@ button:active {
 
 /* Generic receipt icon style when no specific logo */
 .expense-left .fa-receipt {
-  font-size: 20px; /* Match logo size */
+  font-size: 20px;
   width: 20px;
   text-align: center;
 }
@@ -214,13 +223,13 @@ button:active {
 .actions {
   display: flex;
   gap: 10px;
-  align-items: center; /* Align items vertically */
+  align-items: center;
 }
 
 .action {
-  font-size: 0.8rem; /* Keep a base size for icons */
+  font-size: 0.8rem;
   cursor: pointer;
-  display: flex; /* Make actions flex to center icon if needed */
+  display: flex;
   align-items: center;
   justify-content: center;
 }
@@ -240,25 +249,33 @@ button:active {
 
 /* New CSS for the individual expense chart container */
 .expense-chart-container {
-  width: 100%; /* Take full width of its parent (.expense) */
+  width: 100%;
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px dashed #2a2a31; /* Subtle separator */
-  max-width: 100%; /* Ensure it doesn't overflow */
+  border-top: 1px dashed #2a2a31;
+  max-width: 100%;
 }
 
 .expense-chart-container canvas {
-  max-height: 120px; /* Limit height of individual expense charts */
-  width: 100% !important; /* Override Chart.js default inline width */
-  height: auto !important; /* Override Chart.js default inline height */
+  max-height: 120px;
+  width: 100% !important;
+  height: auto !important;
 }
 
 /* Recurring icon specific styling */
 .recurring-indicator {
-    color: var(--accent1); /* Use accent color for visibility */
-    margin-left: 5px; /* Small space from the note text */
-    font-size: 0.75rem; /* Slightly smaller than note text */
+    color: var(--accent1);
+    margin-left: 5px;
+    font-size: 0.75rem;
 }
+
+/* Personal indicator specific styling */
+.personal-indicator {
+    color: var(--muted); /* Muted color for personal icon */
+    margin-left: 5px;
+    font-size: 0.85rem;
+}
+
 
 /* PROFILES */
 .profiles {
@@ -287,24 +304,24 @@ button:active {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 10px; /* Gap between buttons */
+  gap: 10px;
 }
 
 .export button {
-  display: flex; /* Allows icon and text to be on the same line and align */
+  display: flex;
   align-items: center;
-  justify-content: center; /* This will center the icon and text horizontally */
-  gap: 8px; /* Gap between icon and text */
+  justify-content: center;
+  gap: 8px;
 }
 
 /* Auto-suggestion Styles */
 .note-input-wrapper {
-  position: relative; /* Crucial for positioning the dropdown */
+  position: relative;
 }
 
 .suggestions-dropdown {
   position: absolute;
-  top: calc(100% + 5px); /* Position below the input + a small gap */
+  top: calc(100% + 5px);
   left: 0;
   right: 0;
   background: var(--card);
@@ -312,9 +329,9 @@ button:active {
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
   max-height: 120px;
   overflow-y: auto;
-  z-index: 100; /* Ensure it's above other elements */
-  display: none; /* Hidden by default */
-  width: 100%; /* Ensure it spans the width of the input */
+  z-index: 100;
+  display: none;
+  width: 100%;
 }
 
 .suggestions-dropdown div {
@@ -331,20 +348,20 @@ button:active {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px; /* Space between title and separator */
-  font-weight: 600; /* Make the title text bold like the original strong tag */
+  margin-bottom: 8px;
+  font-weight: 600;
 }
 
 .expense-header-avatar {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  object-fit: cover; /* Ensure image covers the area nicely */
+  object-fit: cover;
 }
 
 .expense-separator {
   border-bottom: 1px solid #2a2a31;
-  margin-bottom: 10px; /* Space between separator and first expense item */
+  margin-bottom: 10px;
 }
 
 /* Footer Styling */
@@ -354,28 +371,28 @@ button:active {
   text-align: center;
   font-size: 0.9em;
   color: var(--muted);
-  line-height: 1; /* Ensure minimal line height for proper vertical alignment */
+  line-height: 1;
 }
 
 .footer-link {
-  color: var(--muted); /* Keep links consistent with muted text */
-  text-decoration: none; /* Remove underline */
-  display: inline-block; /* Make it inline-block for predictable layout */
-  vertical-align: middle; /* Align icons vertically */
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .footer-link:hover {
-  color: var(--text); /* Lighter on hover */
+  color: var(--text);
 }
 
 .footer-link .footer-icon {
-  font-size: 1.5em; /* Slightly larger icon for better visibility without text */
-  padding: 0 5px; /* Add some padding around the icons */
-  color: inherit; /* Explicitly inherit color from parent link */
+  font-size: 1.5em;
+  padding: 0 5px;
+  color: inherit;
 }
 
-.footer span { /* Style for the separator span */
-  vertical-align: middle; /* Align separator with icons */
+.footer span {
+  vertical-align: middle;
 }
 
 </style>
@@ -407,6 +424,7 @@ button:active {
 
 <div class="card">
   <div class="year-tabs" id="yearTabs"></div>
+  <div class="year-month-separator"></div>
   <div class="month-tabs" id="monthTabs"></div>
 </div>
 
@@ -420,6 +438,10 @@ button:active {
     <select id="recurringInput">
       <option value="no">One-off</option>
       <option value="yes">Recurring</option>
+    </select>
+    <select id="sharedStatusInput">
+      <option value="shared">Shared</option>
+      <option value="personal">Personal</option>
     </select>
     <button onclick="addExpense()">Add</button>
   </div>
@@ -459,7 +481,7 @@ const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV
 const SUGGESTION_BRANDS = [
     "affinity water", "amazon", "b&q", "barclays", "british airways", "costco", "council tax", "eurostar",
     "hotel", "hsbc", "hyperoptic", "iberia", "insite energy", "john lewis", "lidl", "lner", "m&s",
-    "octopus energy", "renfe", "revolut", "ryanair", "sainsbury's", "tfl", "accommodation"
+    "octopus energy", "renfe", "revolut", "ryanair", "sainsbury's", "tfl", "accommodation", "third space"
 ].sort();
 
 // Rules for logo detection (more comprehensive, order might matter for precedence)
@@ -477,37 +499,51 @@ const BRAND_LOGO_RULES = [
   { keywords: ["john lewis"], logo: "assets/logos/johnlewis.png" },
   { keywords: ["lidl"], logo: "assets/logos/lidl.png" },
   { keywords: ["lner"], logo: "assets/logos/lner.png" },
-  { keywords: ["m&s"], logo: "assets/logos/mands.png" }, // Handles M&S
-  { keywords: ["octopus energy"], logo: "assets/logos/octopusenergy.png" }, // Handles Octopus Energy
+  { keywords: ["m&s"], logo: "assets/logos/mands.png" },
+  { keywords: ["octopus energy"], logo: "assets/logos/octopusenergy.png" },
   { keywords: ["renfe"], logo: "assets/logos/renfe.png" },
   { keywords: ["revolut"], logo: "assets/logos/revolut.png" },
   { keywords: ["ryanair"], logo: "assets/logos/ryanair.png" },
   { keywords: ["sainsbury's"], logo: "assets/logos/sainsburys.png" },
-  { keywords: ["tfl"], logo: "assets/logos/tfl.png" }, // Handles TFL
+  { keywords: ["tfl"], logo: "assets/logos/tfl.png" },
   { keywords: ["eurostar"], logo: "assets/logos/eurostar.png" },
-  // Specific aliases for Council Tax (prioritize more specific matches if possible)
   { keywords: ["council tax", "council-tax", "brent council", "brent"], logo: "assets/logos/brent.png" },
-  // Generic catch-all for hotels/accommodation (place after specific hotel brands if they were ever added)
-  { keywords: ["hotel", "accommodation", "booking.com"], logo: "assets/logos/booking.png" }
+  { keywords: ["hotel", "accommodation", "booking.com"], logo: "assets/logos/booking.png" },
+  { keywords: ["third space"], logo: "assets/logos/thirdspace.png" }
 ];
 
+// Helper function to generate UUID with fallback for older browsers
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers (especially Safari < 15.4)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 
 // DOM elements for suggestions
 const noteInput = document.getElementById('noteInput');
 const suggestionsDiv = document.getElementById('suggestions');
-const yearTabsDiv = document.getElementById('yearTabs'); // New DOM element for year tabs
-const expenseHeaderDiv = document.getElementById('expenseHeader'); // Get the new expense header div
-const balanceTextDiv = document.getElementById('balanceText'); // Get the balance text div for dynamic content
-const currentViewTextSpan = document.getElementById('currentViewText'); // Get the span for view mode text
+const yearTabsDiv = document.getElementById('yearTabs');
+const expenseHeaderDiv = document.getElementById('expenseHeader');
+const balanceTextDiv = document.getElementById('balanceText');
+const currentViewTextSpan = document.getElementById('currentViewText');
+const sharedStatusInput = document.getElementById('sharedStatusInput'); // New
+const amountInput = document.getElementById('amountInput'); // For width adjustment
+const recurringInput = document.getElementById('recurringInput'); // For width adjustment
 
-const expenseChartInstances = {}; // Stores Chart.js instances for individual expenses by originalIndex
+
+const expenseChartInstances = {};
 
 // Auto-suggestion functions
 function showSuggestions() {
   const inputValue = noteInput.value.toLowerCase();
-  suggestionsDiv.innerHTML = ''; // Clear previous suggestions
+  suggestionsDiv.innerHTML = '';
 
-  // Only show suggestions if there's input or if the input is focused and the dropdown is not explicitly hidden
   if (inputValue.length === 0 && document.activeElement !== noteInput) {
     suggestionsDiv.style.display = 'none';
     return;
@@ -520,18 +556,16 @@ function showSuggestions() {
   if (matchingBrands.length > 0) {
     matchingBrands.forEach(brand => {
       const suggestionItem = document.createElement('div');
-      // Capitalize for display, e.g., "affinity water" -> "Affinity Water"
-      // Special handling for M&S, B&Q, HSBC, LNER, and TFL
       let displayText = brand.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
       if (brand === "m&s") displayText = "M&S";
       if (brand === "b&q") displayText = "B&Q";
-      if (brand === "hsbc") displayText = "HSBC"; // Make HSBC uppercase
-      if (brand === "lner") displayText = "LNER"; // Make LNER uppercase
-      if (brand === "tfl") displayText = "TFL";   // Make TFL uppercase
+      if (brand === "hsbc") displayText = "HSBC";
+      if (brand === "lner") displayText = "LNER";
+      if (brand === "tfl") displayText = "TFL";
 
       suggestionItem.textContent = displayText;
-      suggestionItem.onmousedown = (event) => { // Use mousedown and preventDefault
-        event.preventDefault(); // Prevents the input from losing focus
+      suggestionItem.onmousedown = (event) => {
+        event.preventDefault();
         selectSuggestion(brand);
       };
       suggestionsDiv.appendChild(suggestionItem);
@@ -543,23 +577,19 @@ function showSuggestions() {
 }
 
 function selectSuggestion(brandName) {
-  // Set input to selected capitalized brand (more robust capitalization)
   let capitalizedBrand = brandName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   if (brandName === "m&s") capitalizedBrand = "M&S";
   if (brandName === "b&q") capitalizedBrand = "B&Q";
-  if (brandName === "hsbc") capitalizedBrand = "HSBC"; // Make HSBC uppercase
-  if (brandName === "lner") capitalizedBrand = "LNER"; // Make LNER uppercase
-  if (brandName === "tfl") capitalizedBrand = "TFL";   // Make TFL uppercase
+  if (brandName === "hsbc") capitalizedBrand = "HSBC";
+  if (brandName === "lner") capitalizedBrand = "LNER";
+  if (brandName === "tfl") capitalizedBrand = "TFL";
 
   noteInput.value = capitalizedBrand;
   suggestionsDiv.style.display = 'none';
-  // No need to call focus() here, as preventDefault on mousedown kept focus
 }
 
 function hideSuggestions() {
-  // Delay hiding to allow click events on suggestions to register
   setTimeout(() => {
-    // Only hide if the input does not have focus AND the dropdown itself is not focused
     if (document.activeElement !== noteInput && !suggestionsDiv.contains(document.activeElement)) {
       suggestionsDiv.style.display = 'none';
     }
@@ -568,19 +598,19 @@ function hideSuggestions() {
 
 // Attach event listeners
 noteInput.addEventListener('input', showSuggestions);
-noteInput.addEventListener('focus', showSuggestions); // Show suggestions if input is focused and has text
+noteInput.addEventListener('focus', showSuggestions);
 noteInput.addEventListener('blur', hideSuggestions);
 
 
 function normalizeMonthKey(monthKey) {
-  if (monthKey && monthKey.match(/^\d{4}-\d{2}$/)) { // e.g., "2026-01"
+  if (monthKey && monthKey.match(/^\d{4}-\d{2}$/)) {
     const [year, monthNum] = monthKey.split('-');
-    const monthIndex = parseInt(monthNum, 10) - 1; // 0-indexed month
+    const monthIndex = parseInt(monthNum, 10) - 1;
     if (monthIndex >= 0 && monthIndex < 12) {
       return `${year}-${MONTHS[monthIndex]}`;
     }
   }
-  return monthKey; // Return as is if already correct or unparseable
+  return monthKey;
 }
 
 function currentMonthKey() {
@@ -594,18 +624,19 @@ let activeYear = today.getFullYear();
 let activeMonth = `${activeYear}-${MONTHS[today.getMonth()]}`;
 
 let activePerson = "francis";
-let viewMode = 'monthly'; // 'monthly' or 'annual'
+let viewMode = 'monthly';
 
 
 const data = JSON.parse(localStorage.getItem("billData")) || {
   francis: [],
   fiona: [],
-  settlements: {} // Initialize settlements here
+  settlements: {}
 };
+
 // Ensure settlements object exists even if loaded from older data structure
 if (!data.settlements) {
     data.settlements = {};
-    save(); // Save the updated structure to localStorage
+    save();
 }
 
 
@@ -622,50 +653,57 @@ function migrateData() {
     });
   });
   if (changed) {
-    save(); // Save the migrated data back to localStorage
+    save();
     console.log("Migrated old month formats in localStorage.");
   }
 }
 
-// Function to ensure data integrity for baseId and recurring flags
+// Function to ensure data integrity for baseId, recurring, and isPersonal flags
 function normalizeExpenseData() {
     let changed = false;
     ["francis", "fiona"].forEach(p => {
-        // Map to store baseId for recurring expenses with the same note
         const recurringNoteToBaseIdMap = {};
 
         data[p].forEach(e => {
-            // Ensure `recurring` is a proper boolean
+            // Normalize recurring flag (from string to boolean if needed)
             const wasRecurringString = e.recurring === "yes";
             e.recurring = (e.recurring === true || wasRecurringString);
-            if (wasRecurringString) changed = true; // Mark as changed if we converted "yes"
+            if (wasRecurringString) changed = true;
 
+            // Normalize baseId for recurring expenses
             if (e.recurring) {
                 if (!e.baseId) {
-                    // If no baseId, check if we've seen this note as recurring before
-                    if (recurringNoteToBaseIdMap[e.note]) {
+                    // Check if a previous expense with the same note is recurring and has a baseId
+                    const existingRecurringSameNote = data[p].find(item => item.note === e.note && item.baseId);
+                    if (existingRecurringSameNote) {
+                        e.baseId = existingRecurringSameNote.baseId;
+                    } else if (recurringNoteToBaseIdMap[e.note]) { // Use map for this session
                         e.baseId = recurringNoteToBaseIdMap[e.note];
                     } else {
-                        e.baseId = crypto.randomUUID();
-                        recurringNoteToBaseIdMap[e.note] = e.baseId;
+                        e.baseId = generateUUID();
                     }
+                    recurringNoteToBaseIdMap[e.note] = e.baseId;
                     changed = true;
                 } else {
-                    // If it has a baseId, ensure it's also in the map for future matching
                     recurringNoteToBaseIdMap[e.note] = e.baseId;
                 }
             } else {
-                // Non-recurring expenses should not have a baseId for projection logic
                 if (e.baseId) {
-                    delete e.baseId;
+                    delete e.baseId; // Non-recurring should not have baseId
                     changed = true;
                 }
+            }
+
+            // New: Ensure isPersonal flag exists, default to false
+            if (e.isPersonal === undefined) {
+                e.isPersonal = false;
+                changed = true;
             }
         });
     });
     if (changed) {
         save();
-        console.log("Normalized expense data (baseId and recurring flags).");
+        console.log("Normalized expense data (baseId, recurring flags, and isPersonal).");
     }
 }
 
@@ -697,7 +735,7 @@ function updateLogosForAllExpenses() {
   ["francis", "fiona"].forEach(p => {
     data[p].forEach(e => {
       const newLogo = detectLogo(e.note);
-      if (e.logo !== newLogo) { // Only update if the logo has changed
+      if (e.logo !== newLogo) {
         e.logo = newLogo;
         changed = true;
       }
@@ -711,14 +749,12 @@ function updateLogosForAllExpenses() {
 
 function getYears() {
   const years = new Set();
-  // Add current year
   years.add(new Date().getFullYear().toString());
 
-  // Add years from existing data
   ["francis", "fiona"].forEach(p => {
     data[p].forEach(e => {
       if (e.month) {
-        years.add(e.month.substring(0, 4)); // Extract YYYY from YYYY-MMM
+        years.add(e.month.substring(0, 4));
       }
     });
   });
@@ -733,11 +769,10 @@ function renderYears() {
     tab.textContent = year;
     tab.onclick = () => {
       activeYear = parseInt(year);
-      // Try to keep the same month, but for the new year
-      const currentMonthAbbr = activeMonth.substring(5, 8); // e.g., "JAN" from "2026-JAN"
+      const currentMonthAbbr = activeMonth.substring(5, 8);
       activeMonth = `${activeYear}-${currentMonthAbbr}`;
-      applyRecurring(); // Re-apply recurring for the new year's current month
-      updateAll(); // Call updateAll to refresh all UI elements
+      applyRecurring();
+      updateAll();
     };
     yearTabsDiv.appendChild(tab);
   });
@@ -748,11 +783,11 @@ function renderMonths() {
   MONTHS.forEach(m => {
     const tab = document.createElement("div");
     tab.className = "month-tab" + ((`${activeYear}-${m}`) === activeMonth ? " active" : "");
-    tab.textContent = m; // Display only the month abbreviation
+    tab.textContent = m;
     tab.onclick = () => {
-      activeMonth = `${activeYear}-${m}`; // Set activeMonth with full YYYY-MMM
+      activeMonth = `${activeYear}-${m}`;
       applyRecurring();
-      updateAll(); // Call updateAll to refresh all UI elements
+      updateAll();
     };
     monthTabs.appendChild(tab);
   });
@@ -765,55 +800,78 @@ function markMonthAsSettled(status) {
   updateAll();
 }
 
-function total(person) {
-  return data[person]
-    .filter(e => normalizeMonthKey(e.month) === activeMonth) // Normalize month for filtering
-    .reduce((s,e) => s + e.amount, 0);
+// New function to get shared and personal expenses for a specific month
+function getMonthlyExpenses(personKey, monthKey) {
+    const expenses = data[personKey].filter(e => normalizeMonthKey(e.month) === monthKey);
+    const shared = expenses.filter(e => !e.isPersonal).reduce((sum, e) => sum + e.amount, 0);
+    const personal = expenses.filter(e => e.isPersonal).reduce((sum, e) => sum + e.amount, 0);
+    return { shared, personal };
 }
 
-// New function to calculate annual totals including projected recurring expenses
+// Updated calculateAnnualTotals to return shared/personal split
 function calculateAnnualTotals() {
-    const annualTotals = { francis: 0, fiona: 0 };
+    const annualTotals = {
+        francis: { shared: 0, personal: 0 },
+        fiona: { shared: 0, personal: 0 }
+    };
     const yearPrefix = activeYear.toString();
 
     ["francis", "fiona"].forEach(personKey => {
         const personExpenses = data[personKey];
-        // Use a structure to track the latest amount for each recurring baseId *across all months*
-        const latestRecurringAmounts = {}; // { baseId: amount }
+        const latestRecurringSharedAmounts = {};
+        const latestRecurringPersonalAmounts = {};
 
-        // First pass: Find the latest amount for each unique recurring baseId
+        // Track latest recurring amounts for both shared and personal, by their baseId
         personExpenses.forEach(e => {
             if (e.recurring && e.baseId) {
-                latestRecurringAmounts[e.baseId] = e.amount;
+                if (e.isPersonal) {
+                    latestRecurringPersonalAmounts[e.baseId] = e.amount;
+                } else {
+                    latestRecurringSharedAmounts[e.baseId] = e.amount;
+                }
             }
         });
 
-        // Loop through each month (JAN-DEC) of the active year
         for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
             const monthOfYear = MONTHS[monthIndex];
             const currentYearMonthKey = `${yearPrefix}-${monthOfYear}`;
-            let monthlyProjectedTotal = 0;
+
+            let monthlySharedTotal = 0;
+            let monthlyPersonalTotal = 0;
 
             const existingExpensesForThisMonth = personExpenses.filter(e => e.month === currentYearMonthKey);
-            const recurringBaseIdsExplicitlyIncludedThisMonth = new Set();
+            const recurringSharedBaseIdsExplicitlyIncludedThisMonth = new Set();
+            const recurringPersonalBaseIdsExplicitlyIncludedThisMonth = new Set();
 
-            // Add all expenses explicitly recorded for this specific month
             existingExpensesForThisMonth.forEach(e => {
-                monthlyProjectedTotal += e.amount;
-                if (e.recurring && e.baseId) {
-                    recurringBaseIdsExplicitlyIncludedThisMonth.add(e.baseId);
+                if (e.isPersonal) {
+                    monthlyPersonalTotal += e.amount;
+                    if (e.recurring && e.baseId) {
+                        recurringPersonalBaseIdsExplicitlyIncludedThisMonth.add(e.baseId);
+                    }
+                } else {
+                    monthlySharedTotal += e.amount;
+                    if (e.recurring && e.baseId) {
+                        recurringSharedBaseIdsExplicitlyIncludedThisMonth.add(e.baseId);
+                    }
                 }
             });
 
-            // For any unique recurring expenses that *have not been explicitly recorded* for this specific month,
-            // add their latest known amount to the monthly projected total.
-            // This ensures full annual projection even for unvisited months.
-            Object.keys(latestRecurringAmounts).forEach(baseId => {
-                if (!recurringBaseIdsExplicitlyIncludedThisMonth.has(baseId)) {
-                    monthlyProjectedTotal += latestRecurringAmounts[baseId];
+            // Add projected recurring shared expenses not explicitly in this month
+            Object.keys(latestRecurringSharedAmounts).forEach(baseId => {
+                if (!recurringSharedBaseIdsExplicitlyIncludedThisMonth.has(baseId)) {
+                    monthlySharedTotal += latestRecurringSharedAmounts[baseId];
                 }
             });
-            annualTotals[personKey] += monthlyProjectedTotal;
+            // Add projected recurring personal expenses not explicitly in this month
+            Object.keys(latestRecurringPersonalAmounts).forEach(baseId => {
+                if (!recurringPersonalBaseIdsExplicitlyIncludedThisMonth.has(baseId)) {
+                    monthlyPersonalTotal += latestRecurringPersonalAmounts[baseId];
+                }
+            });
+
+            annualTotals[personKey].shared += monthlySharedTotal;
+            annualTotals[personKey].personal += monthlyPersonalTotal;
         }
     });
 
@@ -822,8 +880,12 @@ function calculateAnnualTotals() {
 
 
 function updateBalance() {
-  const a = total("francis");
-  const b = total("fiona");
+  // Balance calculation only considers SHARED expenses
+  const francisMonthly = getMonthlyExpenses("francis", activeMonth);
+  const fionaMonthly = getMonthlyExpenses("fiona", activeMonth);
+
+  const a = francisMonthly.shared;
+  const b = fionaMonthly.shared;
   const diff = Math.abs(a - b) / 2;
 
   let balanceMessage = "";
@@ -837,7 +899,6 @@ function updateBalance() {
   } else {
     if (a === b) {
       balanceMessage = "All settled";
-      // No action button needed if already balanced
     } else if (a > b) {
       balanceMessage = `Fiona owes Francis £${diff.toFixed(2)}`;
       actionButton = `<button class="action-button" onclick="markMonthAsSettled(true)"><i class="fa-solid fa-check"></i> Mark as Settled</button>`;
@@ -854,10 +915,8 @@ function updateBalance() {
 }
 
 function renderExpenses() {
-  // Determine avatar src for the active person
   const avatarImgSrc = (activePerson === "francis") ? "assets/person001.png" : "assets/person002.png";
 
-  // Construct the header content including avatar, text, and separator
   expenseHeaderDiv.innerHTML = `
     <div class="expense-header-content">
       <img src="${avatarImgSrc}" class="expense-header-avatar">
@@ -866,19 +925,15 @@ function renderExpenses() {
     <div class="expense-separator"></div>
   `;
 
-  // Destroy all existing expense detail charts before clearing the list
   for (const index in expenseChartInstances) {
     if (expenseChartInstances.hasOwnProperty(index)) {
       expenseChartInstances[index].destroy();
     }
   }
-  // Clear the map after destroying instances
   Object.keys(expenseChartInstances).forEach(key => delete expenseChartInstances[key]);
 
+  expenseList.innerHTML = "";
 
-  expenseList.innerHTML = ""; // Clear existing expense items
-
-  // Filter to only expenses for the active month, but get their original index
   data[activePerson]
     .filter(e => normalizeMonthKey(e.month) === activeMonth)
     .forEach((e) => {
@@ -886,11 +941,10 @@ function renderExpenses() {
 
       const row = document.createElement("div");
       row.className = "expense";
-      // The logo or default receipt icon
       const iconContent = e.logo ? `<img class="logo" src="${e.logo}" onerror="this.remove()">` : `<i class="fa-solid fa-receipt"></i>`;
       
-      // Add recurring indicator if applicable
       const recurringIndicator = e.recurring ? `<i class="fa-solid fa-repeat recurring-indicator" title="Recurring expense"></i>` : '';
+      const personalIndicator = e.isPersonal ? `<i class="fa-solid fa-user personal-indicator" title="Personal expense (not shared)"></i>` : '';
 
       row.innerHTML = `
         <div class="expense-left">
@@ -898,11 +952,11 @@ function renderExpenses() {
           <div>${e.note} ${recurringIndicator}<br><small>£${e.amount.toFixed(2)}</small></div>
         </div>
         <div class="actions">
+          ${personalIndicator}
           <span class="action expand-chart-toggle" data-original-index="${originalIndex}" onclick="toggleExpenseChart(this, ${originalIndex})"><i class="fa-solid fa-chevron-down"></i></span>
           <span class="action" onclick="editExpenseAtIndex(${originalIndex})"><i class="fa-solid fa-pencil"></i></span>
           <span class="action delete" onclick="deleteExpenseAtIndex(${originalIndex})"><i class="fa-solid fa-trash"></i></span>
         </div>
-        <!-- Chart container, will take full width due to flex-wrap -->
         <div id="expenseChartWrapper_${originalIndex}" class="expense-chart-container" style="display:none;">
           <canvas id="expenseChartCanvas_${originalIndex}"></canvas>
         </div>
@@ -914,43 +968,80 @@ function renderExpenses() {
 function addExpense() {
   const amount = parseFloat(amountInput.value);
   const note = noteInput.value.trim();
-  if (!amount || !note) return;
+  const isRecurring = recurringInput.value === "yes";
+  const isPersonal = sharedStatusInput.value === "personal"; // New: Get personal status
+  
+  // Validation
+  if (!amount || !note) {
+    alert("Please enter both amount and description");
+    return;
+  }
+  
+  if (amount <= 0) {
+    alert("Amount must be greater than zero");
+    return;
+  }
+  
+  if (amount > 999999) {
+    alert("Amount seems too large. Please check.");
+    return;
+  }
 
-  data[activePerson].push({
-    baseId: crypto.randomUUID(), // New items always get a fresh baseId
-    month: activeMonth, // activeMonth is already in YYYY-MMM format
+  const newExpense = {
+    month: activeMonth,
     amount,
     note,
-    logo: detectLogo(note), // detect logo based on the note
-    recurring: recurringInput.value === "yes" ? true : false // Ensure boolean
-  });
+    logo: detectLogo(note),
+    recurring: isRecurring,
+    isPersonal: isPersonal // New: Add to expense object
+  };
+  
+  // Only add baseId if recurring
+  if (isRecurring) {
+    newExpense.baseId = generateUUID();
+  }
+
+  data[activePerson].push(newExpense);
 
   amountInput.value = "";
   noteInput.value = "";
-  suggestionsDiv.style.display = 'none'; // Hide suggestions after adding expense
+  recurringInput.value = "no";
+  sharedStatusInput.value = "shared"; // Reset to default
+  suggestionsDiv.style.display = 'none';
   save();
   updateAll();
 }
 
-// Renamed to avoid confusion, using original index for data manipulation
 function editExpenseAtIndex(originalIndex) {
   const e = data[activePerson][originalIndex];
   const n = prompt("Description", e.note);
   const a = prompt("Amount", e.amount);
-  if (n === null || a === null) return; // User cancelled prompt
-  if (!n || !a) return; // Empty values
+  // We don't allow changing recurring/personal status here easily, as it has broader implications
+  // For simplicity, these are set on creation.
+
+  if (n === null || a === null) return;
+  if (!n || !a) return;
+
+  const newAmount = parseFloat(a);
+  
+  // Validation
+  if (isNaN(newAmount) || newAmount <= 0) {
+    alert("Please enter a valid amount greater than zero");
+    return;
+  }
+  
+  if (newAmount > 999999) {
+    alert("Amount seems too large. Please check.");
+    return;
+  }
 
   e.note = n;
-  e.amount = parseFloat(a);
-  e.logo = detectLogo(n); // Re-detect logo in case description changed
-  // Note: changing description of a recurring item will effectively create a new "stream" if baseId relies on note
-  // For recurring, baseId should ideally remain fixed once set.
-  // The normalizeExpenseData function helps re-assign baseIds on load if they are missing or inconsistent.
+  e.amount = newAmount;
+  e.logo = detectLogo(n);
   save();
   updateAll();
 }
 
-// Renamed to avoid confusion, using original index for data manipulation
 function deleteExpenseAtIndex(originalIndex) {
   if (!confirm("Delete expense?")) return;
   data[activePerson].splice(originalIndex,1);
@@ -962,55 +1053,126 @@ function selectPerson(p) {
   activePerson = p;
   francisBtn.classList.toggle("active", p === "francis");
   fionaBtn.classList.toggle("active", p === "fiona");
-  updateAll(); // Update all elements, including re-rendering expenses
+  updateAll();
 }
 
 const chart = new Chart(document.getElementById("billChart"), {
   type: "bar",
   data: {
     labels: ["Francis", "Fiona"],
-    datasets: [{
-      data: [0,0],
-      backgroundColor: ["#0a84ff","#ff375f"]
-    }]
+    datasets: [] // Datasets will be dynamically generated in updateChart
   },
   options: {
     indexAxis: "y",
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { ticks: { color: "#f5f5f7" }, grid: { color: "#2a2a31" } },
-      y: { ticks: { color: "#f5f5f7" }, grid: { display: false } }
-    },
-    elements: { // Added for rounded bar corners
-      bar: {
-        borderRadius: {
-          topRight: 12, // Round the top-right corner
-          bottomRight: 12 // Round the bottom-right corner
+    plugins: {
+        legend: {
+            display: false // Set to false to remove the legend
+        },
+        tooltip: { // Improved tooltip for stacked bars
+            mode: 'index',
+            intersect: false,
+            callbacks: {
+                label: function(context) {
+                    let label = context.dataset.label || '';
+                    if (label) {
+                        label += ': ';
+                    }
+                    if (context.parsed.x !== null) {
+                        label += new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(context.parsed.x);
+                    }
+                    return label;
+                },
+                footer: function(tooltipItems) {
+                    let total = 0;
+                    tooltipItems.forEach(function(tooltipItem) {
+                        total += tooltipItem.parsed.x;
+                    });
+                    return 'Total: ' + new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(total);
+                }
+            },
+            titleColor: 'white',
+            bodyColor: 'white',
+            backgroundColor: 'rgba(27, 27, 32, 0.8)'
         }
+    },
+    scales: {
+      x: {
+          stacked: true, // Enable stacking on x-axis
+          ticks: { color: "#f5f5f7" },
+          grid: { color: "#2a2a31" }
+      },
+      y: {
+          stacked: true, // Enable stacking on y-axis
+          ticks: { color: "#f5f5f7" },
+          grid: { display: false }
+      }
+    },
+    elements: {
+      bar: {
+        borderRadius: 0 // Remove default bar rounding, manage per segment
       }
     }
   }
 });
 
 function updateChart() {
-    let francisAmount, fionaAmount;
+    let francisShared, francisPersonal, fionaShared, fionaPersonal;
 
     if (viewMode === 'monthly') {
-        francisAmount = total("francis"); // This is already specific to activeMonth
-        fionaAmount = total("fiona");     // This is already specific to activeMonth
-    } else { // viewMode === 'annual'
+        const francisMonthly = getMonthlyExpenses("francis", activeMonth);
+        const fionaMonthly = getMonthlyExpenses("fiona", activeMonth);
+        francisShared = francisMonthly.shared;
+        francisPersonal = francisMonthly.personal;
+        fionaShared = fionaMonthly.shared;
+        fionaPersonal = fionaMonthly.personal;
+    } else {
         const annualTotals = calculateAnnualTotals();
-        francisAmount = annualTotals.francis;
-        fionaAmount = annualTotals.fiona;
+        francisShared = annualTotals.francis.shared;
+        francisPersonal = annualTotals.francis.personal;
+        fionaShared = annualTotals.fiona.shared;
+        fionaPersonal = annualTotals.fiona.personal;
     }
 
-    // Simplified labels as requested
+    // Determine borderRadius for each segment based on whether the other segment exists
+    const francisBarRoundingPersonal = (francisShared === 0 && francisPersonal > 0) ? 12 : { topLeft: 12, bottomLeft: 12, topRight: 0, bottomRight: 0 };
+    const francisBarRoundingShared = (francisPersonal === 0 && francisShared > 0) ? 12 : { topLeft: 0, bottomLeft: 0, topRight: 12, bottomRight: 12 };
+
+    const fionaBarRoundingPersonal = (fionaShared === 0 && fionaPersonal > 0) ? 12 : { topLeft: 12, bottomLeft: 12, topRight: 0, bottomRight: 0 };
+    const fionaBarRoundingShared = (fionaPersonal === 0 && fionaShared > 0) ? 12 : { topLeft: 0, bottomLeft: 0, topRight: 12, bottomRight: 12 };
+
     chart.data.labels = ["Francis", "Fiona"];
-    chart.data.datasets[0].data = [francisAmount, fionaAmount];
+    chart.data.datasets = [
+        {
+            label: 'Personal',
+            data: [francisPersonal, fionaPersonal],
+            backgroundColor: (ctx) => {
+                // Use translucent version of accent colors
+                if (ctx.dataIndex === 0) return "rgba(10, 132, 255, 0.5)"; // Francis personal (accent1 translucent)
+                if (ctx.dataIndex === 1) return "rgba(255, 55, 95, 0.5)";  // Fiona personal (accent2 translucent)
+                return 'transparent'; // For zero values
+            },
+            stack: 'expenses', // Both personal and shared contribute to the same bar (stack)
+            borderRadius: [francisBarRoundingPersonal, fionaBarRoundingPersonal],
+            borderSkipped: false
+        },
+        {
+            label: 'Shared',
+            data: [francisShared, fionaShared],
+            backgroundColor: (ctx) => {
+                // Use solid accent colors
+                if (ctx.dataIndex === 0) return "#0a84ff"; // Francis shared (accent1)
+                if (ctx.dataIndex === 1) return "#ff375f"; // Fiona shared (accent2)
+                return 'transparent'; // For zero values
+            },
+            stack: 'expenses',
+            borderRadius: [francisBarRoundingShared, fionaBarRoundingShared],
+            borderSkipped: false
+        }
+    ];
+
     chart.update();
 }
 
-// New helper function to set the view mode text
 function updateViewModeText() {
     if (viewMode === 'monthly') {
         currentViewTextSpan.textContent = "Monthly View";
@@ -1019,15 +1181,14 @@ function updateViewModeText() {
     }
 }
 
-// New function to toggle view mode
 function toggleViewMode() {
     if (viewMode === 'monthly') {
         viewMode = 'annual';
     } else {
         viewMode = 'monthly';
     }
-    updateViewModeText(); // Update the text immediately
-    updateChart(); // Just update the chart, no need for full updateAll
+    updateViewModeText();
+    updateChart();
 }
 
 
@@ -1042,7 +1203,7 @@ function exportJSON() {
 function importJSON() {
   const input = document.createElement('input');
   input.type = 'file';
-  input.accept = 'application/json'; // Only accept JSON files
+  input.accept = 'application/json';
 
   input.onchange = (event) => {
     const file = event.target.files[0];
@@ -1051,18 +1212,16 @@ function importJSON() {
       reader.onload = (e) => {
         try {
           const importedData = JSON.parse(e.target.result);
-          // Basic validation: Check if it looks like our data structure
           if (importedData.francis && Array.isArray(importedData.francis) &&
               importedData.fiona && Array.isArray(importedData.fiona)) {
             if (confirm("Are you sure you want to import this data? This will overwrite your current data.")) {
               data.francis = importedData.francis;
               data.fiona = importedData.fiona;
-              // Import settlements too, if they exist in the imported data
               data.settlements = importedData.settlements || {};
               save();
-              migrateData(); // Run migration on imported data too, to ensure consistency
-              normalizeExpenseData(); // Normalize imported data
-              updateLogosForAllExpenses(); // Apply new logo rules to imported data
+              migrateData();
+              normalizeExpenseData();
+              updateLogosForAllExpenses();
               updateAll();
               alert("Data imported successfully!");
             }
@@ -1078,51 +1237,43 @@ function importJSON() {
     }
   };
 
-  input.click(); // Programmatically click the hidden file input to open file dialog
+  input.click();
 }
 
 
 function applyRecurring() {
-  ["francis","fiona"].forEach(p => {
-    data[p].forEach(e => {
-      // If it's a recurring expense, and it has a baseId (should be true after normalizeExpenseData)
-      // and there isn't already an entry for this specific recurring item in the activeMonth, add one.
-      if (e.recurring && e.baseId && !data[p].some(x => x.baseId === e.baseId && x.month === activeMonth)) {
-        data[p].push({
-            // Create a *new* object, but inherit properties from the original recurring item
-            ...e,
-            // Assign a new, unique ID for this specific monthly instance
-            id: crypto.randomUUID(), // Each instance of a recurring bill needs a unique ID for editing/deleting
-            month: activeMonth,
-            // The amount and note are inherited, meaning if the original recurring item's amount changes,
-            // subsequent auto-added monthly entries will reflect that.
-            // If the user edits an auto-added monthly entry, it becomes an explicit entry for that month.
+    let changed = false;
+    ["francis", "fiona"].forEach(p => {
+        const currentMonthExpenses = data[p].filter(e => normalizeMonthKey(e.month) === activeMonth);
+        const recurringExpensesToProject = data[p].filter(e => e.recurring && !currentMonthExpenses.some(x => x.baseId === e.baseId && x.month === activeMonth));
+
+        recurringExpensesToProject.forEach(e => {
+            data[p].push({
+                ...e,
+                id: generateUUID(), // Assign a new unique ID
+                month: activeMonth,
+                isPersonal: e.isPersonal // Ensure personal status is carried over
+            });
+            changed = true;
         });
-      }
     });
-  });
-  save(); // Save after potentially adding new recurring entries
+    if (changed) {
+        save();
+    }
 }
 
-/**
- * Toggles the visibility of an expense's history chart and renders/destroys it.
- * @param {HTMLElement} toggleButtonElement The element that was clicked (the span with the chevron).
- * @param {number} originalIndex The original index of the expense in the data[activePerson] array.
- */
+
 function toggleExpenseChart(toggleButtonElement, originalIndex) {
   const chartWrapper = document.getElementById(`expenseChartWrapper_${originalIndex}`);
   const chevronIcon = toggleButtonElement.querySelector('i');
 
   if (chartWrapper.style.display === 'none') {
-    // Expand chart
     chartWrapper.style.display = 'block';
     toggleButtonElement.classList.add('expanded');
     drawExpenseHistoryChart(data[activePerson][originalIndex], `expenseChartCanvas_${originalIndex}`, originalIndex);
   } else {
-    // Collapse chart
     chartWrapper.style.display = 'none';
     toggleButtonElement.classList.remove('expanded');
-    // Destroy chart instance when collapsing to free memory
     if (expenseChartInstances[originalIndex]) {
       expenseChartInstances[originalIndex].destroy();
       delete expenseChartInstances[originalIndex];
@@ -1130,64 +1281,51 @@ function toggleExpenseChart(toggleButtonElement, originalIndex) {
   }
 }
 
-/**
- * Gathers expense data for a specific item across all months of the active year.
- * This function is now responsible for *projecting* recurring expenses
- * for months where they haven't been explicitly recorded.
- *
- * @param {object} currentExpense The expense object to track (e.g., { baseId: ..., note: ... }).
- * @param {string} personKey 'francis' or 'fiona'.
- * @param {number} year The active year (e.g., 2023).
- * @returns {Array<number>} An array of 12 numbers, representing total amount for each month.
- */
 function getExpenseHistoryData(currentExpense, personKey, year) {
     const amountsByMonth = new Array(12).fill(0);
     const yearPrefix = year.toString();
 
-    // Determine the identifier for matching across months
-    // Use baseId for recurring items, and note for one-off items.
+    // Determine the identifier for matching expenses (baseId for recurring, note for one-off)
     const matcherId = currentExpense.recurring && currentExpense.baseId ? currentExpense.baseId : currentExpense.note;
+    const isRecurringMatch = currentExpense.recurring && currentExpense.baseId;
 
-    // First, collect all *explicitly recorded* expenses for this item in the active year
-    const explicitMonthlyAmounts = {}; // { 'YYYY-MMM': totalAmountForThatMonth }
+    const explicitMonthlyAmounts = {};
 
     data[personKey].filter(e => {
         const expenseYear = e.month.substring(0, 4);
-        const eMatcherId = e.recurring && e.baseId ? e.baseId : e.note;
-        return expenseYear === yearPrefix && eMatcherId === matcherId;
-    }).forEach(e => {
-        if (!explicitMonthlyAmounts[e.month]) {
-            explicitMonthlyAmounts[e.month] = 0;
+        let eMatcherId;
+        if (e.recurring && e.baseId) {
+            eMatcherId = e.baseId;
+        } else {
+            eMatcherId = e.note;
         }
-        explicitMonthlyAmounts[e.month] += e.amount;
+        
+        // Match based on recurring status and identifier, and personal status
+        return expenseYear === yearPrefix && eMatcherId === matcherId && e.isPersonal === currentExpense.isPersonal;
+    }).forEach(e => {
+        const monthIndex = MONTHS.indexOf(e.month.substring(5, 8));
+        if (monthIndex !== -1) {
+            if (!explicitMonthlyAmounts[monthIndex]) {
+                explicitMonthlyAmounts[monthIndex] = 0;
+            }
+            explicitMonthlyAmounts[monthIndex] += e.amount;
+        }
     });
 
-    // Now, populate the 12-month array, projecting recurring amounts where explicit entries are missing
     for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
-        const monthKey = `${yearPrefix}-${MONTHS[monthIndex]}`;
-        if (explicitMonthlyAmounts[monthKey] !== undefined) {
-            // Use the explicitly recorded amount(s) for this month
-            amountsByMonth[monthIndex] = explicitMonthlyAmounts[monthKey];
-        } else if (currentExpense.recurring) {
-            // If it's a recurring expense and no explicit entry, project its current amount
+        if (explicitMonthlyAmounts[monthIndex] !== undefined) {
+            amountsByMonth[monthIndex] = explicitMonthlyAmounts[monthIndex];
+        } else if (isRecurringMatch) { // Only project if it's a recurring expense
             amountsByMonth[monthIndex] = currentExpense.amount;
         }
-        // If it's non-recurring and no explicit entry, it remains 0 (already initialized)
     }
     return amountsByMonth;
 }
 
 
-/**
- * Draws or updates the individual expense history chart.
- * @param {object} expense The expense object being charted.
- * @param {string} canvasId The ID of the canvas element.
- * @param {number} originalIndex The original index of the expense for instance tracking.
- */
 function drawExpenseHistoryChart(expense, canvasId, originalIndex) {
   const ctx = document.getElementById(canvasId);
 
-  // Destroy existing chart instance if it exists before creating a new one
   if (expenseChartInstances[originalIndex]) {
     expenseChartInstances[originalIndex].destroy();
   }
@@ -1201,8 +1339,12 @@ function drawExpenseHistoryChart(expense, canvasId, originalIndex) {
       datasets: [{
         data: amounts,
         backgroundColor: (context) => {
-          // Use direct hex code for robustness
-          return context.raw > 0 ? '#0a84ff' : 'transparent';
+          // Use a different shade for personal expenses if the expense is personal
+          if (expense.isPersonal) {
+              return activePerson === 'francis' ? 'rgba(10, 132, 255, 0.5)' : 'rgba(255, 55, 95, 0.5)';
+          } else {
+              return activePerson === 'francis' ? '#0a84ff' : '#ff375f';
+          }
         },
         borderColor: 'transparent',
         borderRadius: 4,
@@ -1225,15 +1367,14 @@ function drawExpenseHistoryChart(expense, canvasId, originalIndex) {
                 label += ': ';
               }
               if (context.parsed.y !== null) {
-                // Format amount as currency
                 label += new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(context.parsed.y);
               }
               return label;
             }
           },
-          titleColor: 'white', // Tooltip title color
-          bodyColor: 'white',  // Tooltip body color
-          backgroundColor: 'rgba(27, 27, 32, 0.8)' // Tooltip background, slightly transparent card color
+          titleColor: 'white',
+          bodyColor: 'white',
+          backgroundColor: 'rgba(27, 27, 32, 0.8)'
         }
       },
       scales: {
@@ -1242,7 +1383,7 @@ function drawExpenseHistoryChart(expense, canvasId, originalIndex) {
             display: false,
           },
           ticks: {
-            color: 'white', /* Changed to white */
+            color: 'white',
             font: {
               size: 10
             }
@@ -1254,7 +1395,7 @@ function drawExpenseHistoryChart(expense, canvasId, originalIndex) {
             color: '#2a2a31',
           },
           ticks: {
-            color: 'white', /* Changed to white */
+            color: 'white',
             font: {
               size: 10
             },
@@ -1270,20 +1411,20 @@ function drawExpenseHistoryChart(expense, canvasId, originalIndex) {
 
 
 function updateAll() {
-  renderYears(); // Render years first
-  renderMonths(); // Then months for the active year
-  applyRecurring(); // Ensure recurring expenses are applied *after* data migration and before totals are calculated
-  updateViewModeText(); // Set the correct text for the current view mode and active year
-  updateChart(); // Update chart based on current viewMode
-  updateBalance(); // Balance is always for the activeMonth
+  renderYears();
+  renderMonths();
+  applyRecurring(); // Ensure recurring expenses are added before calculating totals
+  updateViewModeText();
+  updateChart();
+  updateBalance(); // Balance depends on chart data (which uses new split logic)
   renderExpenses();
 }
 
 // Initial setup calls
-migrateData(); // Run month format migration once on script load
-normalizeExpenseData(); // Run data integrity check
-updateLogosForAllExpenses(); // Apply logo rules to all existing data on load
-updateAll(); // Initial rendering
+migrateData();
+normalizeExpenseData();
+updateLogosForAllExpenses();
+updateAll();
 </script>
 </body>
 </html>
