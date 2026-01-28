@@ -549,14 +549,15 @@ const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV
 
 // Canonical list of brands for auto-suggestions, sorted alphabetically
 const SUGGESTION_BRANDS = [
-    "affinity water", "amazon", "b&q", "barclays", "british airways", "costco", "council tax", "eurostar",
-    "hotel", "hsbc", "hyperoptic", "iberia", "insite energy", "john lewis", "lidl", "lner", "m&s",
-    "octopus energy", "renfe", "revolut", "ryanair", "sainsbury's", "tfl", "accommodation", "third space"
+    "amex", "affinity water", "amazon", "b&q", "barclays", "british airways", "costco", "council tax", "eurostar",
+    "hotel", "hsbc", "hyperoptic", "iberia", "insite energy", "itsu", "john lewis", "klarna", "lidl", "lottery", "lner", "m&s", "morrisons", "mortgage", "netflix",
+    "octopus energy", "play station", "prime", "renfe", "revolut", "rent", "ryanair", "sainsbury's", "strava", "tfl", "tk.max", "accommodation", "third space"
 ].sort();
 
 // Rules for logo detection (more comprehensive, order might matter for precedence)
 const BRAND_LOGO_RULES = [
   { keywords: ["affinity water"], logo: "assets/logos/affinitywater.png" },
+  { keywords: ["amex"], logo: "assets/logos/amex.png" },
   { keywords: ["amazon"], logo: "assets/logos/amazon.png" },
   { keywords: ["b&q"], logo: "assets/logos/bandq.png" },
   { keywords: ["barclays"], logo: "assets/logos/barclays.png" },
@@ -566,16 +567,27 @@ const BRAND_LOGO_RULES = [
   { keywords: ["hsbc"], logo: "assets/logos/hsbc.png" },
   { keywords: ["iberia"], logo: "assets/logos/iberia.png" },
   { keywords: ["insite energy"], logo: "assets/logos/insiteenergy.png" },
+  { keywords: ["itsu"], logo: "assets/logos/itsu.png" },
   { keywords: ["john lewis"], logo: "assets/logos/johnlewis.png" },
+  { keywords: ["klarna"], logo: "assets/logos/klarna.png" },
+  { keywords: ["lottery"], logo: "assets/logos/lottery.png" },
   { keywords: ["lidl"], logo: "assets/logos/lidl.png" },
   { keywords: ["lner"], logo: "assets/logos/lner.png" },
   { keywords: ["m&s"], logo: "assets/logos/mands.png" },
+  { keywords: ["morrisons"], logo: "assets/logos/morrisons.png" },
+  { keywords: ["mortgage"], logo: "assets/logos/mortgage.png" },
+  { keywords: ["netflix"], logo: "assets/logos/netflix.png" },
   { keywords: ["octopus energy"], logo: "assets/logos/octopusenergy.png" },
+  { keywords: ["play station"], logo: "assets/logos/playstation.png" },
+  { keywords: ["prime"], logo: "assets/logos/prime.png" },
   { keywords: ["renfe"], logo: "assets/logos/renfe.png" },
   { keywords: ["revolut"], logo: "assets/logos/revolut.png" },
+  { keywords: ["rent"], logo: "assets/logos/rent.png" },
   { keywords: ["ryanair"], logo: "assets/logos/ryanair.png" },
   { keywords: ["sainsbury's"], logo: "assets/logos/sainsburys.png" },
+  { keywords: ["strava"], logo: "assets/logos/strava.png" },
   { keywords: ["tfl"], logo: "assets/logos/tfl.png" },
+  { keywords: ["tk.max"], logo: "assets/logos/tkmax.png" },
   { keywords: ["eurostar"], logo: "assets/logos/eurostar.png" },
   { keywords: ["council tax", "council-tax", "brent council", "brent"], logo: "assets/logos/brent.png" },
   { keywords: ["hotel", "accommodation", "booking.com"], logo: "assets/logos/booking.png" },
@@ -637,6 +649,8 @@ function showSuggestions() {
       if (brand === "hsbc") displayText = "HSBC";
       if (brand === "lner") displayText = "LNER";
       if (brand === "tfl") displayText = "TFL";
+      if (brand === "amex") displayText = "AMEX";
+      if (brand === "tk.max") displayText = "TK.MAX";
 
       suggestionItem.textContent = displayText;
       suggestionItem.onmousedown = (event) => {
@@ -658,6 +672,8 @@ function selectSuggestion(brandName) {
   if (brandName === "hsbc") capitalizedBrand = "HSBC";
   if (brandName === "lner") capitalizedBrand = "LNER";
   if (brandName === "tfl") capitalizedBrand = "TFL";
+  if (brandName === "amex") capitalizedBrand = "AMEX";
+  if (brandName === "tk.max") capitalizedBrand = "TK.MAX";
 
   noteInput.value = capitalizedBrand;
   suggestionsDiv.style.display = 'none';
