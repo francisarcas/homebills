@@ -153,7 +153,7 @@ button:active {
 }
 
 .action {
-  font-size: 0.8rem;
+  font-size: 0.8rem; /* Keep a base size for icons */
   cursor: pointer;
 }
 
@@ -284,23 +284,33 @@ button:active {
 <script>
 const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 
-// Updated BRAND_LOGOS mapping to local image paths
-const BRAND_LOGOS = {
-  "affinity water": "assets/logos/affinitywater.png",
-  "amazon": "assets/logos/amazon.png",
-  "costco": "assets/logos/costco.png",
-  "hyperoptic": "assets/logos/hyperoptic.png",
-  "insite energy": "assets/logos/insiteenergy.png",
-  "lidl": "assets/logos/lidl.png",
-  "lner": "assets/logos/lner.png",
-  "octopus energy": "assets/logos/octopusenergy.png",
-  "sainsbury's": "assets/logos/sainsburys.png",
-  "m&s": "assets/logos/mands.png",
-  "b&q": "assets/logos/bandq.png",
-  "eurostar": "assets/logos/eurostar.png",
-  "council-tax": "assets/logos/brent.png",
-  "hotel/accomodation": "assets/logos/booking.png",
-};
+// Canonical list of brands for auto-suggestions, sorted alphabetically
+const SUGGESTION_BRANDS = [
+    "affinity water", "amazon", "b&q", "costco", "council tax", "eurostar",
+    "hotel", "hyperoptic", "insite energy", "lidl", "lner", "m&s",
+    "octopus energy", "sainsbury's", "accommodation"
+].sort();
+
+// Rules for logo detection (more comprehensive, order might matter for precedence)
+const BRAND_LOGO_RULES = [
+  { keywords: ["affinity water"], logo: "assets/logos/affinitywater.png" },
+  { keywords: ["amazon"], logo: "assets/logos/amazon.png" },
+  { keywords: ["b&q"], logo: "assets/logos/bandq.png" },
+  { keywords: ["costco"], logo: "assets/logos/costco.png" },
+  { keywords: ["hyperoptic"], logo: "assets/logos/hyperoptic.png" },
+  { keywords: ["insite energy"], logo: "assets/logos/insiteenergy.png" },
+  { keywords: ["lidl"], logo: "assets/logos/lidl.png" },
+  { keywords: ["lner"], logo: "assets/logos/lner.png" },
+  { keywords: ["m&s"], logo: "assets/logos/mands.png" }, // Handles M&S
+  { keywords: ["octopus energy"], logo: "assets/logos/octopusenergy.png" }, // Handles Octopus Energy
+  { keywords: ["sainsbury's"], logo: "assets/logos/sainsburys.png" },
+  { keywords: ["eurostar"], logo: "assets/logos/eurostar.png" },
+  // Specific aliases for Council Tax (prioritize more specific matches if possible)
+  { keywords: ["council tax", "council-tax", "brent council", "brent"], logo: "assets/logos/brent.png" },
+  // Generic catch-all for hotels/accommodation (place after specific hotel brands if they were ever added)
+  { keywords: ["hotel", "accommodation", "booking.com"], logo: "assets/logos/booking.png" }
+];
+
 
 // DOM elements for suggestions
 const noteInput = document.getElementById('noteInput');
@@ -317,14 +327,20 @@ function showSuggestions() {
     return;
   }
 
-  const matchingBrands = Object.keys(BRAND_LOGOS).filter(brand =>
+  const matchingBrands = SUGGESTION_BRANDS.filter(brand =>
     brand.includes(inputValue)
-  ).sort(); // Sort alphabetically
+  );
 
   if (matchingBrands.length > 0) {
     matchingBrands.forEach(brand => {
       const suggestionItem = document.createElement('div');
-      suggestionItem.textContent = brand.charAt(0).toUpperCase() + brand.slice(1); // Capitalize for display
+      // Capitalize for display, e.g., "affinity water" -> "Affinity water"
+      suggestionItem.textContent = brand.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+      // Handle M&S specifically for display if needed, but current split works for "m&s" -> "M&s"
+      // If "M&S" is desired:
+      if (brand === "m&s") suggestionItem.textContent = "M&S";
+      if (brand === "b&q") suggestionItem.textContent = "B&Q"; // Correct display for B&Q
+
       suggestionItem.onmousedown = (event) => { // Use mousedown and preventDefault
         event.preventDefault(); // Prevents the input from losing focus
         selectSuggestion(brand);
@@ -338,9 +354,13 @@ function showSuggestions() {
 }
 
 function selectSuggestion(brandName) {
-  noteInput.value = brandName.charAt(0).toUpperCase() + brandName.slice(1); // Set input to selected capitalized brand
+  // Set input to selected capitalized brand (more robust capitalization)
+  let capitalizedBrand = brandName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  if (brandName === "m&s") capitalizedBrand = "M&S";
+  if (brandName === "b&q") capitalizedBrand = "B&Q";
+
+  noteInput.value = capitalizedBrand;
   suggestionsDiv.style.display = 'none';
-  // No need to call focus() here, as preventDefault on mousedown kept focus
 }
 
 function hideSuggestions() {
@@ -400,7 +420,6 @@ function migrateData() {
     console.log("Migrated old month formats in localStorage.");
   }
 }
-migrateData(); // Run migration once on script load
 
 function save() {
   localStorage.setItem("billData", JSON.stringify(data));
@@ -410,16 +429,37 @@ function capitalise(name) {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-// Updated detectLogo to use BRAND_LOGOS for local paths
+// Updated detectLogo to use BRAND_LOGO_RULES for more flexible matching
 function detectLogo(note) {
   const lowerCaseNote = note.toLowerCase();
-  for (const brand in BRAND_LOGOS) {
-    if (lowerCaseNote.includes(brand)) {
-      return BRAND_LOGOS[brand];
+  for (const rule of BRAND_LOGO_RULES) {
+    for (const keyword of rule.keywords) {
+      if (lowerCaseNote.includes(keyword)) {
+        return rule.logo;
+      }
     }
   }
   return null;
 }
+
+// New function to update logos for all existing expenses
+function updateLogosForAllExpenses() {
+  let changed = false;
+  ["francis", "fiona"].forEach(p => {
+    data[p].forEach(e => {
+      const newLogo = detectLogo(e.note);
+      if (e.logo !== newLogo) { // Only update if the logo has changed
+        e.logo = newLogo;
+        changed = true;
+      }
+    });
+  });
+  if (changed) {
+    save();
+    console.log("Updated logos for existing expenses based on new rules.");
+  }
+}
+
 
 function getMonths() {
   const set = new Set();
@@ -454,7 +494,7 @@ function applyRecurring() {
       // Use normalizeMonthKey for comparison to handle any edge cases
       if (!data[p].some(x => x.baseId === e.baseId && normalizeMonthKey(x.month) === activeMonth)) {
         // Create a copy and ensure the month is set to the current activeMonth format
-        data[p].push({ ...e, month: activeMonth });
+        data[p].push({ ...e, month: activeMonth, logo: detectLogo(e.note) }); // Re-detect logo for recurring
       }
     });
   });
@@ -527,7 +567,9 @@ function editExpenseAtIndex(originalIndex) {
   const e = data[activePerson][originalIndex];
   const n = prompt("Description", e.note);
   const a = prompt("Amount", e.amount);
-  if (!n || !a) return;
+  if (n === null || a === null) return; // User cancelled prompt
+  if (!n || !a) return; // Empty values
+
   e.note = n;
   e.amount = parseFloat(a);
   e.logo = detectLogo(n); // Re-detect logo in case description changed
@@ -610,6 +652,7 @@ function importJSON() {
               data.fiona = importedData.fiona;
               save();
               migrateData(); // Run migration on imported data too, to ensure consistency
+              updateLogosForAllExpenses(); // Apply new logo rules to imported data
               updateAll();
               alert("Data imported successfully!");
             }
@@ -637,8 +680,10 @@ function updateAll() {
   renderExpenses();
 }
 
-// Initial update call
-updateAll();
+// Initial setup calls
+migrateData(); // Run migration once on script load
+updateLogosForAllExpenses(); // Apply logo rules to all existing data on load
+updateAll(); // Initial rendering
 </script>
 </body>
 </html>
