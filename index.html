@@ -184,6 +184,7 @@ button:active {
 /* EXPENSE LIST */
 .expense {
   display: flex;
+  flex-wrap: wrap; /* Allow items to wrap to the next line */
   justify-content: space-between;
   align-items: center;
   padding: 10px 0;
@@ -213,15 +214,50 @@ button:active {
 .actions {
   display: flex;
   gap: 10px;
+  align-items: center; /* Align items vertically */
 }
 
 .action {
   font-size: 0.8rem; /* Keep a base size for icons */
   cursor: pointer;
+  display: flex; /* Make actions flex to center icon if needed */
+  align-items: center;
+  justify-content: center;
 }
 
 .action.delete {
   color: var(--danger);
+}
+
+/* New CSS for the chevron expand/collapse icon */
+.expand-chart-toggle i {
+  transition: transform 0.2s ease-in-out;
+}
+
+.expand-chart-toggle.expanded i {
+  transform: rotate(180deg);
+}
+
+/* New CSS for the individual expense chart container */
+.expense-chart-container {
+  width: 100%; /* Take full width of its parent (.expense) */
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #2a2a31; /* Subtle separator */
+  max-width: 100%; /* Ensure it doesn't overflow */
+}
+
+.expense-chart-container canvas {
+  max-height: 120px; /* Limit height of individual expense charts */
+  width: 100% !important; /* Override Chart.js default inline width */
+  height: auto !important; /* Override Chart.js default inline height */
+}
+
+/* Recurring icon specific styling */
+.recurring-indicator {
+    color: var(--accent1); /* Use accent color for visibility */
+    margin-left: 5px; /* Small space from the note text */
+    font-size: 0.75rem; /* Slightly smaller than note text */
 }
 
 /* PROFILES */
@@ -422,6 +458,8 @@ const expenseHeaderDiv = document.getElementById('expenseHeader'); // Get the ne
 const balanceTextDiv = document.getElementById('balanceText'); // Get the balance text div for dynamic content
 const currentViewTextSpan = document.getElementById('currentViewText'); // Get the span for view mode text
 
+const expenseChartInstances = {}; // Stores Chart.js instances for individual expenses by originalIndex
+
 // Auto-suggestion functions
 function showSuggestions() {
   const inputValue = noteInput.value.toLowerCase();
@@ -547,6 +585,49 @@ function migrateData() {
   }
 }
 
+// Function to ensure data integrity for baseId and recurring flags
+function normalizeExpenseData() {
+    let changed = false;
+    ["francis", "fiona"].forEach(p => {
+        // Map to store baseId for recurring expenses with the same note
+        const recurringNoteToBaseIdMap = {};
+
+        data[p].forEach(e => {
+            // Ensure `recurring` is a proper boolean
+            const wasRecurringString = e.recurring === "yes";
+            e.recurring = (e.recurring === true || wasRecurringString);
+            if (wasRecurringString) changed = true; // Mark as changed if we converted "yes"
+
+            if (e.recurring) {
+                if (!e.baseId) {
+                    // If no baseId, check if we've seen this note as recurring before
+                    if (recurringNoteToBaseIdMap[e.note]) {
+                        e.baseId = recurringNoteToBaseIdMap[e.note];
+                    } else {
+                        e.baseId = crypto.randomUUID();
+                        recurringNoteToBaseIdMap[e.note] = e.baseId;
+                    }
+                    changed = true;
+                } else {
+                    // If it has a baseId, ensure it's also in the map for future matching
+                    recurringNoteToBaseIdMap[e.note] = e.baseId;
+                }
+            } else {
+                // Non-recurring expenses should not have a baseId for projection logic
+                if (e.baseId) {
+                    delete e.baseId;
+                    changed = true;
+                }
+            }
+        });
+    });
+    if (changed) {
+        save();
+        console.log("Normalized expense data (baseId and recurring flags).");
+    }
+}
+
+
 function save() {
   localStorage.setItem("billData", JSON.stringify(data));
 }
@@ -613,7 +694,7 @@ function renderYears() {
       // Try to keep the same month, but for the new year
       const currentMonthAbbr = activeMonth.substring(5, 8); // e.g., "JAN" from "2026-JAN"
       activeMonth = `${activeYear}-${currentMonthAbbr}`;
-      applyRecurring();
+      applyRecurring(); // Re-apply recurring for the new year's current month
       updateAll(); // Call updateAll to refresh all UI elements
     };
     yearTabsDiv.appendChild(tab);
@@ -655,13 +736,13 @@ function calculateAnnualTotals() {
 
     ["francis", "fiona"].forEach(personKey => {
         const personExpenses = data[personKey];
-        const uniqueRecurringExpenseDetails = {}; // Stores {baseId: {amount}} for each unique recurring item
+        // Use a structure to track the latest amount for each recurring baseId *across all months*
+        const latestRecurringAmounts = {}; // { baseId: amount }
 
-        // First pass: identify all unique recurring expenses and their latest amounts from ALL data
+        // First pass: Find the latest amount for each unique recurring baseId
         personExpenses.forEach(e => {
             if (e.recurring && e.baseId) {
-                // If there are multiple entries for the same recurring baseId, the latest encountered amount is used.
-                uniqueRecurringExpenseDetails[e.baseId] = { amount: e.amount };
+                latestRecurringAmounts[e.baseId] = e.amount;
             }
         });
 
@@ -672,24 +753,22 @@ function calculateAnnualTotals() {
             let monthlyProjectedTotal = 0;
 
             const existingExpensesForThisMonth = personExpenses.filter(e => e.month === currentYearMonthKey);
-            const recurringBaseIdsAlreadyExplicitlyIncludedThisMonth = new Set();
+            const recurringBaseIdsExplicitlyIncludedThisMonth = new Set();
 
             // Add all expenses explicitly recorded for this specific month
             existingExpensesForThisMonth.forEach(e => {
                 monthlyProjectedTotal += e.amount;
                 if (e.recurring && e.baseId) {
-                    recurringBaseIdsAlreadyExplicitlyIncludedThisMonth.add(e.baseId);
+                    recurringBaseIdsExplicitlyIncludedThisMonth.add(e.baseId);
                 }
             });
 
             // For any unique recurring expenses that *have not been explicitly recorded* for this specific month,
-            // add their amount to the monthly projected total.
-            Object.keys(uniqueRecurringExpenseDetails).forEach(baseId => {
-                if (!recurringBaseIdsAlreadyExplicitlyIncludedThisMonth.has(baseId)) {
-                    const recurringItem = uniqueRecurringExpenseDetails[baseId];
-                    if (recurringItem) {
-                        monthlyProjectedTotal += recurringItem.amount;
-                    }
+            // add their latest known amount to the monthly projected total.
+            // This ensures full annual projection even for unvisited months.
+            Object.keys(latestRecurringAmounts).forEach(baseId => {
+                if (!recurringBaseIdsExplicitlyIncludedThisMonth.has(baseId)) {
+                    monthlyProjectedTotal += latestRecurringAmounts[baseId];
                 }
             });
             annualTotals[personKey] += monthlyProjectedTotal;
@@ -745,23 +824,45 @@ function renderExpenses() {
     <div class="expense-separator"></div>
   `;
 
+  // Destroy all existing expense detail charts before clearing the list
+  for (const index in expenseChartInstances) {
+    if (expenseChartInstances.hasOwnProperty(index)) {
+      expenseChartInstances[index].destroy();
+    }
+  }
+  // Clear the map after destroying instances
+  Object.keys(expenseChartInstances).forEach(key => delete expenseChartInstances[key]);
+
+
   expenseList.innerHTML = ""; // Clear existing expense items
 
+  // Filter to only expenses for the active month, but get their original index
   data[activePerson]
-    .filter(e => normalizeMonthKey(e.month) === activeMonth) // Normalize month for filtering
-    .forEach((e,i) => {
+    .filter(e => normalizeMonthKey(e.month) === activeMonth)
+    .forEach((e) => {
+      const originalIndex = data[activePerson].findIndex(item => item === e);
+
       const row = document.createElement("div");
       row.className = "expense";
       // The logo or default receipt icon
       const iconContent = e.logo ? `<img class="logo" src="${e.logo}" onerror="this.remove()">` : `<i class="fa-solid fa-receipt"></i>`;
+      
+      // Add recurring indicator if applicable
+      const recurringIndicator = e.recurring ? `<i class="fa-solid fa-repeat recurring-indicator" title="Recurring expense"></i>` : '';
+
       row.innerHTML = `
         <div class="expense-left">
           ${iconContent}
-          <div>${e.note}<br><small>£${e.amount.toFixed(2)}</small></div>
+          <div>${e.note} ${recurringIndicator}<br><small>£${e.amount.toFixed(2)}</small></div>
         </div>
         <div class="actions">
-          <span class="action" onclick="editExpenseAtIndex(${data[activePerson].indexOf(e)})"><i class="fa-solid fa-pencil"></i></span>
-          <span class="action delete" onclick="deleteExpenseAtIndex(${data[activePerson].indexOf(e)})"><i class="fa-solid fa-trash"></i></span>
+          <span class="action expand-chart-toggle" data-original-index="${originalIndex}" onclick="toggleExpenseChart(this, ${originalIndex})"><i class="fa-solid fa-chevron-down"></i></span>
+          <span class="action" onclick="editExpenseAtIndex(${originalIndex})"><i class="fa-solid fa-pencil"></i></span>
+          <span class="action delete" onclick="deleteExpenseAtIndex(${originalIndex})"><i class="fa-solid fa-trash"></i></span>
+        </div>
+        <!-- Chart container, will take full width due to flex-wrap -->
+        <div id="expenseChartWrapper_${originalIndex}" class="expense-chart-container" style="display:none;">
+          <canvas id="expenseChartCanvas_${originalIndex}"></canvas>
         </div>
       `;
       expenseList.appendChild(row);
@@ -774,12 +875,12 @@ function addExpense() {
   if (!amount || !note) return;
 
   data[activePerson].push({
-    baseId: crypto.randomUUID(),
+    baseId: crypto.randomUUID(), // New items always get a fresh baseId
     month: activeMonth, // activeMonth is already in YYYY-MMM format
     amount,
     note,
     logo: detectLogo(note), // detect logo based on the note
-    recurring: recurringInput.value === "yes"
+    recurring: recurringInput.value === "yes" ? true : false // Ensure boolean
   });
 
   amountInput.value = "";
@@ -800,6 +901,9 @@ function editExpenseAtIndex(originalIndex) {
   e.note = n;
   e.amount = parseFloat(a);
   e.logo = detectLogo(n); // Re-detect logo in case description changed
+  // Note: changing description of a recurring item will effectively create a new "stream" if baseId relies on note
+  // For recurring, baseId should ideally remain fixed once set.
+  // The normalizeExpenseData function helps re-assign baseIds on load if they are missing or inconsistent.
   save();
   updateAll();
 }
@@ -816,7 +920,7 @@ function selectPerson(p) {
   activePerson = p;
   francisBtn.classList.toggle("active", p === "francis");
   fionaBtn.classList.toggle("active", p === "fiona");
-  renderExpenses();
+  updateAll(); // Update all elements, including re-rendering expenses
 }
 
 const chart = new Chart(document.getElementById("billChart"), {
@@ -915,6 +1019,7 @@ function importJSON() {
               data.settlements = importedData.settlements || {};
               save();
               migrateData(); // Run migration on imported data too, to ensure consistency
+              normalizeExpenseData(); // Normalize imported data
               updateLogosForAllExpenses(); // Apply new logo rules to imported data
               updateAll();
               alert("Data imported successfully!");
@@ -937,16 +1042,187 @@ function importJSON() {
 
 function applyRecurring() {
   ["francis","fiona"].forEach(p => {
-    data[p].filter(e => e.recurring).forEach(e => {
-      // Use normalizeMonthKey for comparison to handle any edge cases
-      // Only add if not already present AND if it's not marked as settled for this month
-      if (!data[p].some(x => e.baseId && x.baseId === e.baseId && normalizeMonthKey(x.month) === activeMonth)) {
-        // Only push if the expense has a baseId (i.e., it's a valid recurring expense that was already saved once)
-        if (e.baseId) {
-            data[p].push({ ...e, month: activeMonth, logo: detectLogo(e.note) });
-        }
+    data[p].forEach(e => {
+      // If it's a recurring expense, and it has a baseId (should be true after normalizeExpenseData)
+      // and there isn't already an entry for this specific recurring item in the activeMonth, add one.
+      if (e.recurring && e.baseId && !data[p].some(x => x.baseId === e.baseId && x.month === activeMonth)) {
+        data[p].push({
+            // Create a *new* object, but inherit properties from the original recurring item
+            ...e,
+            // Assign a new, unique ID for this specific monthly instance
+            id: crypto.randomUUID(), // Each instance of a recurring bill needs a unique ID for editing/deleting
+            month: activeMonth,
+            // The amount and note are inherited, meaning if the original recurring item's amount changes,
+            // subsequent auto-added monthly entries will reflect that.
+            // If the user edits an auto-added monthly entry, it becomes an explicit entry for that month.
+        });
       }
     });
+  });
+  save(); // Save after potentially adding new recurring entries
+}
+
+/**
+ * Toggles the visibility of an expense's history chart and renders/destroys it.
+ * @param {HTMLElement} toggleButtonElement The element that was clicked (the span with the chevron).
+ * @param {number} originalIndex The original index of the expense in the data[activePerson] array.
+ */
+function toggleExpenseChart(toggleButtonElement, originalIndex) {
+  const chartWrapper = document.getElementById(`expenseChartWrapper_${originalIndex}`);
+  const chevronIcon = toggleButtonElement.querySelector('i');
+
+  if (chartWrapper.style.display === 'none') {
+    // Expand chart
+    chartWrapper.style.display = 'block';
+    toggleButtonElement.classList.add('expanded');
+    drawExpenseHistoryChart(data[activePerson][originalIndex], `expenseChartCanvas_${originalIndex}`, originalIndex);
+  } else {
+    // Collapse chart
+    chartWrapper.style.display = 'none';
+    toggleButtonElement.classList.remove('expanded');
+    // Destroy chart instance when collapsing to free memory
+    if (expenseChartInstances[originalIndex]) {
+      expenseChartInstances[originalIndex].destroy();
+      delete expenseChartInstances[originalIndex];
+    }
+  }
+}
+
+/**
+ * Gathers expense data for a specific item across all months of the active year.
+ * This function is now responsible for *projecting* recurring expenses
+ * for months where they haven't been explicitly recorded.
+ *
+ * @param {object} currentExpense The expense object to track (e.g., { baseId: ..., note: ... }).
+ * @param {string} personKey 'francis' or 'fiona'.
+ * @param {number} year The active year (e.g., 2023).
+ * @returns {Array<number>} An array of 12 numbers, representing total amount for each month.
+ */
+function getExpenseHistoryData(currentExpense, personKey, year) {
+    const amountsByMonth = new Array(12).fill(0);
+    const yearPrefix = year.toString();
+
+    // Determine the identifier for matching across months
+    // Use baseId for recurring items, and note for one-off items.
+    const matcherId = currentExpense.recurring && currentExpense.baseId ? currentExpense.baseId : currentExpense.note;
+
+    // First, collect all *explicitly recorded* expenses for this item in the active year
+    const explicitMonthlyAmounts = {}; // { 'YYYY-MMM': totalAmountForThatMonth }
+
+    data[personKey].filter(e => {
+        const expenseYear = e.month.substring(0, 4);
+        const eMatcherId = e.recurring && e.baseId ? e.baseId : e.note;
+        return expenseYear === yearPrefix && eMatcherId === matcherId;
+    }).forEach(e => {
+        if (!explicitMonthlyAmounts[e.month]) {
+            explicitMonthlyAmounts[e.month] = 0;
+        }
+        explicitMonthlyAmounts[e.month] += e.amount;
+    });
+
+    // Now, populate the 12-month array, projecting recurring amounts where explicit entries are missing
+    for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
+        const monthKey = `${yearPrefix}-${MONTHS[monthIndex]}`;
+        if (explicitMonthlyAmounts[monthKey] !== undefined) {
+            // Use the explicitly recorded amount(s) for this month
+            amountsByMonth[monthIndex] = explicitMonthlyAmounts[monthKey];
+        } else if (currentExpense.recurring) {
+            // If it's a recurring expense and no explicit entry, project its current amount
+            amountsByMonth[monthIndex] = currentExpense.amount;
+        }
+        // If it's non-recurring and no explicit entry, it remains 0 (already initialized)
+    }
+    return amountsByMonth;
+}
+
+
+/**
+ * Draws or updates the individual expense history chart.
+ * @param {object} expense The expense object being charted.
+ * @param {string} canvasId The ID of the canvas element.
+ * @param {number} originalIndex The original index of the expense for instance tracking.
+ */
+function drawExpenseHistoryChart(expense, canvasId, originalIndex) {
+  const ctx = document.getElementById(canvasId);
+
+  // Destroy existing chart instance if it exists before creating a new one
+  if (expenseChartInstances[originalIndex]) {
+    expenseChartInstances[originalIndex].destroy();
+  }
+
+  const amounts = getExpenseHistoryData(expense, activePerson, activeYear);
+
+  expenseChartInstances[originalIndex] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: MONTHS,
+      datasets: [{
+        data: amounts,
+        backgroundColor: (context) => {
+          // Use direct hex code for robustness
+          return context.raw > 0 ? '#0a84ff' : 'transparent';
+        },
+        borderColor: 'transparent',
+        borderRadius: 4,
+        barPercentage: 0.8,
+        categoryPercentage: 0.8
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              let label = context.dataset.label || '';
+              if (label) {
+                label += ': ';
+              }
+              if (context.parsed.y !== null) {
+                // Format amount as currency
+                label += new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(context.parsed.y);
+              }
+              return label;
+            }
+          },
+          titleColor: 'white', // Tooltip title color
+          bodyColor: 'white',  // Tooltip body color
+          backgroundColor: 'rgba(27, 27, 32, 0.8)' // Tooltip background, slightly transparent card color
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            display: false,
+          },
+          ticks: {
+            color: 'white', /* Changed to white */
+            font: {
+              size: 10
+            }
+          }
+        },
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: '#2a2a31',
+          },
+          ticks: {
+            color: 'white', /* Changed to white */
+            font: {
+              size: 10
+            },
+            callback: function(value) {
+              return '£' + value.toFixed(0);
+            }
+          }
+        }
+      }
+    }
   });
 }
 
@@ -962,7 +1238,8 @@ function updateAll() {
 }
 
 // Initial setup calls
-migrateData(); // Run migration once on script load
+migrateData(); // Run month format migration once on script load
+normalizeExpenseData(); // Run data integrity check
 updateLogosForAllExpenses(); // Apply logo rules to all existing data on load
 updateAll(); // Initial rendering
 </script>
