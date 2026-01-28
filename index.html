@@ -117,6 +117,33 @@ canvas {
   background: var(--accent1);
 }
 
+/* New: View Switcher */
+.view-switcher {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px; /* Space between buttons and text */
+  margin-top: 10px; /* Space from profiles */
+  margin-bottom: 10px; /* Space to chart card */
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.view-switcher button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 5px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  width: auto; /* Override general button width */
+}
+
+.view-switcher button:hover {
+  color: var(--text);
+}
+
+
 /* FORM */
 .form {
   display: grid;
@@ -297,6 +324,13 @@ button:active {
   <img src="assets/person002.png" id="fionaBtn" class="profile" onclick="selectPerson('fiona')">
 </div>
 
+<!-- New: View Switcher -->
+<div class="view-switcher">
+  <button id="prevViewBtn" onclick="toggleViewMode()"><i class="fa-solid fa-chevron-left"></i></button>
+  <span id="currentViewText">Monthly View</span>
+  <button id="nextViewBtn" onclick="toggleViewMode()"><i class="fa-solid fa-chevron-right"></i></button>
+</div>
+
 <div class="card">
   <div class="chart-wrapper">
     <canvas id="billChart"></canvas>
@@ -377,6 +411,7 @@ const suggestionsDiv = document.getElementById('suggestions');
 const yearTabsDiv = document.getElementById('yearTabs'); // New DOM element for year tabs
 const expenseHeaderDiv = document.getElementById('expenseHeader'); // Get the new expense header div
 const balanceTextDiv = document.getElementById('balanceText'); // Get the balance text div for dynamic content
+const currentViewTextSpan = document.getElementById('currentViewText'); // Get the span for view mode text
 
 // Auto-suggestion functions
 function showSuggestions() {
@@ -464,6 +499,7 @@ let activeYear = today.getFullYear();
 let activeMonth = `${activeYear}-${MONTHS[today.getMonth()]}`;
 
 let activePerson = "francis";
+let viewMode = 'monthly'; // 'monthly' or 'annual'
 
 
 const data = JSON.parse(localStorage.getItem("billData")) || {
@@ -563,7 +599,7 @@ function renderYears() {
       const currentMonthAbbr = activeMonth.substring(5, 8); // e.g., "JAN" from "2026-JAN"
       activeMonth = `${activeYear}-${currentMonthAbbr}`;
       applyRecurring();
-      updateAll();
+      updateAll(); // Call updateAll to refresh all UI elements
     };
     yearTabsDiv.appendChild(tab);
   });
@@ -578,7 +614,7 @@ function renderMonths() {
     tab.onclick = () => {
       activeMonth = `${activeYear}-${m}`; // Set activeMonth with full YYYY-MMM
       applyRecurring();
-      updateAll();
+      updateAll(); // Call updateAll to refresh all UI elements
     };
     monthTabs.appendChild(tab);
   });
@@ -595,6 +631,19 @@ function total(person) {
   return data[person]
     .filter(e => normalizeMonthKey(e.month) === activeMonth) // Normalize month for filtering
     .reduce((s,e) => s + e.amount, 0);
+}
+
+// New function to calculate annual totals
+function calculateAnnualTotals() {
+    const annualTotals = { francis: 0, fiona: 0 };
+    ["francis", "fiona"].forEach(p => {
+        data[p].forEach(e => {
+            if (e.month && e.month.startsWith(activeYear.toString())) {
+                annualTotals[p] += e.amount;
+            }
+        });
+    });
+    return annualTotals;
 }
 
 function updateBalance() {
@@ -744,9 +793,45 @@ const chart = new Chart(document.getElementById("billChart"), {
 });
 
 function updateChart() {
-  chart.data.datasets[0].data = [total("francis"), total("fiona")];
-  chart.update();
+    let francisAmount, fionaAmount;
+    let chartLabels;
+
+    if (viewMode === 'monthly') {
+        francisAmount = total("francis"); // This is already specific to activeMonth
+        fionaAmount = total("fiona");     // This is already specific to activeMonth
+        chartLabels = ["Francis (Monthly)", "Fiona (Monthly)"];
+    } else { // viewMode === 'annual'
+        const annualTotals = calculateAnnualTotals();
+        francisAmount = annualTotals.francis;
+        fionaAmount = annualTotals.fiona;
+        chartLabels = [`Francis (${activeYear} Annual)`, `Fiona (${activeYear} Annual)`];
+    }
+
+    chart.data.labels = chartLabels;
+    chart.data.datasets[0].data = [francisAmount, fionaAmount];
+    chart.update();
 }
+
+// New helper function to set the view mode text
+function updateViewModeText() {
+    if (viewMode === 'monthly') {
+        currentViewTextSpan.textContent = "Monthly View";
+    } else {
+        currentViewTextSpan.textContent = `Annual View (${activeYear})`;
+    }
+}
+
+// New function to toggle view mode
+function toggleViewMode() {
+    if (viewMode === 'monthly') {
+        viewMode = 'annual';
+    } else {
+        viewMode = 'monthly';
+    }
+    updateViewModeText(); // Update the text immediately
+    updateChart(); // Just update the chart, no need for full updateAll
+}
+
 
 function exportJSON() {
   const blob = new Blob([JSON.stringify(data,null,2)], { type: "application/json" });
@@ -803,8 +888,11 @@ function applyRecurring() {
     data[p].filter(e => e.recurring).forEach(e => {
       // Use normalizeMonthKey for comparison to handle any edge cases
       // Only add if not already present AND if it's not marked as settled for this month
-      if (!data[p].some(x => x.baseId === e.baseId && normalizeMonthKey(x.month) === activeMonth)) {
-        data[p].push({ ...e, month: activeMonth, logo: detectLogo(e.note) });
+      if (!data[p].some(x => e.baseId && x.baseId === e.baseId && normalizeMonthKey(x.month) === activeMonth)) {
+        // Only push if the expense has a baseId (i.e., it's a valid recurring expense that was already saved once)
+        if (e.baseId) {
+            data[p].push({ ...e, month: activeMonth, logo: detectLogo(e.note) });
+        }
       }
     });
   });
@@ -815,8 +903,9 @@ function updateAll() {
   renderYears(); // Render years first
   renderMonths(); // Then months for the active year
   applyRecurring(); // Ensure recurring expenses are applied *after* data migration and before totals are calculated
-  updateChart();
-  updateBalance();
+  updateViewModeText(); // Set the correct text for the current view mode and active year
+  updateChart(); // Update chart based on current viewMode
+  updateBalance(); // Balance is always for the activeMonth
   renderExpenses();
 }
 
