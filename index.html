@@ -612,7 +612,7 @@ const expenseChartInstances = {};
 
 // Global state for multi-select/multi-delete
 let editMode = false;
-let selectedExpenses = []; // Stores originalIndex of selected expenses for the activePerson and activeMonth
+let selectedExpenses = []; // Stores UUIDs of selected expenses for the activePerson and activeMonth
 
 // Auto-suggestion functions
 function showSuggestions() {
@@ -733,13 +733,19 @@ function migrateData() {
   }
 }
 
-// Function to ensure data integrity for baseId, recurring, and isPersonal flags
+// Function to ensure data integrity for baseId, recurring, and isPersonal flags, AND UUIDs
 function normalizeExpenseData() {
     let changed = false;
     ["francis", "fiona"].forEach(p => {
         const recurringNoteToBaseIdMap = {};
 
         data[p].forEach(e => {
+            // New: Ensure UUID exists
+            if (!e.uuid) {
+                e.uuid = generateUUID();
+                changed = true;
+            }
+
             // Normalize recurring flag (from string to boolean if needed)
             const wasRecurringString = e.recurring === "yes";
             e.recurring = (e.recurring === true || wasRecurringString);
@@ -778,7 +784,7 @@ function normalizeExpenseData() {
     });
     if (changed) {
         save();
-        console.log("Normalized expense data (baseId, recurring flags, and isPersonal).");
+        console.log("Normalized expense data (baseId, recurring flags, isPersonal, and UUIDs).");
     }
 }
 
@@ -998,8 +1004,8 @@ function renderExpenseHeader() {
     actionButtonsHtml = `<button class="action-button" onclick="toggleEditMode()"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`;
   } else {
     const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
-    const allSelected = expensesForMonth.length > 0 && expensesForMonth.every(e => selectedExpenses.includes(data[activePerson].findIndex(item => item === e)));
-
+    const allSelected = expensesForMonth.length > 0 && expensesForMonth.every(e => selectedExpenses.includes(e.uuid)); // Check selected UUIDs
+    
     const deleteButtonDisabled = selectedExpenses.length === 0 ? 'disabled' : '';
     
     actionButtonsHtml = `
@@ -1023,12 +1029,21 @@ function renderExpenseHeader() {
   `;
 }
 
+// Helper to get expense object by UUID
+function getExpenseByUUID(uuid) {
+    return data[activePerson].find(e => e.uuid === uuid);
+}
+
+// Helper to get expense index by UUID
+function getExpenseIndexByUUID(uuid) {
+    return data[activePerson].findIndex(e => e.uuid === uuid);
+}
 
 function renderExpenses() {
   // Clear any existing charts
-  for (const index in expenseChartInstances) {
-    if (expenseChartInstances.hasOwnProperty(index)) {
-      expenseChartInstances[index].destroy();
+  for (const uuid in expenseChartInstances) {
+    if (expenseChartInstances.hasOwnProperty(uuid)) {
+      expenseChartInstances[uuid].destroy();
     }
   }
   Object.keys(expenseChartInstances).forEach(key => delete expenseChartInstances[key]);
@@ -1038,9 +1053,8 @@ function renderExpenses() {
   // Filter expenses for the active person and active month
   const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
 
-  expensesForMonth.forEach((e, displayIndex) => {
-    // We need the original index from the main data array for deletion/editing
-    const originalIndex = data[activePerson].findIndex(item => item === e);
+  expensesForMonth.forEach((e) => { // No longer need displayIndex
+    const expenseUuid = e.uuid; // Use UUID as the stable identifier
 
     const row = document.createElement("div");
     row.className = "expense";
@@ -1053,14 +1067,14 @@ function renderExpenses() {
     let checkboxHtml = '';
 
     if (editMode) {
-      const isChecked = selectedExpenses.includes(originalIndex) ? 'checked' : '';
-      checkboxHtml = `<input type="checkbox" class="expense-select-checkbox" ${isChecked} onchange="toggleExpenseSelection(this, ${originalIndex})">`;
+      const isChecked = selectedExpenses.includes(expenseUuid) ? 'checked' : '';
+      checkboxHtml = `<input type="checkbox" class="expense-select-checkbox" ${isChecked} onchange="toggleExpenseSelection(this, '${expenseUuid}')">`;
     } else {
       actionsHtml = `
         ${personalIndicator}
-        <span class="action expand-chart-toggle" data-original-index="${originalIndex}" onclick="toggleExpenseChart(this, ${originalIndex})"><i class="fa-solid fa-chevron-down"></i></span>
-        <span class="action" onclick="editExpenseAtIndex(${originalIndex})"><i class="fa-solid fa-pencil"></i></span>
-        <span class="action delete" onclick="deleteExpenseAtIndex(${originalIndex})"><i class="fa-solid fa-trash"></i></span>
+        <span class="action expand-chart-toggle" data-uuid="${expenseUuid}" onclick="toggleExpenseChart(this, '${expenseUuid}')"><i class="fa-solid fa-chevron-down"></i></span>
+        <span class="action" onclick="editExpenseByUUID('${expenseUuid}')"><i class="fa-solid fa-pencil"></i></span>
+        <span class="action delete" onclick="deleteExpenseByUUID('${expenseUuid}')"><i class="fa-solid fa-trash"></i></span>
       `;
     }
 
@@ -1073,8 +1087,8 @@ function renderExpenses() {
         ${checkboxHtml}
         ${actionsHtml}
       </div>
-      <div id="expenseChartWrapper_${originalIndex}" class="expense-chart-container" style="display:none;">
-        <canvas id="expenseChartCanvas_${originalIndex}"></canvas>
+      <div id="expenseChartWrapper_${expenseUuid}" class="expense-chart-container" style="display:none;">
+        <canvas id="expenseChartCanvas_${expenseUuid}"></canvas>
       </div>
     `;
     expenseListDiv.appendChild(row);
@@ -1104,6 +1118,7 @@ function addExpense() {
   }
 
   const newExpense = {
+    uuid: generateUUID(), // Assign a UUID to the new expense
     month: activeMonth,
     amount,
     note,
@@ -1128,25 +1143,33 @@ function addExpense() {
   updateAll();
 }
 
-function editExpenseAtIndex(originalIndex) {
+function editExpenseByUUID(uuid) { // Renamed from editExpenseAtIndex
   // Exit edit mode if active
   if (editMode) {
       cancelEditMode();
       // Allow a brief moment for the UI to update before opening prompt
-      setTimeout(() => editExpenseAtIndex(originalIndex), 100);
+      setTimeout(() => editExpenseByUUID(uuid), 100);
       return;
   }
 
-  const e = data[activePerson][originalIndex];
-  const n = prompt("Description", e.note);
-  const a = prompt("Amount", e.amount);
-  // We don't allow changing recurring/personal status here easily, as it has broader implications
-  // For simplicity, these are set on creation.
+  const expense = getExpenseByUUID(uuid);
+  if (!expense) {
+      console.error("Expense not found for editing with UUID:", uuid);
+      return;
+  }
 
-  if (n === null || a === null) return;
-  if (!n || !a) return;
+  const newNote = prompt("Description", expense.note);
+  if (newNote === null) return; // User cancelled note edit
 
-  const newAmount = parseFloat(a);
+  const newAmountStr = prompt("Amount", expense.amount);
+  if (newAmountStr === null) return; // User cancelled amount edit
+
+  if (!newNote.trim() || !newAmountStr.trim()) {
+      alert("Description and Amount cannot be empty.");
+      return;
+  }
+
+  const newAmount = parseFloat(newAmountStr);
   
   // Validation
   if (isNaN(newAmount) || newAmount <= 0) {
@@ -1159,23 +1182,58 @@ function editExpenseAtIndex(originalIndex) {
     return;
   }
 
-  e.note = n;
-  e.amount = newAmount;
-  e.logo = detectLogo(n);
-  save();
-  updateAll();
+  // Store original values before modification
+  const originalAmount = expense.amount;
+  const originalNote = expense.note;
+
+  expense.note = newNote.trim();
+  expense.amount = newAmount;
+  expense.logo = detectLogo(newNote.trim()); // Update logo if note changed
+
+  let dataChanged = false;
+
+  // Check if it's a recurring expense and if the amount changed
+  if (expense.recurring && expense.baseId && newAmount !== originalAmount) {
+      if (confirm("Do you want to update all future occurrences of this recurring expense to the new amount?")) {
+          data[activePerson].forEach(e => {
+              // Ensure it's the same recurring series AND it's a future month
+              // AND it has the same personal status (this ensures 'shared' recurring items don't affect 'personal' ones of same note)
+              if (e.baseId === expense.baseId && e.month > expense.month && e.isPersonal === expense.isPersonal) {
+                  e.amount = newAmount;
+                  dataChanged = true;
+              }
+          });
+      }
+  }
+
+  // If amount or note changed for the current expense, mark dataChanged
+  if (newAmount !== originalAmount || newNote.trim() !== originalNote) {
+      dataChanged = true;
+  }
+
+  if (dataChanged) {
+      save();
+      updateAll();
+  }
 }
 
-function deleteExpenseAtIndex(originalIndex) {
+function deleteExpenseByUUID(uuid) { // Renamed from deleteExpenseAtIndex
   // Exit edit mode if active
   if (editMode) {
       cancelEditMode();
-      setTimeout(() => deleteExpenseAtIndex(originalIndex), 100);
+      setTimeout(() => deleteExpenseByUUID(uuid), 100);
       return;
   }
 
   if (!confirm("Delete expense?")) return;
-  data[activePerson].splice(originalIndex,1);
+
+  const indexToDelete = getExpenseIndexByUUID(uuid);
+  if (indexToDelete === -1) {
+      console.error("Expense not found for deletion with UUID:", uuid);
+      return;
+  }
+
+  data[activePerson].splice(indexToDelete, 1);
   save();
   updateAll();
 }
@@ -1356,7 +1414,7 @@ function importJSON() {
               data.settlements = importedData.settlements || {};
               save();
               migrateData();
-              normalizeExpenseData();
+              normalizeExpenseData(); // Ensure UUIDs and other fields are correct for imported data
               updateLogosForAllExpenses();
               cancelEditMode(); // Exit edit mode after import
               updateAll();
@@ -1377,7 +1435,7 @@ function importJSON() {
   input.click();
 }
 
-// FIX: Corrected applyRecurring logic to prevent duplication
+// FIX: Corrected applyRecurring logic to prevent duplication and ensure chronological projection
 function applyRecurring() {
     let changed = false;
     ["francis", "fiona"].forEach(p => {
@@ -1399,10 +1457,13 @@ function applyRecurring() {
 
         // For each unique recurring template, if it's not already in the current month, add it.
         latestRecurringTemplates.forEach(templateExpense => {
-            if (!currentMonthRecurringBaseIds.has(templateExpense.baseId)) {
+            // New condition: Only project if activeMonth is AT OR AFTER the templateExpense's month
+            // YYYY-MMM string comparison works chronologically
+            if (activeMonth >= templateExpense.month && !currentMonthRecurringBaseIds.has(templateExpense.baseId)) {
                 // Push a new expense object for the active month, inheriting properties from the template
                 data[p].push({
                     ...templateExpense,
+                    uuid: generateUUID(), // IMPORTANT: Give projected expenses a new UUID
                     month: activeMonth, // Crucially, override month to activeMonth
                 });
                 changed = true;
@@ -1415,23 +1476,28 @@ function applyRecurring() {
 }
 
 
-function toggleExpenseChart(toggleButtonElement, originalIndex) {
+function toggleExpenseChart(toggleButtonElement, uuid) { // uuid instead of originalIndex
   // Do not allow expanding charts in edit mode
   if (editMode) return;
 
-  const chartWrapper = document.getElementById(`expenseChartWrapper_${originalIndex}`);
+  const chartWrapper = document.getElementById(`expenseChartWrapper_${uuid}`);
   const chevronIcon = toggleButtonElement.querySelector('i');
 
   if (chartWrapper.style.display === 'none') {
     chartWrapper.style.display = 'block';
     toggleButtonElement.classList.add('expanded');
-    drawExpenseHistoryChart(data[activePerson][originalIndex], `expenseChartCanvas_${originalIndex}`, originalIndex);
+    const expense = getExpenseByUUID(uuid);
+    if (expense) {
+      drawExpenseHistoryChart(expense, `expenseChartCanvas_${uuid}`, uuid);
+    } else {
+      console.error("Expense not found for chart with UUID:", uuid);
+    }
   } else {
     chartWrapper.style.display = 'none';
     toggleButtonElement.classList.remove('expanded');
-    if (expenseChartInstances[originalIndex]) {
-      expenseChartInstances[originalIndex].destroy();
-      delete expenseChartInstances[originalIndex];
+    if (expenseChartInstances[uuid]) { // Store by uuid
+      expenseChartInstances[uuid].destroy();
+      delete expenseChartInstances[uuid];
     }
   }
 }
@@ -1478,16 +1544,16 @@ function getExpenseHistoryData(currentExpense, personKey, year) {
 }
 
 
-function drawExpenseHistoryChart(expense, canvasId, originalIndex) {
+function drawExpenseHistoryChart(expense, canvasId, uuid) { // uuid instead of originalIndex
   const ctx = document.getElementById(canvasId);
 
-  if (expenseChartInstances[originalIndex]) {
-    expenseChartInstances[originalIndex].destroy();
+  if (expenseChartInstances[uuid]) { // Store by uuid
+    expenseChartInstances[uuid].destroy();
   }
 
   const amounts = getExpenseHistoryData(expense, activePerson, activeYear);
 
-  expenseChartInstances[originalIndex] = new Chart(ctx, {
+  expenseChartInstances[uuid] = new Chart(ctx, { // Store by uuid
     type: 'bar',
     data: {
       labels: MONTHS,
@@ -1577,32 +1643,31 @@ function cancelEditMode() {
   updateAll();
 }
 
-function toggleExpenseSelection(checkboxElement, originalIndex) {
+function toggleExpenseSelection(checkboxElement, uuid) { // Pass uuid
   if (checkboxElement.checked) {
-    if (!selectedExpenses.includes(originalIndex)) {
-      selectedExpenses.push(originalIndex);
+    if (!selectedExpenses.includes(uuid)) { // Store uuid
+      selectedExpenses.push(uuid);
     }
   } else {
-    selectedExpenses = selectedExpenses.filter(idx => idx !== originalIndex);
+    selectedExpenses = selectedExpenses.filter(id => id !== uuid); // Filter by uuid
   }
-  // Re-render header to update delete button state
   renderExpenseHeader();
 }
 
 function toggleSelectAll() {
   const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
-  const allIndicesForMonth = expensesForMonth.map(e => data[activePerson].findIndex(item => item === e));
+  const allUUIDsForMonth = expensesForMonth.map(e => e.uuid); // Map to UUIDs
 
-  const allCurrentlySelected = allIndicesForMonth.length > 0 && allIndicesForMonth.every(idx => selectedExpenses.includes(idx));
+  const allCurrentlySelected = allUUIDsForMonth.length > 0 && allUUIDsForMonth.every(uuid => selectedExpenses.includes(uuid));
 
   if (allCurrentlySelected) {
     // Deselect all
-    selectedExpenses = selectedExpenses.filter(idx => !allIndicesForMonth.includes(idx));
+    selectedExpenses = selectedExpenses.filter(uuid => !allUUIDsForMonth.includes(uuid));
   } else {
     // Select all
-    allIndicesForMonth.forEach(idx => {
-      if (!selectedExpenses.includes(idx)) {
-        selectedExpenses.push(idx);
+    allUUIDsForMonth.forEach(uuid => {
+      if (!selectedExpenses.includes(uuid)) {
+        selectedExpenses.push(uuid);
       }
     });
   }
@@ -1621,13 +1686,8 @@ function confirmDeleteSelected() {
     return;
   }
 
-  // Filter out expenses whose originalIndex is in selectedExpenses
-  // Sort selectedExpenses in descending order to avoid index shifting issues during splice
-  const sortedSelected = [...selectedExpenses].sort((a, b) => b - a);
-
-  sortedSelected.forEach(idx => {
-    data[activePerson].splice(idx, 1);
-  });
+  // Filter out expenses whose UUID is in selectedExpenses
+  data[activePerson] = data[activePerson].filter(e => !selectedExpenses.includes(e.uuid));
 
   save();
   cancelEditMode(); // Exit edit mode and clear selections
@@ -1647,7 +1707,7 @@ function updateAll() {
 
 // Initial setup calls
 migrateData();
-normalizeExpenseData();
+normalizeExpenseData(); // This now ensures UUIDs are present
 updateLogosForAllExpenses();
 updateAll();
 </script>
