@@ -232,7 +232,7 @@ button:active {
 <body>
 <div class="container">
 
-<h1>Home Bills</h1>
+<h1>Bills Overview</h1>
 <div class="balance" id="balanceText"></div>
 
 <div class="profiles">
@@ -295,9 +295,11 @@ const BRAND_LOGOS = {
   "lner": "assets/logos/lner.png",
   "octopus energy": "assets/logos/octopusenergy.png",
   "sainsbury's": "assets/logos/sainsburys.png",
-  "sainsburys": "assets/logos/sainsburys.png", // Also include without apostrophe for easier matching
   "m&s": "assets/logos/mands.png",
-  "b&q": "assets/logos/bandq.png"
+  "b&q": "assets/logos/bandq.png",
+  "eurostar": "assets/logos/eurostar.png",
+  "council-tax": "assets/logos/brent.png",
+  "hotel/accomodation": "assets/logos/booking.png",
 };
 
 // DOM elements for suggestions
@@ -309,7 +311,8 @@ function showSuggestions() {
   const inputValue = noteInput.value.toLowerCase();
   suggestionsDiv.innerHTML = ''; // Clear previous suggestions
 
-  if (inputValue.length === 0) {
+  // Only show suggestions if there's input or if the input is focused and the dropdown is not explicitly hidden
+  if (inputValue.length === 0 && document.activeElement !== noteInput) {
     suggestionsDiv.style.display = 'none';
     return;
   }
@@ -322,8 +325,8 @@ function showSuggestions() {
     matchingBrands.forEach(brand => {
       const suggestionItem = document.createElement('div');
       suggestionItem.textContent = brand.charAt(0).toUpperCase() + brand.slice(1); // Capitalize for display
-      suggestionItem.onclick = (event) => {
-        event.stopPropagation(); // Prevent blur from hiding immediately
+      suggestionItem.onmousedown = (event) => { // Use mousedown and preventDefault
+        event.preventDefault(); // Prevents the input from losing focus
         selectSuggestion(brand);
       };
       suggestionsDiv.appendChild(suggestionItem);
@@ -337,11 +340,13 @@ function showSuggestions() {
 function selectSuggestion(brandName) {
   noteInput.value = brandName.charAt(0).toUpperCase() + brandName.slice(1); // Set input to selected capitalized brand
   suggestionsDiv.style.display = 'none';
+  // No need to call focus() here, as preventDefault on mousedown kept focus
 }
 
 function hideSuggestions() {
   // Delay hiding to allow click events on suggestions to register
   setTimeout(() => {
+    // Only hide if the input does not have focus AND the dropdown itself is not focused
     if (document.activeElement !== noteInput && !suggestionsDiv.contains(document.activeElement)) {
       suggestionsDiv.style.display = 'none';
     }
@@ -488,8 +493,8 @@ function renderExpenses() {
           <div>${e.note}<br><small>£${e.amount.toFixed(2)}</small></div>
         </div>
         <div class="actions">
-          <span class="action" onclick="editExpenseAtIndex(${data[activePerson].indexOf(e)})">Edit</span>
-          <span class="action delete" onclick="deleteExpenseAtIndex(${data[activePerson].indexOf(e)})">Delete</span>
+          <span class="action" onclick="editExpenseAtIndex(${data[activePerson].indexOf(e)})"><i class="fa-solid fa-pencil"></i></span>
+          <span class="action delete" onclick="deleteExpenseAtIndex(${data[activePerson].indexOf(e)})"><i class="fa-solid fa-trash"></i></span>
         </div>
       `;
       expenseList.appendChild(row);
@@ -560,6 +565,14 @@ const chart = new Chart(document.getElementById("billChart"), {
     scales: {
       x: { ticks: { color: "#f5f5f7" }, grid: { color: "#2a2a31" } },
       y: { ticks: { color: "#f5f5f7" }, grid: { display: false } }
+    },
+    elements: { // Added for rounded bar corners
+      bar: {
+        borderRadius: {
+          topRight: 12, // Round the top-right corner
+          bottomRight: 12 // Round the bottom-right corner
+        }
+      }
     }
   }
 });
