@@ -77,6 +77,9 @@ h1 {
 .balance .action-button:hover {
   background: #3a3a41;
 }
+.balance .action-button:active {
+  opacity: 0.85;
+}
 
 
 .card {
@@ -188,6 +191,12 @@ button {
 
 button:active {
   opacity: 0.85;
+}
+
+button.disabled, .action-button.disabled {
+  background-color: #555 !important; /* Force greyed-out */
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 /* EXPENSE LIST */
@@ -347,10 +356,33 @@ button:active {
 .expense-header-content {
   display: flex;
   align-items: center;
+  justify-content: space-between; /* Added to push actions to the right */
   gap: 8px;
   margin-bottom: 8px;
   font-weight: 600;
 }
+
+.expense-header-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.expense-header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.expense-header-actions .action-button {
+    padding: 4px 12px; /* Slightly smaller for header */
+    font-size: 0.8rem;
+}
+/* Style for multi-select delete button */
+.expense-header-actions .action-button.delete-selected {
+    background-color: var(--danger);
+    color: white;
+}
+
 
 .expense-header-avatar {
   width: 28px;
@@ -362,6 +394,45 @@ button:active {
 .expense-separator {
   border-bottom: 1px solid #2a2a31;
   margin-bottom: 10px;
+}
+
+/* Checkbox styling */
+input[type="checkbox"].expense-select-checkbox {
+    appearance: none;
+    background-color: #2a2a31;
+    margin: 0;
+    font: inherit;
+    color: var(--text);
+    width: 0.7em; /* Reduced size */
+    height: 0.7em; /* Reduced size */
+    border: 0.08em solid currentColor; /* Reduced border */
+    border-radius: 0.08em; /* Reduced border-radius */
+    transform: translateY(-0.075em);
+    display: grid;
+    place-content: center;
+    cursor: pointer;
+    vertical-align: middle;
+    margin-right: 6px; /* Spacing from next item */
+}
+
+input[type="checkbox"].expense-select-checkbox::before {
+    content: "";
+    width: 0.4em; /* Reduced size */
+    height: 0.4em; /* Reduced size */
+    transform: scale(0);
+    transition: transform 120ms ease-in-out;
+    box-shadow: inset 1em 1em var(--accent1);
+    background-color: CanvasText;
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+
+input[type="checkbox"].expense-select-checkbox:checked::before {
+    transform: scale(1);
+}
+
+input[type="checkbox"].expense-select-checkbox:focus {
+    outline: max(2px, 0.15em) solid currentColor;
+    outline-offset: max(2px, 0.15em);
 }
 
 /* Footer Styling */
@@ -448,7 +519,6 @@ button:active {
 </div>
 
 <div class="card">
-  <!-- Changed to a div to hold avatar, text, and separator -->
   <div id="expenseHeader"></div>
   <div id="expenseList"></div>
 </div>
@@ -535,9 +605,14 @@ const currentViewTextSpan = document.getElementById('currentViewText');
 const sharedStatusInput = document.getElementById('sharedStatusInput'); // New
 const amountInput = document.getElementById('amountInput'); // For width adjustment
 const recurringInput = document.getElementById('recurringInput'); // For width adjustment
+const expenseListDiv = document.getElementById('expenseList'); // Reference to the list container
 
 
 const expenseChartInstances = {};
+
+// Global state for multi-select/multi-delete
+let editMode = false;
+let selectedExpenses = []; // Stores originalIndex of selected expenses for the activePerson and activeMonth
 
 // Auto-suggestion functions
 function showSuggestions() {
@@ -771,7 +846,7 @@ function renderYears() {
       activeYear = parseInt(year);
       const currentMonthAbbr = activeMonth.substring(5, 8);
       activeMonth = `${activeYear}-${currentMonthAbbr}`;
-      applyRecurring();
+      // applyRecurring is now called in updateAll(), which is called at the end of this handler
       updateAll();
     };
     yearTabsDiv.appendChild(tab);
@@ -786,7 +861,7 @@ function renderMonths() {
     tab.textContent = m;
     tab.onclick = () => {
       activeMonth = `${activeYear}-${m}`;
-      applyRecurring();
+      // applyRecurring is now called in updateAll(), which is called at the end of this handler
       updateAll();
     };
     monthTabs.appendChild(tab);
@@ -914,17 +989,43 @@ function updateBalance() {
   `;
 }
 
-function renderExpenses() {
+// New: Render expense header with edit actions
+function renderExpenseHeader() {
   const avatarImgSrc = (activePerson === "francis") ? "assets/person001.png" : "assets/person002.png";
+  let actionButtonsHtml = '';
+
+  if (!editMode) {
+    actionButtonsHtml = `<button class="action-button" onclick="toggleEditMode()"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`;
+  } else {
+    const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
+    const allSelected = expensesForMonth.length > 0 && expensesForMonth.every(e => selectedExpenses.includes(data[activePerson].findIndex(item => item === e)));
+
+    const deleteButtonDisabled = selectedExpenses.length === 0 ? 'disabled' : '';
+    
+    actionButtonsHtml = `
+      <button class="action-button" onclick="cancelEditMode()" title="Cancel Edit"><i class="fa-solid fa-xmark"></i></button>
+      <button class="action-button" onclick="toggleSelectAll()" title="${allSelected ? 'Deselect All' : 'Select All'}"><i class="fa-regular fa-square-check"></i></button>
+      <button class="action-button delete-selected ${deleteButtonDisabled}" onclick="confirmDeleteSelected()" ${deleteButtonDisabled} title="Delete Selected Expenses"><i class="fa-solid fa-trash"></i></button>
+    `;
+  }
 
   expenseHeaderDiv.innerHTML = `
     <div class="expense-header-content">
-      <img src="${avatarImgSrc}" class="expense-header-avatar">
-      <span>${capitalise(activePerson)} – ${activeMonth}</span>
+      <div class="expense-header-info">
+        <img src="${avatarImgSrc}" class="expense-header-avatar">
+        <span>${capitalise(activePerson)} – ${activeMonth}</span>
+      </div>
+      <div class="expense-header-actions">
+        ${actionButtonsHtml}
+      </div>
     </div>
     <div class="expense-separator"></div>
   `;
+}
 
+
+function renderExpenses() {
+  // Clear any existing charts
   for (const index in expenseChartInstances) {
     if (expenseChartInstances.hasOwnProperty(index)) {
       expenseChartInstances[index].destroy();
@@ -932,37 +1033,52 @@ function renderExpenses() {
   }
   Object.keys(expenseChartInstances).forEach(key => delete expenseChartInstances[key]);
 
-  expenseList.innerHTML = "";
+  expenseListDiv.innerHTML = "";
 
-  data[activePerson]
-    .filter(e => normalizeMonthKey(e.month) === activeMonth)
-    .forEach((e) => {
-      const originalIndex = data[activePerson].findIndex(item => item === e);
+  // Filter expenses for the active person and active month
+  const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
 
-      const row = document.createElement("div");
-      row.className = "expense";
-      const iconContent = e.logo ? `<img class="logo" src="${e.logo}" onerror="this.remove()">` : `<i class="fa-solid fa-receipt"></i>`;
-      
-      const recurringIndicator = e.recurring ? `<i class="fa-solid fa-repeat recurring-indicator" title="Recurring expense"></i>` : '';
-      const personalIndicator = e.isPersonal ? `<i class="fa-solid fa-user personal-indicator" title="Personal expense (not shared)"></i>` : '';
+  expensesForMonth.forEach((e, displayIndex) => {
+    // We need the original index from the main data array for deletion/editing
+    const originalIndex = data[activePerson].findIndex(item => item === e);
 
-      row.innerHTML = `
-        <div class="expense-left">
-          ${iconContent}
-          <div>${e.note} ${recurringIndicator}<br><small>£${e.amount.toFixed(2)}</small></div>
-        </div>
-        <div class="actions">
-          ${personalIndicator}
-          <span class="action expand-chart-toggle" data-original-index="${originalIndex}" onclick="toggleExpenseChart(this, ${originalIndex})"><i class="fa-solid fa-chevron-down"></i></span>
-          <span class="action" onclick="editExpenseAtIndex(${originalIndex})"><i class="fa-solid fa-pencil"></i></span>
-          <span class="action delete" onclick="deleteExpenseAtIndex(${originalIndex})"><i class="fa-solid fa-trash"></i></span>
-        </div>
-        <div id="expenseChartWrapper_${originalIndex}" class="expense-chart-container" style="display:none;">
-          <canvas id="expenseChartCanvas_${originalIndex}"></canvas>
-        </div>
+    const row = document.createElement("div");
+    row.className = "expense";
+    const iconContent = e.logo ? `<img class="logo" src="${e.logo}" onerror="this.remove()">` : `<i class="fa-solid fa-receipt"></i>`;
+    
+    const recurringIndicator = e.recurring ? `<i class="fa-solid fa-repeat recurring-indicator" title="Recurring expense"></i>` : '';
+    const personalIndicator = e.isPersonal ? `<i class="fa-solid fa-user personal-indicator" title="Personal expense (not shared)"></i>` : '';
+
+    let actionsHtml = '';
+    let checkboxHtml = '';
+
+    if (editMode) {
+      const isChecked = selectedExpenses.includes(originalIndex) ? 'checked' : '';
+      checkboxHtml = `<input type="checkbox" class="expense-select-checkbox" ${isChecked} onchange="toggleExpenseSelection(this, ${originalIndex})">`;
+    } else {
+      actionsHtml = `
+        ${personalIndicator}
+        <span class="action expand-chart-toggle" data-original-index="${originalIndex}" onclick="toggleExpenseChart(this, ${originalIndex})"><i class="fa-solid fa-chevron-down"></i></span>
+        <span class="action" onclick="editExpenseAtIndex(${originalIndex})"><i class="fa-solid fa-pencil"></i></span>
+        <span class="action delete" onclick="deleteExpenseAtIndex(${originalIndex})"><i class="fa-solid fa-trash"></i></span>
       `;
-      expenseList.appendChild(row);
-    });
+    }
+
+    row.innerHTML = `
+      <div class="expense-left">
+        ${iconContent}
+        <div>${e.note} ${recurringIndicator}<br><small>£${e.amount.toFixed(2)}</small></div>
+      </div>
+      <div class="actions">
+        ${checkboxHtml}
+        ${actionsHtml}
+      </div>
+      <div id="expenseChartWrapper_${originalIndex}" class="expense-chart-container" style="display:none;">
+        <canvas id="expenseChartCanvas_${originalIndex}"></canvas>
+      </div>
+    `;
+    expenseListDiv.appendChild(row);
+  });
 }
 
 function addExpense() {
@@ -1013,6 +1129,14 @@ function addExpense() {
 }
 
 function editExpenseAtIndex(originalIndex) {
+  // Exit edit mode if active
+  if (editMode) {
+      cancelEditMode();
+      // Allow a brief moment for the UI to update before opening prompt
+      setTimeout(() => editExpenseAtIndex(originalIndex), 100);
+      return;
+  }
+
   const e = data[activePerson][originalIndex];
   const n = prompt("Description", e.note);
   const a = prompt("Amount", e.amount);
@@ -1043,6 +1167,13 @@ function editExpenseAtIndex(originalIndex) {
 }
 
 function deleteExpenseAtIndex(originalIndex) {
+  // Exit edit mode if active
+  if (editMode) {
+      cancelEditMode();
+      setTimeout(() => deleteExpenseAtIndex(originalIndex), 100);
+      return;
+  }
+
   if (!confirm("Delete expense?")) return;
   data[activePerson].splice(originalIndex,1);
   save();
@@ -1053,6 +1184,7 @@ function selectPerson(p) {
   activePerson = p;
   francisBtn.classList.toggle("active", p === "francis");
   fionaBtn.classList.toggle("active", p === "fiona");
+  cancelEditMode(); // Exit edit mode when switching person
   updateAll();
 }
 
@@ -1134,6 +1266,9 @@ function updateChart() {
     }
 
     // Determine borderRadius for each segment based on whether the other segment exists
+    // The bars are drawn horizontally, so borderRadius is applied to the ends.
+    // For Francis: if personal is 0, shared fills the full bar width, so it gets full radius.
+    // If both exist, personal gets top/bottom (left for horizontal) and shared gets right.
     const francisBarRoundingPersonal = (francisShared === 0 && francisPersonal > 0) ? 12 : { topLeft: 12, bottomLeft: 12, topRight: 0, bottomRight: 0 };
     const francisBarRoundingShared = (francisPersonal === 0 && francisShared > 0) ? 12 : { topLeft: 0, bottomLeft: 0, topRight: 12, bottomRight: 12 };
 
@@ -1187,6 +1322,7 @@ function toggleViewMode() {
     } else {
         viewMode = 'monthly';
     }
+    cancelEditMode(); // Exit edit mode when changing view
     updateViewModeText();
     updateChart();
 }
@@ -1222,6 +1358,7 @@ function importJSON() {
               migrateData();
               normalizeExpenseData();
               updateLogosForAllExpenses();
+              cancelEditMode(); // Exit edit mode after import
               updateAll();
               alert("Data imported successfully!");
             }
@@ -1240,21 +1377,36 @@ function importJSON() {
   input.click();
 }
 
-
+// FIX: Corrected applyRecurring logic to prevent duplication
 function applyRecurring() {
     let changed = false;
     ["francis", "fiona"].forEach(p => {
-        const currentMonthExpenses = data[p].filter(e => normalizeMonthKey(e.month) === activeMonth);
-        const recurringExpensesToProject = data[p].filter(e => e.recurring && !currentMonthExpenses.some(x => x.baseId === e.baseId && x.month === activeMonth));
+        const currentMonthExpenses = data[p].filter(e => e.month === activeMonth);
+        const currentMonthRecurringBaseIds = new Set(
+            currentMonthExpenses.filter(e => e.recurring && e.baseId).map(e => e.baseId)
+        );
 
-        recurringExpensesToProject.forEach(e => {
-            data[p].push({
-                ...e,
-                id: generateUUID(), // Assign a new unique ID
-                month: activeMonth,
-                isPersonal: e.isPersonal // Ensure personal status is carried over
-            });
-            changed = true;
+        // Find all *unique* recurring expense "templates" (identified by baseId)
+        // Use a Map to store the latest version of each unique recurring expense
+        const latestRecurringTemplates = new Map(); // Map: baseId -> latestExpenseObject
+        data[p].filter(e => e.recurring && e.baseId).forEach(e => {
+            const existing = latestRecurringTemplates.get(e.baseId);
+            // Compare month strings as YYYY-MMM allows chronological sorting
+            if (!existing || e.month > existing.month) {
+                 latestRecurringTemplates.set(e.baseId, e);
+            }
+        });
+
+        // For each unique recurring template, if it's not already in the current month, add it.
+        latestRecurringTemplates.forEach(templateExpense => {
+            if (!currentMonthRecurringBaseIds.has(templateExpense.baseId)) {
+                // Push a new expense object for the active month, inheriting properties from the template
+                data[p].push({
+                    ...templateExpense,
+                    month: activeMonth, // Crucially, override month to activeMonth
+                });
+                changed = true;
+            }
         });
     });
     if (changed) {
@@ -1264,6 +1416,9 @@ function applyRecurring() {
 
 
 function toggleExpenseChart(toggleButtonElement, originalIndex) {
+  // Do not allow expanding charts in edit mode
+  if (editMode) return;
+
   const chartWrapper = document.getElementById(`expenseChartWrapper_${originalIndex}`);
   const chevronIcon = toggleButtonElement.querySelector('i');
 
@@ -1287,10 +1442,11 @@ function getExpenseHistoryData(currentExpense, personKey, year) {
 
     // Determine the identifier for matching expenses (baseId for recurring, note for one-off)
     const matcherId = currentExpense.recurring && currentExpense.baseId ? currentExpense.baseId : currentExpense.note;
-    const isRecurringMatch = currentExpense.recurring && currentExpense.baseId;
+    const isRecurringMatch = currentExpense.recurring && currentExpense.baseId; // Only project if it's a recurring with a baseId
 
-    const explicitMonthlyAmounts = {};
+    const explicitMonthlyAmounts = {}; // To sum up multiple entries within a month for the same note/baseId
 
+    // Filter expenses matching the current expense's identifier, year, and personal status
     data[personKey].filter(e => {
         const expenseYear = e.month.substring(0, 4);
         let eMatcherId;
@@ -1300,7 +1456,6 @@ function getExpenseHistoryData(currentExpense, personKey, year) {
             eMatcherId = e.note;
         }
         
-        // Match based on recurring status and identifier, and personal status
         return expenseYear === yearPrefix && eMatcherId === matcherId && e.isPersonal === currentExpense.isPersonal;
     }).forEach(e => {
         const monthIndex = MONTHS.indexOf(e.month.substring(5, 8));
@@ -1315,7 +1470,7 @@ function getExpenseHistoryData(currentExpense, personKey, year) {
     for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
         if (explicitMonthlyAmounts[monthIndex] !== undefined) {
             amountsByMonth[monthIndex] = explicitMonthlyAmounts[monthIndex];
-        } else if (isRecurringMatch) { // Only project if it's a recurring expense
+        } else if (isRecurringMatch) { // If it's a recurring expense, project its amount if not explicitly present
             amountsByMonth[monthIndex] = currentExpense.amount;
         }
     }
@@ -1409,6 +1564,75 @@ function drawExpenseHistoryChart(expense, canvasId, originalIndex) {
   });
 }
 
+// Multi-select/Multi-delete functions
+function toggleEditMode() {
+  editMode = !editMode;
+  selectedExpenses = []; // Clear selections on toggle
+  updateAll();
+}
+
+function cancelEditMode() {
+  editMode = false;
+  selectedExpenses = []; // Clear selections
+  updateAll();
+}
+
+function toggleExpenseSelection(checkboxElement, originalIndex) {
+  if (checkboxElement.checked) {
+    if (!selectedExpenses.includes(originalIndex)) {
+      selectedExpenses.push(originalIndex);
+    }
+  } else {
+    selectedExpenses = selectedExpenses.filter(idx => idx !== originalIndex);
+  }
+  // Re-render header to update delete button state
+  renderExpenseHeader();
+}
+
+function toggleSelectAll() {
+  const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
+  const allIndicesForMonth = expensesForMonth.map(e => data[activePerson].findIndex(item => item === e));
+
+  const allCurrentlySelected = allIndicesForMonth.length > 0 && allIndicesForMonth.every(idx => selectedExpenses.includes(idx));
+
+  if (allCurrentlySelected) {
+    // Deselect all
+    selectedExpenses = selectedExpenses.filter(idx => !allIndicesForMonth.includes(idx));
+  } else {
+    // Select all
+    allIndicesForMonth.forEach(idx => {
+      if (!selectedExpenses.includes(idx)) {
+        selectedExpenses.push(idx);
+      }
+    });
+  }
+  renderExpenses(); // Re-render to update checkboxes
+  renderExpenseHeader(); // Re-render header to update delete button state
+}
+
+
+function confirmDeleteSelected() {
+  if (selectedExpenses.length === 0) {
+    alert("No expenses selected for deletion.");
+    return;
+  }
+
+  if (!confirm(`Are you sure you want to delete ${selectedExpenses.length} selected expense(s)?`)) {
+    return;
+  }
+
+  // Filter out expenses whose originalIndex is in selectedExpenses
+  // Sort selectedExpenses in descending order to avoid index shifting issues during splice
+  const sortedSelected = [...selectedExpenses].sort((a, b) => b - a);
+
+  sortedSelected.forEach(idx => {
+    data[activePerson].splice(idx, 1);
+  });
+
+  save();
+  cancelEditMode(); // Exit edit mode and clear selections
+}
+
 
 function updateAll() {
   renderYears();
@@ -1417,6 +1641,7 @@ function updateAll() {
   updateViewModeText();
   updateChart();
   updateBalance(); // Balance depends on chart data (which uses new split logic)
+  renderExpenseHeader(); // Render the header with edit/delete buttons
   renderExpenses();
 }
 
