@@ -379,9 +379,9 @@ const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV
 
 // Canonical list of brands for auto-suggestions, sorted alphabetically
 const SUGGESTION_BRANDS = [
-    "affinity water", "amazon", "b&q", "costco", "council tax", "eurostar",
-    "hotel", "hyperoptic", "insite energy", "lidl", "lner", "m&s",
-    "octopus energy", "sainsbury's", "accommodation"
+    "affinity water", "amazon", "b&q", "barclays", "british airways", "costco", "council tax", "eurostar",
+    "hotel", "hsbc", "hyperoptic", "iberia", "insite energy", "john lewis", "lidl", "lner", "m&s",
+    "octopus energy", "renfe", "revolut", "ryanair", "sainsbury's", "tfl", "accommodation"
 ].sort();
 
 // Rules for logo detection (more comprehensive, order might matter for precedence)
@@ -389,14 +389,23 @@ const BRAND_LOGO_RULES = [
   { keywords: ["affinity water"], logo: "assets/logos/affinitywater.png" },
   { keywords: ["amazon"], logo: "assets/logos/amazon.png" },
   { keywords: ["b&q"], logo: "assets/logos/bandq.png" },
+  { keywords: ["barclays"], logo: "assets/logos/barclays.png" },
+  { keywords: ["british airways"], logo: "assets/logos/britishairways.png" },
   { keywords: ["costco"], logo: "assets/logos/costco.png" },
   { keywords: ["hyperoptic"], logo: "assets/logos/hyperoptic.png" },
+  { keywords: ["hsbc"], logo: "assets/logos/hsbc.png" },
+  { keywords: ["iberia"], logo: "assets/logos/iberia.png" },
   { keywords: ["insite energy"], logo: "assets/logos/insiteenergy.png" },
+  { keywords: ["john lewis"], logo: "assets/logos/johnlewis.png" },
   { keywords: ["lidl"], logo: "assets/logos/lidl.png" },
   { keywords: ["lner"], logo: "assets/logos/lner.png" },
   { keywords: ["m&s"], logo: "assets/logos/mands.png" }, // Handles M&S
   { keywords: ["octopus energy"], logo: "assets/logos/octopusenergy.png" }, // Handles Octopus Energy
+  { keywords: ["renfe"], logo: "assets/logos/renfe.png" },
+  { keywords: ["revolut"], logo: "assets/logos/revolut.png" },
+  { keywords: ["ryanair"], logo: "assets/logos/ryanair.png" },
   { keywords: ["sainsbury's"], logo: "assets/logos/sainsburys.png" },
+  { keywords: ["tfl"], logo: "assets/logos/tfl.png" }, // Handles TFL
   { keywords: ["eurostar"], logo: "assets/logos/eurostar.png" },
   // Specific aliases for Council Tax (prioritize more specific matches if possible)
   { keywords: ["council tax", "council-tax", "brent council", "brent"], logo: "assets/logos/brent.png" },
@@ -432,10 +441,13 @@ function showSuggestions() {
     matchingBrands.forEach(brand => {
       const suggestionItem = document.createElement('div');
       // Capitalize for display, e.g., "affinity water" -> "Affinity Water"
-      // Special handling for M&S and B&Q
+      // Special handling for M&S, B&Q, HSBC, LNER, and TFL
       let displayText = brand.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
       if (brand === "m&s") displayText = "M&S";
       if (brand === "b&q") displayText = "B&Q";
+      if (brand === "hsbc") displayText = "HSBC"; // Make HSBC uppercase
+      if (brand === "lner") displayText = "LNER"; // Make LNER uppercase
+      if (brand === "tfl") displayText = "TFL";   // Make TFL uppercase
 
       suggestionItem.textContent = displayText;
       suggestionItem.onmousedown = (event) => { // Use mousedown and preventDefault
@@ -455,6 +467,9 @@ function selectSuggestion(brandName) {
   let capitalizedBrand = brandName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   if (brandName === "m&s") capitalizedBrand = "M&S";
   if (brandName === "b&q") capitalizedBrand = "B&Q";
+  if (brandName === "hsbc") capitalizedBrand = "HSBC"; // Make HSBC uppercase
+  if (brandName === "lner") capitalizedBrand = "LNER"; // Make LNER uppercase
+  if (brandName === "tfl") capitalizedBrand = "TFL";   // Make TFL uppercase
 
   noteInput.value = capitalizedBrand;
   suggestionsDiv.style.display = 'none';
