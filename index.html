@@ -58,21 +58,24 @@ h1 {
 
 /* Style for the new settlement action button */
 .balance .action-button {
-  background: var(--card); /* Or a slightly different background */
+  background: #2a2a31; /* Slightly darker than card for contrast, or similar to month tabs */
   color: var(--accent1);
-  padding: 6px 12px;
+  padding: 6px 16px; /* A little more horizontal padding for better look, but still compact */
   border-radius: 10px;
-  font-weight: normal;
+  font-weight: 500; /* Slightly less bold than main buttons */
   font-size: 0.85rem;
   cursor: pointer;
-  border: 1px solid #2a2a31; /* Subtle border */
+  border: none; /* Remove border */
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center; /* Center icon and text within the button */
+  gap: 6px;
+  width: auto; /* Explicitly ensure it's not 100% width */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2); /* Subtle shadow for depth */
 }
 
 .balance .action-button:hover {
-  background: #2a2a31;
+  background: #3a3a41;
 }
 
 
