@@ -50,7 +50,31 @@ h1 {
   text-align: center;
   color: var(--muted);
   margin-bottom: 16px;
+  display: flex; /* Make it a flex container */
+  flex-direction: column; /* Stack items vertically */
+  align-items: center; /* Center horizontally */
+  gap: 8px; /* Space between text and button */
 }
+
+/* Style for the new settlement action button */
+.balance .action-button {
+  background: var(--card); /* Or a slightly different background */
+  color: var(--accent1);
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-weight: normal;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border: 1px solid #2a2a31; /* Subtle border */
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.balance .action-button:hover {
+  background: #2a2a31;
+}
+
 
 .card {
   background: var(--card);
@@ -68,15 +92,16 @@ canvas {
   max-height: 160px;
 }
 
-/* MONTH TABS */
-.month-tabs {
+/* MONTH AND YEAR TABS */
+.month-tabs, .year-tabs {
   display: flex;
   gap: 8px;
   overflow-x: auto;
   justify-content: center;
+  margin-bottom: 8px; /* Space between year and month tabs */
 }
 
-.month-tab {
+.month-tab, .year-tab {
   padding: 8px 14px;
   border-radius: 14px;
   background: #2a2a31;
@@ -85,7 +110,7 @@ canvas {
   white-space: nowrap;
 }
 
-.month-tab.active {
+.month-tab.active, .year-tab.active {
   background: var(--accent1);
 }
 
@@ -146,6 +171,14 @@ button:active {
   height: 20px;
   border-radius: 4px;
 }
+
+/* Generic receipt icon style when no specific logo */
+.expense-left .fa-receipt {
+  font-size: 20px; /* Match logo size */
+  width: 20px;
+  text-align: center;
+}
+
 
 .actions {
   display: flex;
@@ -226,6 +259,27 @@ button:active {
 .suggestions-dropdown div:hover {
   background: #2a2a31;
 }
+
+/* New CSS for the expense header and avatar */
+.expense-header-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px; /* Space between title and separator */
+  font-weight: 600; /* Make the title text bold like the original strong tag */
+}
+
+.expense-header-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover; /* Ensure image covers the area nicely */
+}
+
+.expense-separator {
+  border-bottom: 1px solid #2a2a31;
+  margin-bottom: 10px; /* Space between separator and first expense item */
+}
 </style>
 </head>
 
@@ -247,6 +301,7 @@ button:active {
 </div>
 
 <div class="card">
+  <div class="year-tabs" id="yearTabs"></div>
   <div class="month-tabs" id="monthTabs"></div>
 </div>
 
@@ -266,7 +321,8 @@ button:active {
 </div>
 
 <div class="card">
-  <strong id="expenseTitle"></strong>
+  <!-- Changed to a div to hold avatar, text, and separator -->
+  <div id="expenseHeader"></div>
   <div id="expenseList"></div>
 </div>
 
@@ -315,6 +371,9 @@ const BRAND_LOGO_RULES = [
 // DOM elements for suggestions
 const noteInput = document.getElementById('noteInput');
 const suggestionsDiv = document.getElementById('suggestions');
+const yearTabsDiv = document.getElementById('yearTabs'); // New DOM element for year tabs
+const expenseHeaderDiv = document.getElementById('expenseHeader'); // Get the new expense header div
+const balanceTextDiv = document.getElementById('balanceText'); // Get the balance text div for dynamic content
 
 // Auto-suggestion functions
 function showSuggestions() {
@@ -334,13 +393,13 @@ function showSuggestions() {
   if (matchingBrands.length > 0) {
     matchingBrands.forEach(brand => {
       const suggestionItem = document.createElement('div');
-      // Capitalize for display, e.g., "affinity water" -> "Affinity water"
-      suggestionItem.textContent = brand.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-      // Handle M&S specifically for display if needed, but current split works for "m&s" -> "M&s"
-      // If "M&S" is desired:
-      if (brand === "m&s") suggestionItem.textContent = "M&S";
-      if (brand === "b&q") suggestionItem.textContent = "B&Q"; // Correct display for B&Q
+      // Capitalize for display, e.g., "affinity water" -> "Affinity Water"
+      // Special handling for M&S and B&Q
+      let displayText = brand.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+      if (brand === "m&s") displayText = "M&S";
+      if (brand === "b&q") displayText = "B&Q";
 
+      suggestionItem.textContent = displayText;
       suggestionItem.onmousedown = (event) => { // Use mousedown and preventDefault
         event.preventDefault(); // Prevents the input from losing focus
         selectSuggestion(brand);
@@ -361,6 +420,7 @@ function selectSuggestion(brandName) {
 
   noteInput.value = capitalizedBrand;
   suggestionsDiv.style.display = 'none';
+  // No need to call focus() here, as preventDefault on mousedown kept focus
 }
 
 function hideSuggestions() {
@@ -395,13 +455,25 @@ function currentMonthKey() {
   return `${d.getFullYear()}-${MONTHS[d.getMonth()]}`;
 }
 
+// Initialize activeYear and activeMonth
+const today = new Date();
+let activeYear = today.getFullYear();
+let activeMonth = `${activeYear}-${MONTHS[today.getMonth()]}`;
+
 let activePerson = "francis";
-let activeMonth = currentMonthKey();
+
 
 const data = JSON.parse(localStorage.getItem("billData")) || {
   francis: [],
-  fiona: []
+  fiona: [],
+  settlements: {} // Initialize settlements here
 };
+// Ensure settlements object exists even if loaded from older data structure
+if (!data.settlements) {
+    data.settlements = {};
+    save(); // Save the updated structure to localStorage
+}
+
 
 // Migrate old month formats to the new YYYY-MMM format on load
 function migrateData() {
@@ -460,44 +532,60 @@ function updateLogosForAllExpenses() {
   }
 }
 
+function getYears() {
+  const years = new Set();
+  // Add current year
+  years.add(new Date().getFullYear().toString());
 
-function getMonths() {
-  const set = new Set();
-  set.add(normalizeMonthKey(activeMonth)); // Ensure activeMonth is also normalized when added
+  // Add years from existing data
+  ["francis", "fiona"].forEach(p => {
+    data[p].forEach(e => {
+      if (e.month) {
+        years.add(e.month.substring(0, 4)); // Extract YYYY from YYYY-MMM
+      }
+    });
+  });
+  return [...years].sort((a, b) => parseInt(a) - parseInt(b));
+}
 
-  ["francis","fiona"].forEach(p =>
-    data[p].forEach(e => set.add(normalizeMonthKey(e.month))) // Normalize all stored months
-  );
-  // Sort months chronologically for display
-  return [...set].sort((a, b) => {
-    const [yearA, monthA] = a.split('-');
-    const [yearB, monthB] = b.split('-');
-    if (yearA !== yearB) return parseInt(yearA) - parseInt(yearB);
-    return MONTHS.indexOf(monthA) - MONTHS.indexOf(monthB);
+function renderYears() {
+  yearTabsDiv.innerHTML = "";
+  getYears().forEach(year => {
+    const tab = document.createElement("div");
+    tab.className = "year-tab" + (year === activeYear.toString() ? " active" : "");
+    tab.textContent = year;
+    tab.onclick = () => {
+      activeYear = parseInt(year);
+      // Try to keep the same month, but for the new year
+      const currentMonthAbbr = activeMonth.substring(5, 8); // e.g., "JAN" from "2026-JAN"
+      activeMonth = `${activeYear}-${currentMonthAbbr}`;
+      applyRecurring();
+      updateAll();
+    };
+    yearTabsDiv.appendChild(tab);
   });
 }
 
 function renderMonths() {
   monthTabs.innerHTML = "";
-  getMonths().forEach(m => {
+  MONTHS.forEach(m => {
     const tab = document.createElement("div");
-    tab.className = "month-tab" + (m === activeMonth ? " active" : "");
-    tab.textContent = m;
-    tab.onclick = () => { activeMonth = m; applyRecurring(); updateAll(); };
+    tab.className = "month-tab" + ((`${activeYear}-${m}`) === activeMonth ? " active" : "");
+    tab.textContent = m; // Display only the month abbreviation
+    tab.onclick = () => {
+      activeMonth = `${activeYear}-${m}`; // Set activeMonth with full YYYY-MMM
+      applyRecurring();
+      updateAll();
+    };
     monthTabs.appendChild(tab);
   });
 }
 
-function applyRecurring() {
-  ["francis","fiona"].forEach(p => {
-    data[p].filter(e => e.recurring).forEach(e => {
-      // Use normalizeMonthKey for comparison to handle any edge cases
-      if (!data[p].some(x => x.baseId === e.baseId && normalizeMonthKey(x.month) === activeMonth)) {
-        // Create a copy and ensure the month is set to the current activeMonth format
-        data[p].push({ ...e, month: activeMonth, logo: detectLogo(e.note) }); // Re-detect logo for recurring
-      }
-    });
-  });
+// New function to mark a month as settled or unsettled
+function markMonthAsSettled(status) {
+  data.settlements[activeMonth] = status;
+  save();
+  updateAll();
 }
 
 function total(person) {
@@ -510,26 +598,59 @@ function updateBalance() {
   const a = total("francis");
   const b = total("fiona");
   const diff = Math.abs(a - b) / 2;
-  balanceText.textContent =
-    a === b ? "All settled" :
-    a > b ? `Fiona owes Francis £${diff.toFixed(2)}` :
-            `Francis owes Fiona £${diff.toFixed(2)}`;
+
+  let balanceMessage = "";
+  let actionButton = "";
+
+  const isSettled = data.settlements[activeMonth];
+
+  if (isSettled) {
+    balanceMessage = `All settled for ${activeMonth}!`;
+    actionButton = `<button class="action-button" onclick="markMonthAsSettled(false)"><i class="fa-solid fa-undo"></i> Unmark as Settled</button>`;
+  } else {
+    if (a === b) {
+      balanceMessage = "All settled";
+      // No action button needed if already balanced
+    } else if (a > b) {
+      balanceMessage = `Fiona owes Francis £${diff.toFixed(2)}`;
+      actionButton = `<button class="action-button" onclick="markMonthAsSettled(true)"><i class="fa-solid fa-check"></i> Mark as Settled</button>`;
+    } else {
+      balanceMessage = `Francis owes Fiona £${diff.toFixed(2)}`;
+      actionButton = `<button class="action-button" onclick="markMonthAsSettled(true)"><i class="fa-solid fa-check"></i> Mark as Settled</button>`;
+    }
+  }
+
+  balanceTextDiv.innerHTML = `
+    <span>${balanceMessage}</span>
+    ${actionButton}
+  `;
 }
 
 function renderExpenses() {
-  expenseTitle.textContent = `${capitalise(activePerson)} – ${activeMonth}`;
-  expenseList.innerHTML = "";
+  // Determine avatar src for the active person
+  const avatarImgSrc = (activePerson === "francis") ? "assets/person001.png" : "assets/person002.png";
+
+  // Construct the header content including avatar, text, and separator
+  expenseHeaderDiv.innerHTML = `
+    <div class="expense-header-content">
+      <img src="${avatarImgSrc}" class="expense-header-avatar">
+      <span>${capitalise(activePerson)} – ${activeMonth}</span>
+    </div>
+    <div class="expense-separator"></div>
+  `;
+
+  expenseList.innerHTML = ""; // Clear existing expense items
 
   data[activePerson]
     .filter(e => normalizeMonthKey(e.month) === activeMonth) // Normalize month for filtering
     .forEach((e,i) => {
       const row = document.createElement("div");
       row.className = "expense";
-      // The logo is displayed if e.logo exists
-      const logo = e.logo ? `<img class="logo" src="${e.logo}" onerror="this.remove()">` : "";
+      // The logo or default receipt icon
+      const iconContent = e.logo ? `<img class="logo" src="${e.logo}" onerror="this.remove()">` : `<i class="fa-solid fa-receipt"></i>`;
       row.innerHTML = `
         <div class="expense-left">
-          ${logo}
+          ${iconContent}
           <div>${e.note}<br><small>£${e.amount.toFixed(2)}</small></div>
         </div>
         <div class="actions">
@@ -650,6 +771,8 @@ function importJSON() {
             if (confirm("Are you sure you want to import this data? This will overwrite your current data.")) {
               data.francis = importedData.francis;
               data.fiona = importedData.fiona;
+              // Import settlements too, if they exist in the imported data
+              data.settlements = importedData.settlements || {};
               save();
               migrateData(); // Run migration on imported data too, to ensure consistency
               updateLogosForAllExpenses(); // Apply new logo rules to imported data
@@ -672,8 +795,22 @@ function importJSON() {
 }
 
 
+function applyRecurring() {
+  ["francis","fiona"].forEach(p => {
+    data[p].filter(e => e.recurring).forEach(e => {
+      // Use normalizeMonthKey for comparison to handle any edge cases
+      // Only add if not already present AND if it's not marked as settled for this month
+      if (!data[p].some(x => x.baseId === e.baseId && normalizeMonthKey(x.month) === activeMonth)) {
+        data[p].push({ ...e, month: activeMonth, logo: detectLogo(e.note) });
+      }
+    });
+  });
+}
+
+
 function updateAll() {
-  renderMonths();
+  renderYears(); // Render years first
+  renderMonths(); // Then months for the active year
   applyRecurring(); // Ensure recurring expenses are applied *after* data migration and before totals are calculated
   updateChart();
   updateBalance();
