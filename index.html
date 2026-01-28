@@ -633,18 +633,57 @@ function total(person) {
     .reduce((s,e) => s + e.amount, 0);
 }
 
-// New function to calculate annual totals
+// New function to calculate annual totals including projected recurring expenses
 function calculateAnnualTotals() {
     const annualTotals = { francis: 0, fiona: 0 };
-    ["francis", "fiona"].forEach(p => {
-        data[p].forEach(e => {
-            if (e.month && e.month.startsWith(activeYear.toString())) {
-                annualTotals[p] += e.amount;
+    const yearPrefix = activeYear.toString();
+
+    ["francis", "fiona"].forEach(personKey => {
+        const personExpenses = data[personKey];
+        const uniqueRecurringExpenseDetails = {}; // Stores {baseId: {amount}} for each unique recurring item
+
+        // First pass: identify all unique recurring expenses and their latest amounts from ALL data
+        personExpenses.forEach(e => {
+            if (e.recurring && e.baseId) {
+                // If there are multiple entries for the same recurring baseId, the latest encountered amount is used.
+                uniqueRecurringExpenseDetails[e.baseId] = { amount: e.amount };
             }
         });
+
+        // Loop through each month (JAN-DEC) of the active year
+        for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
+            const monthOfYear = MONTHS[monthIndex];
+            const currentYearMonthKey = `${yearPrefix}-${monthOfYear}`;
+            let monthlyProjectedTotal = 0;
+
+            const existingExpensesForThisMonth = personExpenses.filter(e => e.month === currentYearMonthKey);
+            const recurringBaseIdsAlreadyExplicitlyIncludedThisMonth = new Set();
+
+            // Add all expenses explicitly recorded for this specific month
+            existingExpensesForThisMonth.forEach(e => {
+                monthlyProjectedTotal += e.amount;
+                if (e.recurring && e.baseId) {
+                    recurringBaseIdsAlreadyExplicitlyIncludedThisMonth.add(e.baseId);
+                }
+            });
+
+            // For any unique recurring expenses that *have not been explicitly recorded* for this specific month,
+            // add their amount to the monthly projected total.
+            Object.keys(uniqueRecurringExpenseDetails).forEach(baseId => {
+                if (!recurringBaseIdsAlreadyExplicitlyIncludedThisMonth.has(baseId)) {
+                    const recurringItem = uniqueRecurringExpenseDetails[baseId];
+                    if (recurringItem) {
+                        monthlyProjectedTotal += recurringItem.amount;
+                    }
+                }
+            });
+            annualTotals[personKey] += monthlyProjectedTotal;
+        }
     });
+
     return annualTotals;
 }
+
 
 function updateBalance() {
   const a = total("francis");
@@ -794,20 +833,18 @@ const chart = new Chart(document.getElementById("billChart"), {
 
 function updateChart() {
     let francisAmount, fionaAmount;
-    let chartLabels;
 
     if (viewMode === 'monthly') {
         francisAmount = total("francis"); // This is already specific to activeMonth
         fionaAmount = total("fiona");     // This is already specific to activeMonth
-        chartLabels = ["Francis (Monthly)", "Fiona (Monthly)"];
     } else { // viewMode === 'annual'
         const annualTotals = calculateAnnualTotals();
         francisAmount = annualTotals.francis;
         fionaAmount = annualTotals.fiona;
-        chartLabels = [`Francis (${activeYear} Annual)`, `Fiona (${activeYear} Annual)`];
     }
 
-    chart.data.labels = chartLabels;
+    // Simplified labels as requested
+    chart.data.labels = ["Francis", "Fiona"];
     chart.data.datasets[0].data = [francisAmount, fionaAmount];
     chart.update();
 }
