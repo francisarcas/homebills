@@ -104,7 +104,7 @@ canvas {
 }
 .month-tab.active, .year-tab.active {
   background: var(--accent1);
-  font-weight: 600;
+  font-weight: 600; /* Make active tab text bolder */
 }
 .view-switcher {
   display: flex;
@@ -165,9 +165,9 @@ button.disabled, .action-button.disabled {
   opacity: 0.7;
 }
 
-
+/* Increase icon size within buttons */
 button i, .action-button i {
-  font-size: 1.2em;
+  font-size: 1.2em; /* Makes icons larger relative to the button's font size */
 }
 
 .expense {
@@ -303,6 +303,22 @@ button i, .action-button i {
   align-items: center;
   gap: 8px;
 }
+/* Desktop display of header info (default) */
+.expense-header-info .desktop-display {
+  display: flex;
+  align-items: center;
+}
+/* Mobile display of header info (hidden by default) */
+.expense-header-info .mobile-display {
+  display: none;
+  flex-direction: column; /* Stack name and date */
+  align-items: flex-start; /* Align text to left */
+  line-height: 1.2; /* Adjust line spacing */
+}
+.expense-header-info .mobile-display .person-name-line {
+  margin-bottom: 2px; /* Small gap between name and date */
+}
+
 .expense-header-actions {
   display: flex;
   gap: 8px;
@@ -389,6 +405,27 @@ input[type="checkbox"].expense-select-checkbox:focus {
 .action.delete.disabled:active {
   opacity: 0.6;
 }
+
+/* Add button text (hidden by default on desktop) */
+.form button .add-button-text {
+  display: none;
+}
+
+/* Mobile specific styles */
+@media (max-width: 600px) {
+  /* Expense header info */
+  .expense-header-info .desktop-display {
+    display: none; /* Hide desktop version */
+  }
+  .expense-header-info .mobile-display {
+    display: flex; /* Show mobile version */
+  }
+  /* Add button text */
+  .form button .add-button-text {
+    display: inline; /* Show "Add" text on mobile */
+    margin-left: 5px; /* Space between icon and text */
+  }
+}
 </style>
 </head>
 <body>
@@ -429,7 +466,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
 <option value="shared">Shared</option>
 <option value="personal">Personal</option>
 </select>
-<button onclick="addExpense()"><i class="fa-solid fa-circle-plus"></i></button>
+<button onclick="addExpense()"><i class="fa-solid fa-circle-plus"></i> <span class="add-button-text">Add</span></button>
 </div>
 </div>
 <div class="card">
@@ -720,14 +757,27 @@ function renderMonths() {
   monthTabs.innerHTML = "";
   MONTHS.forEach(m => {
     const tab = document.createElement("div");
-    tab.className = "month-tab" + ((`${activeYear}-${m}`) === activeMonth ? " active" : "");
+    const monthKey = `${activeYear}-${m}`;
+    tab.className = "month-tab" + (monthKey === activeMonth ? " active" : "");
     tab.textContent = m;
     tab.onclick = () => {
-      activeMonth = `${activeYear}-${m}`;
+      activeMonth = monthKey;
       updateAll();
     };
     monthTabs.appendChild(tab);
   });
+
+  // Scroll to active month
+  const activeMonthTab = document.querySelector('#monthTabs .month-tab.active');
+  if (activeMonthTab) {
+    requestAnimationFrame(() => {
+      activeMonthTab.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest'
+      });
+    });
+  }
 }
 function markMonthAsSettled(status) {
   data.settlements[activeMonth] = status;
@@ -830,11 +880,19 @@ function renderExpenseHeader() {
       <button class="action-button delete-selected ${deleteButtonDisabled}" onclick="confirmDeleteSelected()" ${deleteButtonDisabled} title="Delete Selected Expenses"><i class="fa-solid fa-trash"></i></button>
     `;
   }
+
+  // Modified expense-header-info content to support mobile layout
   expenseHeaderDiv.innerHTML = `
     <div class="expense-header-content">
       <div class="expense-header-info">
         <img src="${avatarImgSrc}" class="expense-header-avatar">
-        <span>${capitalise(activePerson)} – ${activeMonth}</span>
+        <div class="desktop-display">
+          <span>${capitalise(activePerson)} – ${activeMonth}</span>
+        </div>
+        <div class="mobile-display">
+          <span class="person-name-line">${capitalise(activePerson)}</span>
+          <span class="month-year-line">${activeMonth}</span>
+        </div>
       </div>
       <div class="expense-header-actions">
         ${actionButtonsHtml}
