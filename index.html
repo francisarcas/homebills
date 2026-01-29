@@ -614,17 +614,17 @@ const yearTabsDiv = document.getElementById('yearTabs');
 const expenseHeaderDiv = document.getElementById('expenseHeader');
 const balanceTextDiv = document.getElementById('balanceText');
 const currentViewTextSpan = document.getElementById('currentViewText');
-const sharedStatusInput = document.getElementById('sharedStatusInput'); // New
-const amountInput = document.getElementById('amountInput'); // For width adjustment
-const recurringInput = document.getElementById('recurringInput'); // For width adjustment
-const expenseListDiv = document.getElementById('expenseList'); // Reference to the list container
+const sharedStatusInput = document.getElementById('sharedStatusInput');
+const amountInput = document.getElementById('amountInput');
+const recurringInput = document.getElementById('recurringInput');
+const expenseListDiv = document.getElementById('expenseList');
 
 
 const expenseChartInstances = {};
 
 // Global state for multi-select/multi-delete
 let editMode = false;
-let selectedExpenses = []; // Stores UUIDs of selected expenses for the activePerson and activeMonth
+let selectedExpenses = [];
 
 // Auto-suggestion functions
 function showSuggestions() {
@@ -774,7 +774,7 @@ function normalizeExpenseData() {
                     const existingRecurringSameNote = data[p].find(item => item.note === e.note && item.baseId);
                     if (existingRecurringSameNote) {
                         e.baseId = existingRecurringSameNote.baseId;
-                    } else if (recurringNoteToBaseIdMap[e.note]) { // Use map for this session
+                    } else if (recurringNoteToBaseIdMap[e.note]) {
                         e.baseId = recurringNoteToBaseIdMap[e.note];
                     } else {
                         e.baseId = generateUUID();
@@ -786,7 +786,7 @@ function normalizeExpenseData() {
                 }
             } else {
                 if (e.baseId) {
-                    delete e.baseId; // Non-recurring should not have baseId
+                    delete e.baseId;
                     changed = true;
                 }
             }
@@ -796,11 +796,16 @@ function normalizeExpenseData() {
                 e.isPersonal = false;
                 changed = true;
             }
+            // New: Ensure isProjected flag exists, default to false
+            if (e.isProjected === undefined) {
+                e.isProjected = false;
+                changed = true;
+            }
         });
     });
     if (changed) {
         save();
-        console.log("Normalized expense data (baseId, recurring flags, isPersonal, and UUIDs).");
+        console.log("Normalized expense data (baseId, recurring flags, isPersonal, isProjected, and UUIDs).");
     }
 }
 
@@ -868,7 +873,6 @@ function renderYears() {
       activeYear = parseInt(year);
       const currentMonthAbbr = activeMonth.substring(5, 8);
       activeMonth = `${activeYear}-${currentMonthAbbr}`;
-      // applyRecurring is now called in updateAll(), which is called at the end of this handler
       updateAll();
     };
     yearTabsDiv.appendChild(tab);
@@ -883,7 +887,6 @@ function renderMonths() {
     tab.textContent = m;
     tab.onclick = () => {
       activeMonth = `${activeYear}-${m}`;
-      // applyRecurring is now called in updateAll(), which is called at the end of this handler
       updateAll();
     };
     monthTabs.appendChild(tab);
@@ -908,24 +911,37 @@ function getMonthlyExpenses(personKey, monthKey) {
 // Updated calculateAnnualTotals to return shared/personal split
 function calculateAnnualTotals() {
     const annualTotals = {
-        francis: { shared: 0, personal: 0 },
-        fiona: { shared: 0, personal: 0 }
+        francis: { shared: 0, personal: 0 }
     };
+    if (data.fiona) {
+      annualTotals.fiona = { shared: 0, personal: 0 };
+    }
+
     const yearPrefix = activeYear.toString();
 
     ["francis", "fiona"].forEach(personKey => {
-        const personExpenses = data[personKey];
-        const latestRecurringSharedAmounts = {};
-        const latestRecurringPersonalAmounts = {};
+        if (!data[personKey]) return;
 
-        // Track latest recurring amounts for both shared and personal, by their baseId
-        personExpenses.forEach(e => {
-            if (e.recurring && e.baseId) {
-                if (e.isPersonal) {
-                    latestRecurringPersonalAmounts[e.baseId] = e.amount;
-                } else {
-                    latestRecurringSharedAmounts[e.baseId] = e.amount;
-                }
+        // Filter for only actual entries to determine recurring series start/latest actual amount
+        const actualPersonExpenses = data[personKey].filter(e => !e.isProjected);
+
+        const latestRecurringSharedAmounts = {}; // baseId -> { amount, month }
+        const latestRecurringPersonalAmounts = {}; // baseId -> { amount, month }
+        const firstRecurringSharedMonth = {}; // baseId -> month string
+        const firstRecurringPersonalMonth = {}; // baseId -> month string
+
+        // Determine latest actual amounts and first actual occurrence month for all recurring series
+        actualPersonExpenses.filter(e => e.recurring && e.baseId).forEach(e => {
+            const currentFirstMonth = e.isPersonal ? firstRecurringPersonalMonth[e.baseId] : firstRecurringSharedMonth[e.baseId];
+            if (!currentFirstMonth || e.month < currentFirstMonth) {
+                if (e.isPersonal) firstRecurringPersonalMonth[e.baseId] = e.month;
+                else firstRecurringSharedMonth[e.baseId] = e.month;
+            }
+
+            const currentLatestAmount = e.isPersonal ? latestRecurringPersonalAmounts[e.baseId] : latestRecurringSharedAmounts[e.baseId];
+            if (!currentLatestAmount || e.month > (currentLatestAmount.month || '')) {
+                if (e.isPersonal) latestRecurringPersonalAmounts[e.baseId] = { amount: e.amount, month: e.month };
+                else latestRecurringSharedAmounts[e.baseId] = { amount: e.amount, month: e.month };
             }
         });
 
@@ -936,36 +952,20 @@ function calculateAnnualTotals() {
             let monthlySharedTotal = 0;
             let monthlyPersonalTotal = 0;
 
-            const existingExpensesForThisMonth = personExpenses.filter(e => e.month === currentYearMonthKey);
-            const recurringSharedBaseIdsExplicitlyIncludedThisMonth = new Set();
-            const recurringPersonalBaseIdsExplicitlyIncludedThisMonth = new Set();
+            // Get all entries (actual and projected) for the current month
+            const expensesForThisMonth = data[personKey].filter(e => e.month === currentYearMonthKey);
 
-            existingExpensesForThisMonth.forEach(e => {
+            expensesForThisMonth.forEach(e => {
                 if (e.isPersonal) {
                     monthlyPersonalTotal += e.amount;
-                    if (e.recurring && e.baseId) {
-                        recurringPersonalBaseIdsExplicitlyIncludedThisMonth.add(e.baseId);
-                    }
                 } else {
                     monthlySharedTotal += e.amount;
-                    if (e.recurring && e.baseId) {
-                        recurringSharedBaseIdsExplicitlyIncludedThisMonth.add(e.baseId);
-                    }
                 }
             });
-
-            // Add projected recurring shared expenses not explicitly in this month
-            Object.keys(latestRecurringSharedAmounts).forEach(baseId => {
-                if (!recurringSharedBaseIdsExplicitlyIncludedThisMonth.has(baseId)) {
-                    monthlySharedTotal += latestRecurringSharedAmounts[baseId];
-                }
-            });
-            // Add projected recurring personal expenses not explicitly in this month
-            Object.keys(latestRecurringPersonalAmounts).forEach(baseId => {
-                if (!recurringPersonalBaseIdsExplicitlyIncludedThisMonth.has(baseId)) {
-                    monthlyPersonalTotal += latestRecurringPersonalAmounts[baseId];
-                }
-            });
+            
+            // The applyRecurring function already populates data[personKey] with projected entries.
+            // So, we just need to sum up what's in the data for this month.
+            // No need for separate projection logic here.
 
             annualTotals[personKey].shared += monthlySharedTotal;
             annualTotals[personKey].personal += monthlyPersonalTotal;
@@ -1020,7 +1020,7 @@ function renderExpenseHeader() {
     actionButtonsHtml = `<button class="action-button" onclick="toggleEditMode()"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`;
   } else {
     const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
-    const allSelected = expensesForMonth.length > 0 && expensesForMonth.every(e => selectedExpenses.includes(e.uuid)); // Check selected UUIDs
+    const allSelected = expensesForMonth.length > 0 && expensesForMonth.every(e => selectedExpenses.includes(e.uuid));
     
     const deleteButtonDisabled = selectedExpenses.length === 0 ? 'disabled' : '';
     
@@ -1067,10 +1067,22 @@ function renderExpenses() {
   expenseListDiv.innerHTML = "";
 
   // Filter expenses for the active person and active month
-  const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
+  // Sort by whether it's projected (projected last), then by amount, then note
+  const expensesForMonth = data[activePerson]
+    .filter(e => normalizeMonthKey(e.month) === activeMonth)
+    .sort((a, b) => {
+        // Actual entries first, then projected
+        if (a.isProjected && !b.isProjected) return 1;
+        if (!a.isProjected && b.isProjected) return -1;
+        // Then by amount (descending)
+        if (a.amount < b.amount) return 1;
+        if (a.amount > b.amount) return -1;
+        // Then by note
+        return a.note.localeCompare(b.note);
+    });
 
-  expensesForMonth.forEach((e) => { // No longer need displayIndex
-    const expenseUuid = e.uuid; // Use UUID as the stable identifier
+  expensesForMonth.forEach((e) => {
+    const expenseUuid = e.uuid;
 
     const row = document.createElement("div");
     row.className = "expense";
@@ -1078,6 +1090,7 @@ function renderExpenses() {
     
     const recurringIndicator = e.recurring ? `<i class="fa-solid fa-repeat recurring-indicator" title="Recurring expense"></i>` : '';
     const personalIndicator = e.isPersonal ? `<i class="fa-solid fa-user personal-indicator" title="Personal expense (not shared)"></i>` : '';
+    const projectedIndicator = e.isProjected ? `<i class="fa-solid fa-clock recurring-indicator" title="Projected expense"></i>` : ''; // New projected indicator
 
     let actionsHtml = '';
     let checkboxHtml = '';
@@ -1088,6 +1101,7 @@ function renderExpenses() {
     } else {
       actionsHtml = `
         ${personalIndicator}
+        ${projectedIndicator} <!-- Display projected indicator here -->
         <span class="action expand-chart-toggle" data-uuid="${expenseUuid}" onclick="toggleExpenseChart(this, '${expenseUuid}')"><i class="fa-solid fa-chevron-down"></i></span>
         <span class="action" onclick="editExpenseByUUID('${expenseUuid}')"><i class="fa-solid fa-pencil"></i></span>
         <span class="action delete" onclick="deleteExpenseByUUID('${expenseUuid}')"><i class="fa-solid fa-trash"></i></span>
@@ -1115,7 +1129,7 @@ function addExpense() {
   const amount = parseFloat(amountInput.value);
   const note = noteInput.value.trim();
   const isRecurring = recurringInput.value === "yes";
-  const isPersonal = sharedStatusInput.value === "personal"; // New: Get personal status
+  const isPersonal = sharedStatusInput.value === "personal";
   
   // Validation
   if (!amount || !note) {
@@ -1134,13 +1148,14 @@ function addExpense() {
   }
 
   const newExpense = {
-    uuid: generateUUID(), // Assign a UUID to the new expense
+    uuid: generateUUID(),
     month: activeMonth,
     amount,
     note,
     logo: detectLogo(note),
     recurring: isRecurring,
-    isPersonal: isPersonal // New: Add to expense object
+    isPersonal: isPersonal,
+    isProjected: false // New expenses are always actual, not projected
   };
   
   // Only add baseId if recurring
@@ -1153,17 +1168,16 @@ function addExpense() {
   amountInput.value = "";
   noteInput.value = "";
   recurringInput.value = "no";
-  sharedStatusInput.value = "shared"; // Reset to default
+  sharedStatusInput.value = "shared";
   suggestionsDiv.style.display = 'none';
   save();
   updateAll();
 }
 
-function editExpenseByUUID(uuid) { // Renamed from editExpenseAtIndex
+function editExpenseByUUID(uuid) {
   // Exit edit mode if active
   if (editMode) {
       cancelEditMode();
-      // Allow a brief moment for the UI to update before opening prompt
       setTimeout(() => editExpenseByUUID(uuid), 100);
       return;
   }
@@ -1174,11 +1188,17 @@ function editExpenseByUUID(uuid) { // Renamed from editExpenseAtIndex
       return;
   }
 
+  // Prevent editing projected expenses directly
+  if (expense.isProjected) {
+      alert("Projected expenses cannot be edited directly. Please edit an actual entry for this recurring series.");
+      return;
+  }
+
   const newNote = prompt("Description", expense.note);
-  if (newNote === null) return; // User cancelled note edit
+  if (newNote === null) return;
 
   const newAmountStr = prompt("Amount", expense.amount);
-  if (newAmountStr === null) return; // User cancelled amount edit
+  if (newAmountStr === null) return;
 
   if (!newNote.trim() || !newAmountStr.trim()) {
       alert("Description and Amount cannot be empty.");
@@ -1204,17 +1224,16 @@ function editExpenseByUUID(uuid) { // Renamed from editExpenseAtIndex
 
   expense.note = newNote.trim();
   expense.amount = newAmount;
-  expense.logo = detectLogo(newNote.trim()); // Update logo if note changed
+  expense.logo = detectLogo(newNote.trim());
 
   let dataChanged = false;
 
   // Check if it's a recurring expense and if the amount changed
   if (expense.recurring && expense.baseId && newAmount !== originalAmount) {
       if (confirm("Do you want to update all future occurrences of this recurring expense to the new amount?")) {
+          // Update all *actual* future occurrences for this baseId
           data[activePerson].forEach(e => {
-              // Ensure it's the same recurring series AND it's a future month
-              // AND it has the same personal status (this ensures 'shared' recurring items don't affect 'personal' ones of same note)
-              if (e.baseId === expense.baseId && e.month > expense.month && e.isPersonal === expense.isPersonal) {
+              if (e.baseId === expense.baseId && e.month > expense.month && e.isPersonal === expense.isPersonal && !e.isProjected) {
                   e.amount = newAmount;
                   dataChanged = true;
               }
@@ -1229,11 +1248,11 @@ function editExpenseByUUID(uuid) { // Renamed from editExpenseAtIndex
 
   if (dataChanged) {
       save();
-      updateAll();
+      updateAll(); // updateAll will trigger applyRecurring to regenerate projections
   }
 }
 
-function deleteExpenseByUUID(uuid) { // Renamed from deleteExpenseAtIndex
+function deleteExpenseByUUID(uuid) {
   // Exit edit mode if active
   if (editMode) {
       cancelEditMode();
@@ -1241,6 +1260,42 @@ function deleteExpenseByUUID(uuid) { // Renamed from deleteExpenseAtIndex
       return;
   }
 
+  const expenseToDelete = getExpenseByUUID(uuid);
+  if (!expenseToDelete) {
+      console.error("Expense not found for deletion with UUID:", uuid);
+      return;
+  }
+
+  if (expenseToDelete.isProjected) {
+      alert("Projected expenses cannot be deleted directly. Please delete an actual entry for this recurring series to stop its projection.");
+      return;
+  }
+
+  // --- New Logic for Recurring Expense Deletion ---
+  if (expenseToDelete.recurring && expenseToDelete.baseId) {
+      if (confirm("This is a recurring expense. Do you want to delete all future occurrences of this series as well?")) {
+          // User wants to delete future occurrences
+          // Filter out expenses that are part of this recurring series AND occur AFTER the current month
+          data[activePerson] = data[activePerson].filter(e => {
+              return !(e.baseId === expenseToDelete.baseId &&
+                       e.isPersonal === expenseToDelete.isPersonal &&
+                       e.month > expenseToDelete.month);
+          });
+          // Now, explicitly remove the current expense from the filtered array
+          const indexToDelete = data[activePerson].findIndex(e => e.uuid === uuid);
+          if (indexToDelete !== -1) {
+              data[activePerson].splice(indexToDelete, 1);
+          }
+          save();
+          updateAll(); // Re-project everything from scratch
+          return; // Exit function after handling
+      }
+      // If user clicks 'Cancel' on deleting future occurrences,
+      // fall through to delete only the current expense.
+  }
+  // --- End New Logic ---
+
+  // Original logic: Delete only the current expense (if not handled by recurring prompt)
   if (!confirm("Delete expense?")) return;
 
   const indexToDelete = getExpenseIndexByUUID(uuid);
@@ -1258,7 +1313,7 @@ function selectPerson(p) {
   activePerson = p;
   francisBtn.classList.toggle("active", p === "francis");
   fionaBtn.classList.toggle("active", p === "fiona");
-  cancelEditMode(); // Exit edit mode when switching person
+  cancelEditMode();
   updateAll();
 }
 
@@ -1266,15 +1321,15 @@ const chart = new Chart(document.getElementById("billChart"), {
   type: "bar",
   data: {
     labels: ["Francis", "Fiona"],
-    datasets: [] // Datasets will be dynamically generated in updateChart
+    datasets: []
   },
   options: {
     indexAxis: "y",
     plugins: {
         legend: {
-            display: false // Set to false to remove the legend
+            display: false
         },
-        tooltip: { // Improved tooltip for stacked bars
+        tooltip: {
             mode: 'index',
             intersect: false,
             callbacks: {
@@ -1303,19 +1358,19 @@ const chart = new Chart(document.getElementById("billChart"), {
     },
     scales: {
       x: {
-          stacked: true, // Enable stacking on x-axis
+          stacked: true,
           ticks: { color: "#f5f5f7" },
           grid: { color: "#2a2a31" }
       },
       y: {
-          stacked: true, // Enable stacking on y-axis
+          stacked: true,
           ticks: { color: "#f5f5f7" },
           grid: { display: false }
       }
     },
     elements: {
       bar: {
-        borderRadius: 0 // Remove default bar rounding, manage per segment
+        borderRadius: 0
       }
     }
   }
@@ -1335,14 +1390,10 @@ function updateChart() {
         const annualTotals = calculateAnnualTotals();
         francisShared = annualTotals.francis.shared;
         francisPersonal = annualTotals.francis.personal;
-        fionaShared = annualTotals.fiona.shared;
-        fionaPersonal = annualTotals.fiona.personal;
+        fionaShared = annualTotals.fiona ? annualTotals.fiona.shared : 0;
+        fionaPersonal = annualTotals.fiona ? annualTotals.fiona.personal : 0;
     }
 
-    // Determine borderRadius for each segment based on whether the other segment exists
-    // The bars are drawn horizontally, so borderRadius is applied to the ends.
-    // For Francis: if personal is 0, shared fills the full bar width, so it gets full radius.
-    // If both exist, personal gets top/bottom (left for horizontal) and shared gets right.
     const francisBarRoundingPersonal = (francisShared === 0 && francisPersonal > 0) ? 12 : { topLeft: 12, bottomLeft: 12, topRight: 0, bottomRight: 0 };
     const francisBarRoundingShared = (francisPersonal === 0 && francisShared > 0) ? 12 : { topLeft: 0, bottomLeft: 0, topRight: 12, bottomRight: 12 };
 
@@ -1355,12 +1406,11 @@ function updateChart() {
             label: 'Personal',
             data: [francisPersonal, fionaPersonal],
             backgroundColor: (ctx) => {
-                // Use translucent version of accent colors
-                if (ctx.dataIndex === 0) return "rgba(10, 132, 255, 0.5)"; // Francis personal (accent1 translucent)
-                if (ctx.dataIndex === 1) return "rgba(255, 55, 95, 0.5)";  // Fiona personal (accent2 translucent)
-                return 'transparent'; // For zero values
+                if (ctx.dataIndex === 0) return "rgba(10, 132, 255, 0.5)";
+                if (ctx.dataIndex === 1) return "rgba(255, 55, 95, 0.5)";
+                return 'transparent';
             },
-            stack: 'expenses', // Both personal and shared contribute to the same bar (stack)
+            stack: 'expenses',
             borderRadius: [francisBarRoundingPersonal, fionaBarRoundingPersonal],
             borderSkipped: false
         },
@@ -1368,10 +1418,9 @@ function updateChart() {
             label: 'Shared',
             data: [francisShared, fionaShared],
             backgroundColor: (ctx) => {
-                // Use solid accent colors
-                if (ctx.dataIndex === 0) return "#0a84ff"; // Francis shared (accent1)
-                if (ctx.dataIndex === 1) return "#ff375f"; // Fiona shared (accent2)
-                return 'transparent'; // For zero values
+                if (ctx.dataIndex === 0) return "#0a84ff";
+                if (ctx.dataIndex === 1) return "#ff375f";
+                return 'transparent';
             },
             stack: 'expenses',
             borderRadius: [francisBarRoundingShared, fionaBarRoundingShared],
@@ -1396,7 +1445,7 @@ function toggleViewMode() {
     } else {
         viewMode = 'monthly';
     }
-    cancelEditMode(); // Exit edit mode when changing view
+    cancelEditMode();
     updateViewModeText();
     updateChart();
 }
@@ -1430,9 +1479,9 @@ function importJSON() {
               data.settlements = importedData.settlements || {};
               save();
               migrateData();
-              normalizeExpenseData(); // Ensure UUIDs and other fields are correct for imported data
+              normalizeExpenseData();
               updateLogosForAllExpenses();
-              cancelEditMode(); // Exit edit mode after import
+              cancelEditMode();
               updateAll();
               alert("Data imported successfully!");
             }
@@ -1451,48 +1500,117 @@ function importJSON() {
   input.click();
 }
 
-// FIX: Corrected applyRecurring logic to prevent duplication and ensure chronological projection
 function applyRecurring() {
     let changed = false;
+    
+    // Step 1: Remove all previously projected entries to regenerate them
     ["francis", "fiona"].forEach(p => {
-        const currentMonthExpenses = data[p].filter(e => e.month === activeMonth);
-        const currentMonthRecurringBaseIds = new Set(
-            currentMonthExpenses.filter(e => e.recurring && e.baseId).map(e => e.baseId)
-        );
+        if (data[p]) {
+            const initialLength = data[p].length;
+            // Only remove entries that are marked as projected
+            data[p] = data[p].filter(e => !e.isProjected);
+            if (data[p].length !== initialLength) {
+                changed = true;
+            }
+        }
+    });
 
-        // Find all *unique* recurring expense "templates" (identified by baseId)
-        // Use a Map to store the latest version of each unique recurring expense
-        const latestRecurringTemplates = new Map(); // Map: baseId -> latestExpenseObject
-        data[p].filter(e => e.recurring && e.baseId).forEach(e => {
-            const existing = latestRecurringTemplates.get(e.baseId);
-            // Compare month strings as YYYY-MMM allows chronological sorting
-            if (!existing || e.month > existing.month) {
-                 latestRecurringTemplates.set(e.baseId, e);
+    // Step 2: Identify all *actual* recurring expenses and their series info
+    ["francis", "fiona"].forEach(p => {
+        if (!data[p]) return;
+
+        const recurringSeriesInfo = new Map(); // Stores { firstActualMonth, latestActualEntry } for each series
+
+        // Iterate through *actual* expenses ONLY to build series info
+        // This is the critical change: filter for !e.isProjected here
+        data[p].filter(e => e.recurring && e.baseId && !e.isProjected).forEach(e => {
+            const seriesKey = `${e.baseId}_${e.isPersonal}`;
+            let series = recurringSeriesInfo.get(seriesKey);
+            
+            if (!series) {
+                series = {
+                    latestActualEntry: { ...e }, // This is an actual entry
+                    firstActualMonth: e.month
+                };
+                recurringSeriesInfo.set(seriesKey, series);
+            } else {
+                // Ensure we are always comparing against actual entries for the latest/first
+                if (e.month > series.latestActualEntry.month) {
+                    series.latestActualEntry = { ...e };
+                }
+                if (e.month < series.firstActualMonth) {
+                    series.firstActualMonth = e.month;
+                }
             }
         });
 
-        // For each unique recurring template, if it's not already in the current month, add it.
-        latestRecurringTemplates.forEach(templateExpense => {
-            // New condition: Only project if activeMonth is AT OR AFTER the templateExpense's month
-            // YYYY-MMM string comparison works chronologically
-            if (activeMonth >= templateExpense.month && !currentMonthRecurringBaseIds.has(templateExpense.baseId)) {
-                // Push a new expense object for the active month, inheriting properties from the template
-                data[p].push({
-                    ...templateExpense,
-                    uuid: generateUUID(), // IMPORTANT: Give projected expenses a new UUID
-                    month: activeMonth, // Crucially, override month to activeMonth
-                });
-                changed = true;
+        // Step 3: Project recurring expenses
+        recurringSeriesInfo.forEach(series => {
+            const { latestActualEntry, firstActualMonth } = series;
+            const [firstYear, firstMonthAbbr] = firstActualMonth.split('-');
+            const firstMonthIndex = MONTHS.indexOf(firstMonthAbbr);
+            
+            const startYear = parseInt(firstYear);
+            const endYear = activeYear; 
+            
+            for (let year = startYear; year <= endYear; year++) {
+                const startMonth = (year === startYear) ? firstMonthIndex : 0;
+                const endMonth = 11; // Project up to December of the active year
+                
+                for (let monthIndex = startMonth; monthIndex <= endMonth; monthIndex++) {
+                    const targetMonthKey = `${year}-${MONTHS[monthIndex]}`;
+                    
+                    // Check if an *actual* entry already exists for this month and series
+                    const actualExistingEntry = data[p].find(e => 
+                        e.month === targetMonthKey && 
+                        e.baseId === latestActualEntry.baseId && 
+                        e.isPersonal === latestActualEntry.isPersonal &&
+                        !e.isProjected // Only consider actual entries
+                    );
+                    
+                    if (!actualExistingEntry) {
+                        // Find the latest *actual* amount up to this target month
+                        // This lookup is already correct, filtering for !e.isProjected
+                        const templateEntry = data[p].filter(e =>
+                            e.recurring && 
+                            e.baseId === latestActualEntry.baseId && 
+                            e.isPersonal === latestActualEntry.isPersonal && 
+                            e.month <= targetMonthKey &&
+                            !e.isProjected // Only consider actual entries as templates
+                        ).sort((a, b) => a.month.localeCompare(b.month)).pop();
+
+                        if (templateEntry) {
+                            data[p].push({
+                                uuid: generateUUID(),
+                                month: targetMonthKey,
+                                amount: templateEntry.amount,
+                                note: templateEntry.note,
+                                logo: templateEntry.logo,
+                                recurring: true,
+                                isPersonal: templateEntry.isPersonal,
+                                baseId: templateEntry.baseId,
+                                isProjected: true // Mark as projected
+                            });
+                            changed = true;
+                        }
+                    }
+                }
             }
         });
     });
+
     if (changed) {
+        // Sort entries chronologically after all additions
+        data.francis.sort((a, b) => a.month.localeCompare(b.month) || a.uuid.localeCompare(b.uuid));
+        if (data.fiona) {
+            data.fiona.sort((a, b) => a.month.localeCompare(b.month) || a.uuid.localeCompare(b.uuid));
+        }
         save();
     }
 }
 
 
-function toggleExpenseChart(toggleButtonElement, uuid) { // uuid instead of originalIndex
+function toggleExpenseChart(toggleButtonElement, uuid) {
   // Do not allow expanding charts in edit mode
   if (editMode) return;
 
@@ -1511,25 +1629,66 @@ function toggleExpenseChart(toggleButtonElement, uuid) { // uuid instead of orig
   } else {
     chartWrapper.style.display = 'none';
     toggleButtonElement.classList.remove('expanded');
-    if (expenseChartInstances[uuid]) { // Store by uuid
+    if (expenseChartInstances[uuid]) {
       expenseChartInstances[uuid].destroy();
       delete expenseChartInstances[uuid];
     }
   }
 }
 
+// FIXED: getExpenseHistoryData to respect actual start month for chart display
 function getExpenseHistoryData(currentExpense, personKey, year) {
     const amountsByMonth = new Array(12).fill(0);
     const yearPrefix = year.toString();
 
-    // Determine the identifier for matching expenses (baseId for recurring, note for one-off)
     const matcherId = currentExpense.recurring && currentExpense.baseId ? currentExpense.baseId : currentExpense.note;
-    const isRecurringMatch = currentExpense.recurring && currentExpense.baseId; // Only project if it's a recurring with a baseId
+    const expenseIsPersonal = currentExpense.isPersonal;
+    
+    let chartSeriesStartMonthIndex = 0; // Default to January
+    
+    // Determine the actual start month for the series within the chart year
+    if (currentExpense.recurring && currentExpense.baseId) {
+        // For recurring, find the *actual* first occurrence of this series
+        // Filter by !e.isProjected to only consider actual entries for the true start
+        const allActualSeriesExpenses = data[personKey].filter(e =>
+            e.recurring && e.baseId === currentExpense.baseId && e.isPersonal === expenseIsPersonal && !e.isProjected
+        ).sort((a, b) => a.month.localeCompare(b.month));
 
-    const explicitMonthlyAmounts = {}; // To sum up multiple entries within a month for the same note/baseId
+        if (allActualSeriesExpenses.length > 0) {
+            const seriesFirstActualMonthKey = allActualSeriesExpenses[0].month;
+            const [firstActualYear, firstActualMonthAbbr] = seriesFirstActualMonthKey.split('-');
+            
+            if (parseInt(firstActualYear) === year) {
+                chartSeriesStartMonthIndex = MONTHS.indexOf(firstActualMonthAbbr);
+            } else if (parseInt(firstActualYear) > year) {
+                // If the actual start is in a future year, then nothing should be displayed for this year
+                chartSeriesStartMonthIndex = 12; // Effectively no data for this year
+            }
+            // If firstActualYear < year, chartSeriesStartMonthIndex remains 0 (starts from Jan)
+        } else {
+            // This case implies currentExpense is recurring, but there are no other *actual* entries for its series.
+            // So, currentExpense itself (if actual) is the first actual entry for the purpose of this chart.
+            // If currentExpense itself is projected, this path should not be taken, but as a fallback:
+            const [currentExpenseYear, currentExpenseMonthAbbr] = currentExpense.month.split('-');
+            if (parseInt(currentExpenseYear) === year) {
+                chartSeriesStartMonthIndex = MONTHS.indexOf(currentExpenseMonthAbbr);
+            } else if (parseInt(currentExpenseYear) > year) {
+                chartSeriesStartMonthIndex = 12; // No data for this year
+            }
+            // If currentExpenseYear < year, chartSeriesStartMonthIndex remains 0
+        }
+    } else {
+        // For one-off expenses, only the month of the expense itself should show
+        const [currentExpenseYear, currentExpenseMonthAbbr] = currentExpense.month.split('-');
+        if (parseInt(currentExpenseYear) === year) {
+            chartSeriesStartMonthIndex = MONTHS.indexOf(currentExpenseMonthAbbr);
+        } else {
+            chartSeriesStartMonthIndex = 12; // No data for this year
+        }
+    }
 
-    // Filter expenses matching the current expense's identifier, year, and personal status
-    data[personKey].filter(e => {
+    // Collect all entries (actual and projected) for the chart year and series
+    const entriesForChartYearAndSeries = data[personKey].filter(e => {
         const expenseYear = e.month.substring(0, 4);
         let eMatcherId;
         if (e.recurring && e.baseId) {
@@ -1537,46 +1696,42 @@ function getExpenseHistoryData(currentExpense, personKey, year) {
         } else {
             eMatcherId = e.note;
         }
-        
-        return expenseYear === yearPrefix && eMatcherId === matcherId && e.isPersonal === currentExpense.isPersonal;
-    }).forEach(e => {
+        return expenseYear === yearPrefix && eMatcherId === matcherId && e.isPersonal === expenseIsPersonal;
+    });
+
+    // Populate amountsByMonth
+    entriesForChartYearAndSeries.forEach(e => {
         const monthIndex = MONTHS.indexOf(e.month.substring(5, 8));
         if (monthIndex !== -1) {
-            if (!explicitMonthlyAmounts[monthIndex]) {
-                explicitMonthlyAmounts[monthIndex] = 0;
-            }
-            explicitMonthlyAmounts[monthIndex] += e.amount;
+            amountsByMonth[monthIndex] += e.amount;
         }
     });
 
-    for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
-        if (explicitMonthlyAmounts[monthIndex] !== undefined) {
-            amountsByMonth[monthIndex] = explicitMonthlyAmounts[monthIndex];
-        } else if (isRecurringMatch) { // If it's a recurring expense, project its amount if not explicitly present
-            amountsByMonth[monthIndex] = currentExpense.amount;
-        }
+    // Zero out months before the determined start for the chart
+    for (let i = 0; i < chartSeriesStartMonthIndex; i++) {
+        amountsByMonth[i] = 0;
     }
+
     return amountsByMonth;
 }
 
 
-function drawExpenseHistoryChart(expense, canvasId, uuid) { // uuid instead of originalIndex
+function drawExpenseHistoryChart(expense, canvasId, uuid) {
   const ctx = document.getElementById(canvasId);
 
-  if (expenseChartInstances[uuid]) { // Store by uuid
+  if (expenseChartInstances[uuid]) {
     expenseChartInstances[uuid].destroy();
   }
 
   const amounts = getExpenseHistoryData(expense, activePerson, activeYear);
 
-  expenseChartInstances[uuid] = new Chart(ctx, { // Store by uuid
+  expenseChartInstances[uuid] = new Chart(ctx, {
     type: 'bar',
     data: {
       labels: MONTHS,
       datasets: [{
         data: amounts,
         backgroundColor: (context) => {
-          // Use a different shade for personal expenses if the expense is personal
           if (expense.isPersonal) {
               return activePerson === 'francis' ? 'rgba(10, 132, 255, 0.5)' : 'rgba(255, 55, 95, 0.5)';
           } else {
@@ -1649,30 +1804,30 @@ function drawExpenseHistoryChart(expense, canvasId, uuid) { // uuid instead of o
 // Multi-select/Multi-delete functions
 function toggleEditMode() {
   editMode = !editMode;
-  selectedExpenses = []; // Clear selections on toggle
+  selectedExpenses = [];
   updateAll();
 }
 
 function cancelEditMode() {
   editMode = false;
-  selectedExpenses = []; // Clear selections
+  selectedExpenses = [];
   updateAll();
 }
 
-function toggleExpenseSelection(checkboxElement, uuid) { // Pass uuid
+function toggleExpenseSelection(checkboxElement, uuid) {
   if (checkboxElement.checked) {
-    if (!selectedExpenses.includes(uuid)) { // Store uuid
+    if (!selectedExpenses.includes(uuid)) {
       selectedExpenses.push(uuid);
     }
   } else {
-    selectedExpenses = selectedExpenses.filter(id => id !== uuid); // Filter by uuid
+    selectedExpenses = selectedExpenses.filter(id => id !== uuid);
   }
   renderExpenseHeader();
 }
 
 function toggleSelectAll() {
   const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
-  const allUUIDsForMonth = expensesForMonth.map(e => e.uuid); // Map to UUIDs
+  const allUUIDsForMonth = expensesForMonth.map(e => e.uuid);
 
   const allCurrentlySelected = allUUIDsForMonth.length > 0 && allUUIDsForMonth.every(uuid => selectedExpenses.includes(uuid));
 
@@ -1687,8 +1842,8 @@ function toggleSelectAll() {
       }
     });
   }
-  renderExpenses(); // Re-render to update checkboxes
-  renderExpenseHeader(); // Re-render header to update delete button state
+  renderExpenses();
+  renderExpenseHeader();
 }
 
 
@@ -1698,34 +1853,66 @@ function confirmDeleteSelected() {
     return;
   }
 
-  if (!confirm(`Are you sure you want to delete ${selectedExpenses.length} selected expense(s)?`)) {
+  const actualSelected = [];
+  const projectedSelected = [];
+
+  selectedExpenses.forEach(uuid => {
+    const expense = getExpenseByUUID(uuid);
+    if (expense) {
+      if (expense.isProjected) {
+        projectedSelected.push(uuid);
+      } else {
+        actualSelected.push(uuid);
+      }
+    }
+  });
+
+  if (projectedSelected.length > 0) {
+    alert("You have selected projected expenses. Projected expenses cannot be deleted directly. Please deselect them or delete their actual entry to stop their projection.");
     return;
   }
 
-  // Filter out expenses whose UUID is in selectedExpenses
-  data[activePerson] = data[activePerson].filter(e => !selectedExpenses.includes(e.uuid));
+  // If we reach here, all selected expenses are actual (not projected).
+  // Now, determine if any of them are recurring.
+  const hasActualRecurringSelected = actualSelected.some(uuid => {
+    const expense = getExpenseByUUID(uuid);
+    return expense && expense.recurring;
+  });
+
+  let confirmationMessage = `Are you sure you want to delete ${actualSelected.length} selected expense(s)?`;
+  if (hasActualRecurringSelected) {
+    confirmationMessage += "\n\n(Note: If any of these are recurring, only the selected occurrence(s) will be deleted, not future ones. To stop a recurring series, use the single delete button on one of its actual entries.)";
+  }
+
+  if (!confirm(confirmationMessage)) {
+    return;
+  }
+
+  // Delete only the selected actual expenses.
+  data[activePerson] = data[activePerson].filter(e => !actualSelected.includes(e.uuid));
 
   save();
-  cancelEditMode(); // Exit edit mode and clear selections
+  cancelEditMode(); // This will also trigger updateAll()
 }
 
 
 function updateAll() {
   renderYears();
   renderMonths();
-  applyRecurring(); // Ensure recurring expenses are added before calculating totals
+  applyRecurring(); // This must run before updateChart and renderExpenses
   updateViewModeText();
   updateChart();
-  updateBalance(); // Balance depends on chart data (which uses new split logic)
-  renderExpenseHeader(); // Render the header with edit/delete buttons
+  updateBalance();
+  renderExpenseHeader();
   renderExpenses();
 }
 
 // Initial setup calls
 migrateData();
-normalizeExpenseData(); // This now ensures UUIDs are present
+normalizeExpenseData();
 updateLogosForAllExpenses();
 updateAll();
+
 </script>
 </body>
 </html>
