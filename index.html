@@ -16,6 +16,8 @@
   --accent1: #0a84ff;
   --accent2: #ff375f;
   --danger: #ff453a;
+  --francis-color: #0a84ff;
+  --fiona-color:   #d14d21;
   --radius: 18px;
 }
 * {
@@ -245,14 +247,20 @@ button i, .action-button i {
   margin-bottom: 16px;
 }
 .profile {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  border: 3px solid transparent;
-  cursor: pointer;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
 }
+
 .profile.active {
-  border-color: var(--accent1);
+    border-color: var(--francis-color);   /* default = Francis blue */
+}
+
+#fionaBtn.active {
+    border-color: var(--fiona-color);     /* Fiona gets her own color when active */
 }
 .export {
   display: flex;
@@ -1210,7 +1218,7 @@ function updateChart() {
       data: [francisShared, fionaShared],
       backgroundColor: (ctx) => {
         if (ctx.dataIndex === 0) return "#0a84ff";
-        if (ctx.dataIndex === 1) return "#ff375f";
+        if (ctx.dataIndex === 1) return "#d14d21";
         return 'transparent';
       },
       stack: 'expenses',
