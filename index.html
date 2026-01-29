@@ -104,6 +104,7 @@ canvas {
 }
 .month-tab.active, .year-tab.active {
   background: var(--accent1);
+  font-weight: 600;
 }
 .view-switcher {
   display: flex;
@@ -163,6 +164,12 @@ button.disabled, .action-button.disabled {
   cursor: not-allowed;
   opacity: 0.7;
 }
+
+
+button i, .action-button i {
+  font-size: 1.2em;
+}
+
 .expense {
   display: flex;
   flex-wrap: wrap;
@@ -300,10 +307,6 @@ button.disabled, .action-button.disabled {
   display: flex;
   gap: 8px;
 }
-.expense-header-actions .action-button {
-  padding: 4px 12px;
-  font-size: 0.8rem;
-}
 .expense-header-actions .action-button.delete-selected {
   background-color: var(--danger);
   color: white;
@@ -426,7 +429,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
 <option value="shared">Shared</option>
 <option value="personal">Personal</option>
 </select>
-<button onclick="addExpense()">Add</button>
+<button onclick="addExpense()"><i class="fa-solid fa-circle-plus"></i></button>
 </div>
 </div>
 <div class="card">
