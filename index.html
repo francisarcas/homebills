@@ -439,6 +439,25 @@ input[type="checkbox"].expense-select-checkbox:focus {
     margin-left: 5px; /* Space between icon and text */
   }
 }
+/* New styles for month tabs */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.month-tab.settled {
+  background: #28a745; /* A pleasant green */
+  color: white;
+  font-weight: 600;
+}
+
+.month-tab.unsettled-past-month {
+  background: var(--danger); /* Your defined red danger color */
+  color: white;
+  font-weight: 600;
+  animation: blink 1.5s infinite ease-in-out; /* Gentle blink animation */
+}
+
 </style>
 </head>
 <body>
@@ -485,14 +504,6 @@ input[type="checkbox"].expense-select-checkbox:focus {
 <div class="card">
 <div id="expenseHeader"></div>
 <div id="expenseList"></div>
-</div>
-<div class="card export">
-<button onclick="importJSON()">
-<i class="fa-solid fa-file-arrow-up"></i> Import JSON
-</button>
-<button onclick="exportJSON()">
-<i class="fa-solid fa-file-arrow-down"></i> Export JSON
-</button>
 </div>
 </div>
 <div class="footer">
@@ -751,37 +762,59 @@ input[type="checkbox"].expense-select-checkbox:focus {
       yearTabsDiv.appendChild(tab);
     });
   }
-  function renderMonths() {
-    // Check if monthTabs is initialized before using it
-    // We'll use document.getElementById here as monthTabs might not be assigned if called too early
-    const monthTabsElement = document.getElementById('monthTabs');
-    if (!monthTabsElement) return;
+ function renderMonths() {
+  const monthTabsElement = document.getElementById('monthTabs');
+  if (!monthTabsElement) return;
 
-    monthTabsElement.innerHTML = "";
-    MONTHS.forEach(m => {
-      const tab = document.createElement("div");
-      const monthKey = `${activeYear}-${m}`;
-      tab.className = "month-tab" + (monthKey === activeMonth ? " active" : "");
-      tab.textContent = m;
-      tab.onclick = () => {
-        activeMonth = monthKey;
-        updateAll();
-      };
-      monthTabsElement.appendChild(tab);
-    });
+  monthTabsElement.innerHTML = "";
 
-    // Scroll to active month
-    const activeMonthTab = monthTabsElement.querySelector('.month-tab.active');
-    if (activeMonthTab) {
-      requestAnimationFrame(() => {
-        activeMonthTab.scrollIntoView({
-          behavior: 'smooth',
-          inline: 'center',
-          block: 'nearest'
-        });
-      });
+  const currentYear = new Date().getFullYear();
+  const currentMonthIndex = new Date().getMonth(); // 0-indexed (JAN is 0, FEB is 1, etc.)
+
+  MONTHS.forEach((m, index) => {
+    const tab = document.createElement("div");
+    const monthKey = `${activeYear}-${m}`;
+
+    tab.className = "month-tab";
+    if (monthKey === activeMonth) {
+      tab.classList.add("active");
     }
+
+    // Check settlement status
+    const isSettled = data.settlements[monthKey] === true;
+
+    // Check if the current activeYear is in the past compared to the actual current year
+    // OR if it's the current year but the month is in the past
+    const isPastMonth = (activeYear < currentYear) ||
+                        (activeYear === currentYear && index < currentMonthIndex);
+
+    if (isSettled) {
+      tab.classList.add("settled");
+    } else if (isPastMonth) {
+      tab.classList.add("unsettled-past-month");
+    }
+
+    tab.textContent = m;
+    tab.onclick = () => {
+      activeMonth = monthKey;
+      updateAll();
+    };
+    monthTabsElement.appendChild(tab);
+  });
+
+  // Scroll to active month (existing logic)
+  const activeMonthTab = monthTabsElement.querySelector('.month-tab.active');
+  if (activeMonthTab) {
+    requestAnimationFrame(() => {
+      activeMonthTab.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest'
+      });
+    });
   }
+}
+
   function markMonthAsSettled(status) {
     data.settlements[activeMonth] = status;
     save();
