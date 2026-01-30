@@ -6,6 +6,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 <style>
 :root {
@@ -252,7 +254,7 @@ button i, .action-button i {
     border-radius: 50%;
     border: 3px solid transparent;
     cursor: pointer;
-    transition: border-color 0.2s ease;
+    transition: border-color 0.25s ease;
 }
 
 .profile.active {
@@ -504,214 +506,229 @@ input[type="checkbox"].expense-select-checkbox:focus {
 </div>
 
 <script>
-const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-const SUGGESTION_BRANDS = [
-  "amex", "affinity water", "amazon", "b&q", "barclays", "british airways", "costco", "council tax", "eurostar",
-  "hotel", "hsbc", "hyperoptic", "iberia", "insite energy", "itsu", "john lewis", "klarna", "lidl", "lottery", "lner", "m&s", "morrisons", "mortgage", "netflix",
-  "octopus energy", "play station", "prime", "renfe", "revolut", "rent", "ryanair", "sainsbury's", "strava", "tfl", "tk.max", "accommodation", "third space"
-].sort();
-const BRAND_LOGO_RULES = [
-  { keywords: ["affinity water"], logo: "assets/logos/affinitywater.png" },
-  { keywords: ["amex"], logo: "assets/logos/amex.png" },
-  { keywords: ["amazon"], logo: "assets/logos/amazon.png" },
-  { keywords: ["b&q"], logo: "assets/logos/bandq.png" },
-  { keywords: ["barclays"], logo: "assets/logos/barclays.png" },
-  { keywords: ["british airways"], logo: "assets/logos/britishairways.png" },
-  { keywords: ["costco"], logo: "assets/logos/costco.png" },
-  { keywords: ["hyperoptic"], logo: "assets/logos/hyperoptic.png" },
-  { keywords: ["hsbc"], logo: "assets/logos/hsbc.png" },
-  { keywords: ["iberia"], logo: "assets/logos/iberia.png" },
-  { keywords: ["insite energy"], logo: "assets/logos/insiteenergy.png" },
-  { keywords: ["itsu"], logo: "assets/logos/itsu.png" },
-  { keywords: ["john lewis"], logo: "assets/logos/johnlewis.png" },
-  { keywords: ["klarna"], logo: "assets/logos/klarna.png" },
-  { keywords: ["lottery"], logo: "assets/logos/lottery.png" },
-  { keywords: ["lidl"], logo: "assets/logos/lidl.png" },
-  { keywords: ["lner"], logo: "assets/logos/lner.png" },
-  { keywords: ["m&s"], logo: "assets/logos/mands.png" },
-  { keywords: ["morrisons"], logo: "assets/logos/morrisons.png" },
-  { keywords: ["mortgage"], logo: "assets/logos/mortgage.png" },
-  { keywords: ["netflix"], logo: "assets/logos/netflix.png" },
-  { keywords: ["octopus energy"], logo: "assets/logos/octopusenergy.png" },
-  { keywords: ["play station"], logo: "assets/logos/playstation.png" },
-  { keywords: ["prime"], logo: "assets/logos/prime.png" },
-  { keywords: ["renfe"], logo: "assets/logos/renfe.png" },
-  { keywords: ["revolut"], logo: "assets/logos/revolut.png" },
-  { keywords: ["rent"], logo: "assets/logos/rent.png" },
-  { keywords: ["ryanair"], logo: "assets/logos/ryanair.png" },
-  { keywords: ["sainsbury's"], logo: "assets/logos/sainsburys.png" },
-  { keywords: ["strava"], logo: "assets/logos/strava.png" },
-  { keywords: ["tfl"], logo: "assets/logos/tfl.png" },
-  { keywords: ["tk.max"], logo: "assets/logos/tkmax.png" },
-  { keywords: ["eurostar"], logo: "assets/logos/eurostar.png" },
-  { keywords: ["council tax", "council-tax", "brent council", "brent"], logo: "assets/logos/brent.png" },
-  { keywords: ["hotel", "accommodation", "booking.com"], logo: "assets/logos/booking.png" },
-  { keywords: ["third space"], logo: "assets/logos/thirdspace.png" }
-];
-function generateUUID() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
-function getMonthNum(monthKey) {
-  const year = parseInt(monthKey.substring(0, 4));
-  const monthAbbr = monthKey.substring(5, 8);
-  const monthIdx = MONTHS.indexOf(monthAbbr);
-  if (monthIdx === -1) throw new Error(`Invalid month abbreviation: ${monthAbbr}`);
-  return year * 12 + monthIdx;
-}
-const noteInput = document.getElementById('noteInput');
-const suggestionsDiv = document.getElementById('suggestions');
-const yearTabsDiv = document.getElementById('yearTabs');
-const expenseHeaderDiv = document.getElementById('expenseHeader');
-const balanceTextDiv = document.getElementById('balanceText');
-const currentViewTextSpan = document.getElementById('currentViewText');
-const sharedStatusInput = document.getElementById('sharedStatusInput');
-const amountInput = document.getElementById('amountInput');
-const recurringInput = document.getElementById('recurringInput');
-const expenseListDiv = document.getElementById('expenseList');
-const expenseChartInstances = {};
-let editMode = false;
-let selectedExpenses = [];
-function showSuggestions() {
-  const inputValue = noteInput.value.toLowerCase();
-  suggestionsDiv.innerHTML = '';
-  if (inputValue.length === 0 && document.activeElement !== noteInput) {
-    suggestionsDiv.style.display = 'none';
-    return;
-  }
-  const matchingBrands = SUGGESTION_BRANDS.filter(brand =>
-    brand.includes(inputValue)
-  );
-  if (matchingBrands.length > 0) {
-    matchingBrands.forEach(brand => {
-      const suggestionItem = document.createElement('div');
-      let displayText = brand.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-      if (brand === "m&s") displayText = "M&S";
-      if (brand === "b&q") displayText = "B&Q";
-      if (brand === "hsbc") displayText = "HSBC";
-      if (brand === "lner") displayText = "LNER";
-      if (brand === "tfl") displayText = "TFL";
-      if (brand === "amex") displayText = "AMEX";
-      if (brand === "tk.max") displayText = "TK.MAX";
-      suggestionItem.textContent = displayText;
-      suggestionItem.onmousedown = (event) => {
-        event.preventDefault();
-        selectSuggestion(brand);
-      };
-      suggestionsDiv.appendChild(suggestionItem);
+// IMPORTANT: All your application logic, including Supabase initialization
+// and DOM element access, should be inside this DOMContentLoaded listener.
+document.addEventListener('DOMContentLoaded', async () => { // Make the callback async
+
+  // Initialize Supabase client
+  const SUPABASE_URL = "https://qkbzkswjzzhrvqtssfxt.supabase.co"; // Your Project URL
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFrYnprc3dqenpocnZxdHNzZnh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MTIzNzAsImV4cCI6MjA4NTI4ODM3MH0.BiDcAO2TDdIMIi888Uq7NQE7Bj-ZnjwI7sDMu6Erk6g"; // REPLACE THIS with your actual anon key!
+  const mySupabaseClient = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); // Renamed variable
+
+  const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+  const SUGGESTION_BRANDS = [
+    "amex", "affinity water", "amazon", "b&q", "barclays", "british airways", "costco", "council tax", "eurostar",
+    "hotel", "hsbc", "hyperoptic", "iberia", "insite energy", "itsu", "john lewis", "klarna", "lidl", "lottery", "lner", "m&s", "morrisons", "mortgage", "netflix",
+    "octopus energy", "play station", "prime", "renfe", "revolut", "rent", "ryanair", "sainsbury's", "strava", "tfl", "tk.max", "accommodation", "third space"
+  ].sort();
+  const BRAND_LOGO_RULES = [
+    { keywords: ["affinity water"], logo: "assets/logos/affinitywater.png" },
+    { keywords: ["amex"], logo: "assets/logos/amex.png" },
+    { keywords: ["amazon"], logo: "assets/logos/amazon.png" },
+    { keywords: ["b&q"], logo: "assets/logos/bandq.png" },
+    { keywords: ["barclays"], logo: "assets/logos/barclays.png" },
+    { keywords: ["british airways"], logo: "assets/logos/britishairways.png" },
+    { keywords: ["costco"], logo: "assets/logos/costco.png" },
+    { keywords: ["hyperoptic"], logo: "assets/logos/hyperoptic.png" },
+    { keywords: ["hsbc"], logo: "assets/logos/hsbc.png" },
+    { keywords: ["iberia"], logo: "assets/logos/iberia.png" },
+    { keywords: ["insite energy"], logo: "assets/logos/insiteenergy.png" },
+    { keywords: ["itsu"], logo: "assets/logos/itsu.png" },
+    { keywords: ["john lewis"], logo: "assets/logos/johnlewis.png" },
+    { keywords: ["klarna"], logo: "assets/logos/klarna.png" },
+    { keywords: ["lottery"], logo: "assets/logos/lottery.png" },
+    { keywords: ["lidl"], logo: "assets/logos/lidl.png" },
+    { keywords: ["lner"], logo: "assets/logos/lner.png" },
+    { keywords: ["m&s"], logo: "assets/logos/mands.png" },
+    { keywords: ["morrisons"], logo: "assets/logos/morrisons.png" },
+    { keywords: ["mortgage"], logo: "assets/logos/mortgage.png" },
+    { keywords: ["netflix"], logo: "assets/logos/netflix.png" },
+    { keywords: ["octopus energy"], logo: "assets/logos/octopusenergy.png" },
+    { keywords: ["play station"], logo: "assets/logos/playstation.png" },
+    { keywords: ["prime"], logo: "assets/logos/prime.png" },
+    { keywords: ["renfe"], logo: "assets/logos/renfe.png" },
+    { keywords: ["revolut"], logo: "assets/logos/revolut.png" },
+    { keywords: ["rent"], logo: "assets/logos/rent.png" },
+    { keywords: ["ryanair"], logo: "assets/logos/ryanair.png" },
+    { keywords: ["sainsbury's"], logo: "assets/logos/sainsburys.png" },
+    { keywords: ["strava"], logo: "assets/logos/strava.png" },
+    { keywords: ["tfl"], logo: "assets/logos/tfl.png" },
+    { keywords: ["tk.max"], logo: "assets/logos/tkmax.png" },
+    { keywords: ["eurostar"], logo: "assets/logos/eurostar.png" },
+    { keywords: ["council tax", "council-tax", "brent council", "brent"], logo: "assets/logos/brent.png" },
+    { keywords: ["hotel", "accommodation", "booking.com"], logo: "assets/logos/booking.png" },
+    { keywords: ["third space"], logo: "assets/logos/thirdspace.png" }
+  ];
+  function generateUUID() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
     });
-    suggestionsDiv.style.display = 'block';
-  } else {
-    suggestionsDiv.style.display = 'none';
   }
-}
-function selectSuggestion(brandName) {
-  let capitalizedBrand = brandName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-  if (brandName === "m&s") capitalizedBrand = "M&S";
-  if (brandName === "b&q") capitalizedBrand = "B&Q";
-  if (brandName === "hsbc") capitalizedBrand = "HSBC";
-  if (brandName === "lner") capitalizedBrand = "LNER";
-  if (brandName === "tfl") capitalizedBrand = "TFL";
-  if (brandName === "amex") capitalizedBrand = "AMEX";
-  if (brandName === "tk.max") capitalizedBrand = "TK.MAX";
-  noteInput.value = capitalizedBrand;
-  suggestionsDiv.style.display = 'none';
-}
-function hideSuggestions() {
-  setTimeout(() => {
-    if (document.activeElement !== noteInput && !suggestionsDiv.contains(document.activeElement)) {
+  function getMonthNum(monthKey) {
+    const year = parseInt(monthKey.substring(0, 4));
+    const monthAbbr = monthKey.substring(5, 8);
+    const monthIdx = MONTHS.indexOf(monthAbbr);
+    if (monthIdx === -1) throw new Error(`Invalid month abbreviation: ${monthAbbr}`);
+    return year * 12 + monthIdx;
+  }
+
+  // Element references - NOW SAFE TO ACCESS
+  const noteInput = document.getElementById('noteInput');
+  const suggestionsDiv = document.getElementById('suggestions');
+  const yearTabsDiv = document.getElementById('yearTabs');
+  const expenseHeaderDiv = document.getElementById('expenseHeader');
+  const balanceTextDiv = document.getElementById('balanceText');
+  const currentViewTextSpan = document.getElementById('currentViewText');
+  const sharedStatusInput = document.getElementById('sharedStatusInput');
+  const amountInput = document.getElementById('amountInput');
+  const recurringInput = document.getElementById('recurringInput');
+  const expenseListDiv = document.getElementById('expenseList');
+  const expenseChartInstances = {};
+  let editMode = false;
+  let selectedExpenses = [];
+
+  function showSuggestions() {
+    const inputValue = noteInput.value.toLowerCase();
+    suggestionsDiv.innerHTML = '';
+    if (inputValue.length === 0 && document.activeElement !== noteInput) {
+      suggestionsDiv.style.display = 'none';
+      return;
+    }
+    const matchingBrands = SUGGESTION_BRANDS.filter(brand =>
+      brand.includes(inputValue)
+    );
+    if (matchingBrands.length > 0) {
+      matchingBrands.forEach(brand => {
+        const suggestionItem = document.createElement('div');
+        let displayText = brand.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        if (brand === "m&s") displayText = "M&S";
+        if (brand === "b&q") displayText = "B&Q";
+        if (brand === "hsbc") displayText = "HSBC";
+        if (brand === "lner") displayText = "LNER";
+        if (brand === "tfl") displayText = "TFL";
+        if (brand === "amex") displayText = "AMEX";
+        if (brand === "tk.max") displayText = "TK.MAX";
+        suggestionItem.textContent = displayText;
+        suggestionItem.onmousedown = (event) => {
+          event.preventDefault();
+          selectSuggestion(brand);
+        };
+        suggestionsDiv.appendChild(suggestionItem);
+      });
+      suggestionsDiv.style.display = 'block';
+    } else {
       suggestionsDiv.style.display = 'none';
     }
-  }, 100);
-}
-noteInput.addEventListener('input', showSuggestions);
-noteInput.addEventListener('focus', showSuggestions);
-noteInput.addEventListener('blur', hideSuggestions);
-function normalizeMonthKey(monthKey) {
-  if (monthKey && monthKey.match(/^\d{4}-\d{2}$/)) {
-    const [year, monthNum] = monthKey.split('-');
-    const monthIndex = parseInt(monthNum, 10) - 1;
-    if (monthIndex >= 0 && monthIndex < 12) {
-      return `${year}-${MONTHS[monthIndex]}`;
+  }
+  function selectSuggestion(brandName) {
+    let capitalizedBrand = brandName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    if (brandName === "m&s") capitalizedBrand = "M&S";
+    if (brandName === "b&q") capitalizedBrand = "B&Q";
+    if (brandName === "hsbc") capitalizedBrand = "HSBC";
+    if (brandName === "lner") capitalizedBrand = "LNER";
+    if (brandName === "tfl") capitalizedBrand = "TFL";
+    if (brandName === "amex") capitalizedBrand = "AMEX";
+    if (brandName === "tk.max") capitalizedBrand = "TK.MAX";
+    noteInput.value = capitalizedBrand;
+    suggestionsDiv.style.display = 'none';
+  }
+  function hideSuggestions() {
+    setTimeout(() => {
+      if (document.activeElement !== noteInput && !suggestionsDiv.contains(document.activeElement)) {
+        suggestionsDiv.style.display = 'none';
+      }
+    }, 100);
+  }
+  noteInput.addEventListener('input', showSuggestions);
+  noteInput.addEventListener('focus', showSuggestions);
+  noteInput.addEventListener('blur', hideSuggestions);
+  function normalizeMonthKey(monthKey) {
+    if (monthKey && monthKey.match(/^\d{4}-\d{2}$/)) {
+      const [year, monthNum] = monthKey.split('-');
+      const monthIndex = parseInt(monthNum, 10) - 1;
+      if (monthIndex >= 0 && monthIndex < 12) {
+        return `${year}-${MONTHS[monthIndex]}`;
+      }
+    }
+    return monthKey;
+  }
+  function currentMonthKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${MONTHS[d.getMonth()]}`;
+  }
+  const today = new Date();
+  let activeYear = today.getFullYear();
+  let activeMonth = `${activeYear}-${MONTHS[today.getMonth()]}`;
+  let activePerson = "francis";
+  let viewMode = 'monthly';
+  const data = {
+    // Expenses will be loaded from Supabase. Initialize empty for now.
+    francis: [],
+    fiona: [],
+    // Settlements can still be stored locally for now, or we can add a table later.
+    settlements: JSON.parse(localStorage.getItem("billSettlements")) || {}
+  };
+  if (!data.settlements) {
+    data.settlements = {};
+    save();
+  }
+  function migrateData() {
+    let changed = false;
+    ["francis", "fiona"].forEach(p => {
+      data[p].forEach(e => {
+        const normalized = normalizeMonthKey(e.month);
+        if (normalized !== e.month) {
+          e.month = normalized;
+          changed = true;
+        }
+      });
+    });
+    if (changed) {
+      save();
     }
   }
-  return monthKey;
-}
-function currentMonthKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${MONTHS[d.getMonth()]}`;
-}
-const today = new Date();
-let activeYear = today.getFullYear();
-let activeMonth = `${activeYear}-${MONTHS[today.getMonth()]}`;
-let activePerson = "francis";
-let viewMode = 'monthly';
-const data = JSON.parse(localStorage.getItem("billData")) || {
-  francis: [],
-  fiona: [],
-  settlements: {}
-};
-if (!data.settlements) {
-  data.settlements = {};
-  save();
-}
-function migrateData() {
-  let changed = false;
-  ["francis", "fiona"].forEach(p => {
-    data[p].forEach(e => {
-      const normalized = normalizeMonthKey(e.month);
-      if (normalized !== e.month) {
-        e.month = normalized;
-        changed = true;
-      }
+  function normalizeExpenseData() {
+    let changed = false;
+    ["francis", "fiona"].forEach(p => {
+      data[p].forEach(e => {
+        if (!e.uuid) {
+          e.uuid = generateUUID();
+          changed = true;
+        }
+        const wasRecurringString = e.recurring === "yes";
+        e.recurring = (e.recurring === true || wasRecurringString);
+        if (wasRecurringString) changed = true;
+        if (e.baseId) {
+          delete e.baseId;
+          changed = true;
+        }
+        if (e.isPersonal === undefined) {
+          e.isPersonal = false;
+          changed = true;
+        }
+        if (e.isProjected === undefined) {
+          e.isProjected = false;
+          changed = true;
+        }
+      });
     });
-  });
-  if (changed) {
-    save();
+    if (changed) {
+      save();
+    }
   }
-}
-function normalizeExpenseData() {
-  let changed = false;
-  ["francis", "fiona"].forEach(p => {
-    data[p].forEach(e => {
-      if (!e.uuid) {
-        e.uuid = generateUUID();
-        changed = true;
-      }
-      const wasRecurringString = e.recurring === "yes";
-      e.recurring = (e.recurring === true || wasRecurringString);
-      if (wasRecurringString) changed = true;
-      if (e.baseId) {
-        delete e.baseId;
-        changed = true;
-      }
-      if (e.isPersonal === undefined) {
-        e.isPersonal = false;
-        changed = true;
-      }
-      if (e.isProjected === undefined) {
-        e.isProjected = false;
-        changed = true;
-      }
-    });
-  });
-  if (changed) {
-    save();
+  function save() {
+    localStorage.setItem("billSettlements", JSON.stringify(data.settlements)); // Only save settlements for now
   }
-}
-function save() {
-  localStorage.setItem("billData", JSON.stringify(data));
-}
-function capitalise(name) {
-  return name.charAt(0).toUpperCase() + name.slice(1);
-}
-function detectLogo(note) {
+
+  function capitalise(name) {
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }
+  function detectLogo(note) {
   const lowerCaseNote = note.toLowerCase();
   for (const rule of BRAND_LOGO_RULES) {
     for (const keyword of rule.keywords) {
@@ -719,778 +736,461 @@ function detectLogo(note) {
         return rule.logo;
       }
     }
-  }
+  } // Corrected: Removed the extra ')'
   return null;
 }
-function updateLogosForAllExpenses() {
-  let changed = false;
-  ["francis", "fiona"].forEach(p => {
-    data[p].forEach(e => {
-      const newLogo = detectLogo(e.note);
-      if (e.logo !== newLogo) {
-        e.logo = newLogo;
-        changed = true;
-      }
+  function updateLogosForAllExpenses() {
+    let changed = false;
+    ["francis", "fiona"].forEach(p => {
+      data[p].forEach(e => {
+        const newLogo = detectLogo(e.note);
+        if (e.logo !== newLogo) {
+          e.logo = newLogo;
+          changed = true;
+        }
+      });
     });
-  });
-  if (changed) {
-    save();
+    if (changed) {
+      save();
+    }
   }
-}
-function getYears() {
-  const years = new Set();
-  years.add(new Date().getFullYear().toString());
-  ["francis", "fiona"].forEach(p => {
-    data[p].forEach(e => {
-      if (e.month) {
-        years.add(e.month.substring(0, 4));
-      }
+  function getYears() {
+    const years = new Set();
+    years.add(new Date().getFullYear().toString());
+    ["francis", "fiona"].forEach(p => {
+      data[p].forEach(e => {
+        if (e.month) {
+          years.add(e.month.substring(0, 4));
+        }
+      });
     });
-  });
-  return [...years].sort((a, b) => parseInt(a) - parseInt(b));
-}
-function renderYears() {
-  yearTabsDiv.innerHTML = "";
-  getYears().forEach(year => {
-    const tab = document.createElement("div");
-    tab.className = "year-tab" + (year === activeYear.toString() ? " active" : "");
-    tab.textContent = year;
-    tab.onclick = () => {
-      activeYear = parseInt(year);
-      const currentMonthAbbr = activeMonth.substring(5, 8);
-      activeMonth = `${activeYear}-${currentMonthAbbr}`;
-      updateAll();
-    };
-    yearTabsDiv.appendChild(tab);
-  });
-}
-function renderMonths() {
-  monthTabs.innerHTML = "";
-  MONTHS.forEach(m => {
-    const tab = document.createElement("div");
-    const monthKey = `${activeYear}-${m}`;
-    tab.className = "month-tab" + (monthKey === activeMonth ? " active" : "");
-    tab.textContent = m;
-    tab.onclick = () => {
-      activeMonth = monthKey;
-      updateAll();
-    };
-    monthTabs.appendChild(tab);
-  });
+    return [...years].sort((a, b) => parseInt(a) - parseInt(b));
+  }
+  function renderYears() {
+    yearTabsDiv.innerHTML = "";
+    getYears().forEach(year => {
+      const tab = document.createElement("div");
+      tab.className = "year-tab" + (year === activeYear.toString() ? " active" : "");
+      tab.textContent = year;
+      tab.onclick = () => {
+        activeYear = parseInt(year);
+        const currentMonthAbbr = activeMonth.substring(5, 8);
+        activeMonth = `${activeYear}-${currentMonthAbbr}`;
+        updateAll();
+      };
+      yearTabsDiv.appendChild(tab);
+    });
+  }
+  function renderMonths() {
+    monthTabs.innerHTML = "";
+    MONTHS.forEach(m => {
+      const tab = document.createElement("div");
+      const monthKey = `${activeYear}-${m}`;
+      tab.className = "month-tab" + (monthKey === activeMonth ? " active" : "");
+      tab.textContent = m;
+      tab.onclick = () => {
+        activeMonth = monthKey;
+        updateAll();
+      };
+      monthTabs.appendChild(tab);
+    });
 
-  // Scroll to active month
-  const activeMonthTab = document.querySelector('#monthTabs .month-tab.active');
-  if (activeMonthTab) {
-    requestAnimationFrame(() => {
-      activeMonthTab.scrollIntoView({
-        behavior: 'smooth',
-        inline: 'center',
-        block: 'nearest'
-      });
-    });
-  }
-}
-function markMonthAsSettled(status) {
-  data.settlements[activeMonth] = status;
-  save();
-  updateAll();
-}
-function getMonthlyExpenses(personKey, monthKey) {
-  const expenses = data[personKey].filter(e => normalizeMonthKey(e.month) === monthKey);
-  const shared = expenses.filter(e => !e.isPersonal).reduce((sum, e) => sum + e.amount, 0);
-  const personal = expenses.filter(e => e.isPersonal).reduce((sum, e) => sum + e.amount, 0);
-  return { shared, personal };
-}
-function calculateAnnualTotals() {
-  const annualTotals = {
-    francis: { shared: 0, personal: 0 }
-  };
-  if (data.fiona) {
-    annualTotals.fiona = { shared: 0, personal: 0 };
-  }
-  const yearPrefix = activeYear.toString();
-  ["francis", "fiona"].forEach(personKey => {
-    if (!data[personKey]) return;
-    const actualPersonExpenses = data[personKey].filter(e => !e.isProjected);
-    const latestRecurringSharedAmounts = {};
-    const latestRecurringPersonalAmounts = {};
-    const firstRecurringSharedMonth = {};
-    const firstRecurringPersonalMonth = {};
-    actualPersonExpenses.filter(e => e.recurring).forEach(e => {
-      const key = e.note.toLowerCase();
-      const currentFirstMonth = e.isPersonal ? firstRecurringPersonalMonth[key] : firstRecurringSharedMonth[key];
-      if (!currentFirstMonth || getMonthNum(e.month) < getMonthNum(currentFirstMonth)) {
-        if (e.isPersonal) firstRecurringPersonalMonth[key] = e.month;
-        else firstRecurringSharedMonth[key] = e.month;
-      }
-      const currentLatestAmount = e.isPersonal ? latestRecurringPersonalAmounts[key] : latestRecurringSharedAmounts[key];
-      if (!currentLatestAmount || getMonthNum(e.month) > getMonthNum(currentLatestAmount.month)) {
-        if (e.isPersonal) latestRecurringPersonalAmounts[key] = { amount: e.amount, month: e.month };
-        else latestRecurringSharedAmounts[key] = { amount: e.amount, month: e.month };
-      }
-    });
-    for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
-      const monthOfYear = MONTHS[monthIndex];
-      const currentYearMonthKey = `${yearPrefix}-${monthOfYear}`;
-      let monthlySharedTotal = 0;
-      let monthlyPersonalTotal = 0;
-      const expensesForThisMonth = data[personKey].filter(e => e.month === currentYearMonthKey);
-      expensesForThisMonth.forEach(e => {
-        if (e.isPersonal) {
-          monthlyPersonalTotal += e.amount;
-        } else {
-          monthlySharedTotal += e.amount;
-        }
-      });
-      annualTotals[personKey].shared += monthlySharedTotal;
-      annualTotals[personKey].personal += monthlyPersonalTotal;
-    }
-  });
-  return annualTotals;
-}
-function updateBalance() {
-  const francisMonthly = getMonthlyExpenses("francis", activeMonth);
-  const fionaMonthly = getMonthlyExpenses("fiona", activeMonth);
-  const a = francisMonthly.shared;
-  const b = fionaMonthly.shared;
-  const diff = Math.abs(a - b) / 2;
-  let balanceMessage = "";
-  let actionButton = "";
-  const isSettled = data.settlements[activeMonth];
-  if (isSettled) {
-    balanceMessage = `All settled for ${activeMonth}!`;
-    actionButton = `<button class="action-button" onclick="markMonthAsSettled(false)"><i class="fa-solid fa-undo"></i> Unmark as Settled</button>`;
-  } else {
-    if (a === b) {
-      balanceMessage = "All settled";
-    } else if (a > b) {
-      balanceMessage = `Fiona owes Francis £${diff.toFixed(2)}`;
-      actionButton = `<button class="action-button" onclick="markMonthAsSettled(true)"><i class="fa-solid fa-check"></i> Mark as Settled</button>`;
-    } else {
-      balanceMessage = `Francis owes Fiona £${diff.toFixed(2)}`;
-      actionButton = `<button class="action-button" onclick="markMonthAsSettled(true)"><i class="fa-solid fa-check"></i> Mark as Settled</button>`;
-    }
-  }
-  balanceTextDiv.innerHTML = `
-    <span>${balanceMessage}</span>
-    ${actionButton}
-  `;
-}
-function renderExpenseHeader() {
-  const avatarImgSrc = (activePerson === "francis") ? "assets/person001.png" : "assets/person002.png";
-  let actionButtonsHtml = '';
-  if (!editMode) {
-    actionButtonsHtml = `<button class="action-button" onclick="toggleEditMode()"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`;
-  } else {
-    const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
-    const allSelected = expensesForMonth.length > 0 && expensesForMonth.every(e => selectedExpenses.includes(e.uuid));
-    const deleteButtonDisabled = selectedExpenses.length === 0 ? 'disabled' : '';
-    actionButtonsHtml = `
-      <button class="action-button" onclick="cancelEditMode()" title="Cancel Edit"><i class="fa-solid fa-xmark"></i></button>
-      <button class="action-button" onclick="toggleSelectAll()" title="${allSelected ? 'Deselect All' : 'Select All'}"><i class="fa-regular fa-square-check"></i></button>
-      <button class="action-button delete-selected ${deleteButtonDisabled}" onclick="confirmDeleteSelected()" ${deleteButtonDisabled} title="Delete Selected Expenses"><i class="fa-solid fa-trash"></i></button>
-    `;
-  }
-
-  // Modified expense-header-info content to support mobile layout
-  expenseHeaderDiv.innerHTML = `
-    <div class="expense-header-content">
-      <div class="expense-header-info">
-        <img src="${avatarImgSrc}" class="expense-header-avatar">
-        <div class="desktop-display">
-          <span>${capitalise(activePerson)} – ${activeMonth}</span>
-        </div>
-        <div class="mobile-display">
-          <span class="person-name-line">${capitalise(activePerson)}</span>
-          <span class="month-year-line">${activeMonth}</span>
-        </div>
-      </div>
-      <div class="expense-header-actions">
-        ${actionButtonsHtml}
-      </div>
-    </div>
-    <div class="expense-separator"></div>
-  `;
-}
-function getExpenseByUUID(uuid) {
-  return data[activePerson].find(e => e.uuid === uuid);
-}
-function getExpenseIndexByUUID(uuid) {
-  return data[activePerson].findIndex(e => e.uuid === uuid);
-}
-function renderExpenses() {
-  for (const uuid in expenseChartInstances) {
-    if (expenseChartInstances.hasOwnProperty(uuid)) {
-      expenseChartInstances[uuid].destroy();
-    }
-  }
-  Object.keys(expenseChartInstances).forEach(key => delete expenseChartInstances[key]);
-  expenseListDiv.innerHTML = "";
-  const expensesForMonth = data[activePerson]
-    .filter(e => normalizeMonthKey(e.month) === activeMonth)
-    .sort((a, b) => {
-      if (a.isProjected && !b.isProjected) return 1;
-      if (!a.isProjected && b.isProjected) return -1;
-      if (a.amount < b.amount) return 1;
-      if (a.amount > b.amount) return -1;
-      return a.note.localeCompare(b.note);
-    });
-  expensesForMonth.forEach((e) => {
-    const expenseUuid = e.uuid;
-    const row = document.createElement("div");
-    row.className = "expense";
-    const iconContent = e.logo ? `<img class="logo" src="${e.logo}" onerror="this.remove()">` : `<i class="fa-solid fa-receipt"></i>`;
-    const recurringIndicator = e.recurring ? `<i class="fa-solid fa-repeat recurring-indicator" title="Recurring expense"></i>` : '';
-    const personalIndicator = e.isPersonal ? `<i class="fa-solid fa-user personal-indicator" title="Personal expense (not shared)"></i>` : '';
-    const projectedIndicator = e.isProjected ? `<i class="fa-solid fa-clock recurring-indicator" title="This is a forecast based on your recurring bill – not yet paid"></i>` : '';
-    let actionsHtml = '';
-    let checkboxHtml = '';
-    if (editMode) {
-      const isChecked = selectedExpenses.includes(expenseUuid) ? 'checked' : '';
-      checkboxHtml = `<input type="checkbox" class="expense-select-checkbox" ${isChecked} onchange="toggleExpenseSelection(this, '${expenseUuid}')">`;
-    } else {
-      actionsHtml = `
-        ${personalIndicator}
-        ${projectedIndicator}
-        <span class="action expand-chart-toggle" data-uuid="${expenseUuid}" onclick="toggleExpenseChart(this, '${expenseUuid}')"><i class="fa-solid fa-chevron-down"></i></span>
-        <span class="action" onclick="editExpenseByUUID('${expenseUuid}')"><i class="fa-solid fa-pencil"></i></span>
-        <span class="action delete ${e.isProjected ? 'disabled' : ''}"
-              onclick="${e.isProjected ? '' : `deleteExpenseByUUID('${expenseUuid}')`}">
-          <i class="fa-solid fa-trash"></i>
-        </span>
-      `;
-    }
-    row.innerHTML = `
-      <div class="expense-left">
-        ${iconContent}
-        <div>${e.note} ${recurringIndicator}<br><small>£${e.amount.toFixed(2)}</small></div>
-      </div>
-      <div class="actions">
-        ${checkboxHtml}
-        ${actionsHtml}
-      </div>
-      <div id="expenseChartWrapper_${expenseUuid}" class="expense-chart-container" style="display:none;">
-        <canvas id="expenseChartCanvas_${expenseUuid}"></canvas>
-      </div>
-    `;
-    expenseListDiv.appendChild(row);
-  });
-}
-function addExpense() {
-  const amount = parseFloat(amountInput.value);
-  const note = noteInput.value.trim();
-  const isRecurring = recurringInput.value === "yes";
-  const isPersonal = sharedStatusInput.value === "personal";
-  if (!amount || !note) {
-    alert("Please enter both amount and description");
-    return;
-  }
-  if (amount <= 0) {
-    alert("Amount must be greater than zero");
-    return;
-  }
-  if (amount > 999999) {
-    alert("Amount seems too large. Please check.");
-    return;
-  }
-  const newExpense = {
-    uuid: generateUUID(),
-    month: activeMonth,
-    amount,
-    note,
-    logo: detectLogo(note),
-    recurring: isRecurring,
-    isPersonal: isPersonal,
-    isProjected: false
-  };
-  data[activePerson].push(newExpense);
-  amountInput.value = "";
-  noteInput.value = "";
-  recurringInput.value = "no";
-  sharedStatusInput.value = "shared";
-  suggestionsDiv.style.display = 'none';
-  save();
-  updateAll();
-}
-function editExpenseByUUID(uuid) {
-  if (editMode) {
-    cancelEditMode();
-    setTimeout(() => editExpenseByUUID(uuid), 100);
-    return;
-  }
-  const expense = getExpenseByUUID(uuid);
-  if (!expense) {
-    console.error("Expense not found for editing with UUID:", uuid);
-    return;
-  }
-  if (expense.isProjected) {
-    alert("Projected expenses cannot be edited directly. Please edit an actual entry for this recurring series.");
-    return;
-  }
-  const newNote = prompt("Description", expense.note);
-  if (newNote === null) return;
-  const newAmountStr = prompt("Amount", expense.amount);
-  if (newAmountStr === null) return;
-  if (!newNote.trim() || !newAmountStr.trim()) {
-    alert("Description and Amount cannot be empty.");
-    return;
-  }
-  const newAmount = parseFloat(newAmountStr);
-  if (isNaN(newAmount) || newAmount <= 0) {
-    alert("Please enter a valid amount greater than zero");
-    return;
-  }
-  if (newAmount > 999999) {
-    alert("Amount seems too large. Please check.");
-    return;
-  }
-  const originalAmount = expense.amount;
-  const originalNote = expense.note;
-  let dataChanged = false;
-  if (expense.recurring && newNote.trim().toLowerCase() !== originalNote.toLowerCase()) {
-    if (confirm("You changed the description for a recurring expense. Do you want to update the description for all occurrences of this series?")) {
-      data[activePerson].forEach(e => {
-        if (e.recurring && e.note.toLowerCase() === originalNote.toLowerCase() && e.isPersonal === expense.isPersonal) {
-          e.note = newNote.trim();
-          e.logo = detectLogo(e.note);
-          dataChanged = true;
-        }
+    // Scroll to active month
+    const activeMonthTab = document.querySelector('#monthTabs .month-tab.active');
+    if (activeMonthTab) {
+      requestAnimationFrame(() => {
+        activeMonthTab.scrollIntoView({
+          behavior: 'smooth',
+          inline: 'center',
+          block: 'nearest'
+        });
       });
     }
   }
-  expense.note = newNote.trim();
-  expense.amount = newAmount;
-  expense.logo = detectLogo(newNote.trim());
-  if (expense.recurring && newAmount !== originalAmount) {
-    if (confirm("Do you want to update all future occurrences of this recurring expense to the new amount?")) {
-      data[activePerson].forEach(e => {
-        if (e.recurring && e.note.toLowerCase() === expense.note.toLowerCase() && e.isPersonal === expense.isPersonal && getMonthNum(e.month) > getMonthNum(expense.month) && !e.isProjected) {
-          e.amount = newAmount;
-          dataChanged = true;
-        }
-      });
-    }
-  }
-  if (newAmount !== originalAmount || newNote.trim() !== originalNote) {
-    dataChanged = true;
-  }
-  if (dataChanged) {
+  function markMonthAsSettled(status) {
+    data.settlements[activeMonth] = status;
     save();
     updateAll();
   }
-}
-function deleteExpenseByUUID(uuid) {
-  if (editMode) {
-    cancelEditMode();
-    setTimeout(() => deleteExpenseByUUID(uuid), 100);
-    return;
+  function getMonthlyExpenses(personKey, monthKey) {
+    const expenses = data[personKey].filter(e => normalizeMonthKey(e.month) === monthKey);
+    const shared = expenses.filter(e => !e.isPersonal).reduce((sum, e) => sum + e.amount, 0);
+    const personal = expenses.filter(e => e.isPersonal).reduce((sum, e) => sum + e.amount, 0);
+    return { shared, personal };
   }
-  const expenseToDelete = getExpenseByUUID(uuid);
-  if (!expenseToDelete) {
-    console.error("Expense not found for deletion with UUID:", uuid);
-    return;
-  }
-  if (expenseToDelete.isProjected) {
-    alert("Projected expenses cannot be deleted directly. Please delete an actual entry for this recurring series to stop its projection.");
-    return;
-  }
-  if (expenseToDelete.recurring) {
-    if (confirm("This is a recurring expense. Do you want to delete all future occurrences of this series as well?")) {
-      data[activePerson] = data[activePerson].filter(e => {
-        return !(e.recurring && e.note.toLowerCase() === expenseToDelete.note.toLowerCase() && e.isPersonal === expenseToDelete.isPersonal && getMonthNum(e.month) > getMonthNum(expenseToDelete.month));
+  function calculateAnnualTotals() {
+    const annualTotals = {
+      francis: { shared: 0, personal: 0 }
+    };
+    if (data.fiona) {
+      annualTotals.fiona = { shared: 0, personal: 0 };
+    }
+    const yearPrefix = activeYear.toString();
+    ["francis", "fiona"].forEach(personKey => {
+      if (!data[personKey]) return;
+      const actualPersonExpenses = data[personKey].filter(e => !e.isProjected);
+      const latestRecurringSharedAmounts = {};
+      const latestRecurringPersonalAmounts = {};
+      const firstRecurringSharedMonth = {};
+      const firstRecurringPersonalMonth = {};
+      actualPersonExpenses.filter(e => e.recurring).forEach(e => {
+        const key = e.note.toLowerCase();
+        const currentFirstMonth = e.isPersonal ? firstRecurringPersonalMonth[key] : firstRecurringSharedMonth[key];
+        if (!currentFirstMonth || getMonthNum(e.month) < getMonthNum(currentFirstMonth)) {
+          if (e.isPersonal) firstRecurringPersonalMonth[key] = e.month;
+          else firstRecurringSharedMonth[key] = e.month;
+        }
+        const currentLatestAmount = e.isPersonal ? latestRecurringPersonalAmounts[key] : latestRecurringSharedAmounts[key];
+        if (!currentLatestAmount || getMonthNum(e.month) > getMonthNum(currentLatestAmount.month)) {
+          if (e.isPersonal) latestRecurringPersonalAmounts[key] = { amount: e.amount, month: e.month };
+          else latestRecurringSharedAmounts[key] = { amount: e.amount, month: e.month };
+        }
       });
-      save();
-      updateAll();
-      return;
-    }
-  }
-  if (!confirm("Delete expense?")) return;
-  const indexToDelete = getExpenseIndexByUUID(uuid);
-  if (indexToDelete === -1) {
-    console.error("Expense not found for deletion with UUID:", uuid);
-    return;
-  }
-  data[activePerson].splice(indexToDelete, 1);
-  save();
-  updateAll();
-}
-function selectPerson(p) {
-  activePerson = p;
-  francisBtn.classList.toggle("active", p === "francis");
-  fionaBtn.classList.toggle("active", p === "fiona");
-  cancelEditMode();
-  updateAll();
-}
-const chart = new Chart(document.getElementById("billChart"), {
-  type: "bar",
-  data: {
-    labels: ["Francis", "Fiona"],
-    datasets: []
-  },
-  options: {
-    indexAxis: "y",
-    plugins: {
-      legend: {
-        display: false
-      },
-      tooltip: {
-        mode: 'index',
-        intersect: false,
-        callbacks: {
-          label: function(context) {
-            let label = context.dataset.label || '';
-            if (label) {
-              label += ': ';
-            }
-            if (context.parsed.x !== null) {
-              label += new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(context.parsed.x);
-            }
-            return label;
-          },
-          footer: function(tooltipItems) {
-            let total = 0;
-            tooltipItems.forEach(function(tooltipItem) {
-              total += tooltipItem.parsed.x;
-            });
-            return 'Total: ' + new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(total);
+      for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
+        const monthOfYear = MONTHS[monthIndex];
+        const currentYearMonthKey = `${yearPrefix}-${monthOfYear}`;
+        let monthlySharedTotal = 0;
+        let monthlyPersonalTotal = 0;
+        const expensesForThisMonth = data[personKey].filter(e => e.month === currentYearMonthKey);
+        expensesForThisMonth.forEach(e => {
+          if (e.isPersonal) {
+            monthlyPersonalTotal += e.amount;
+          } else {
+            monthlySharedTotal += e.amount;
           }
-        },
-        titleColor: 'white',
-        bodyColor: 'white',
-        backgroundColor: 'rgba(27, 27, 32, 0.8)'
+        });
+        annualTotals[personKey].shared += monthlySharedTotal;
+        annualTotals[personKey].personal += monthlyPersonalTotal;
       }
-    },
-    scales: {
-      x: {
-        stacked: true,
-        ticks: { color: "#f5f5f7" },
-        grid: { color: "#2a2a31" }
-      },
-      y: {
-        stacked: true,
-        ticks: { color: "#f5f5f7" },
-        grid: { display: false }
-      }
-    },
-    elements: {
-      bar: {
-        borderRadius: 0
-      }
-    }
+    });
+    return annualTotals;
   }
-});
-function updateChart() {
-  let francisShared, francisPersonal, fionaShared, fionaPersonal;
-  if (viewMode === 'monthly') {
+  function updateBalance() {
     const francisMonthly = getMonthlyExpenses("francis", activeMonth);
     const fionaMonthly = getMonthlyExpenses("fiona", activeMonth);
-    francisShared = francisMonthly.shared;
-    francisPersonal = francisMonthly.personal;
-    fionaShared = fionaMonthly.shared;
-    fionaPersonal = fionaMonthly.personal;
-  } else {
-    const annualTotals = calculateAnnualTotals();
-    francisShared = annualTotals.francis.shared;
-    francisPersonal = annualTotals.francis.personal;
-    fionaShared = annualTotals.fiona ? annualTotals.fiona.shared : 0;
-    fionaPersonal = annualTotals.fiona ? annualTotals.fiona.personal : 0;
-  }
-  const francisBarRoundingPersonal = (francisShared === 0 && francisPersonal > 0) ? 12 : { topLeft: 12, bottomLeft: 12, topRight: 0, bottomRight: 0 };
-  const francisBarRoundingShared = (francisPersonal === 0 && francisShared > 0) ? 12 : { topLeft: 0, bottomLeft: 0, topRight: 12, bottomRight: 12 };
-  const fionaBarRoundingPersonal = (fionaShared === 0 && fionaPersonal > 0) ? 12 : { topLeft: 12, bottomLeft: 12, topRight: 0, bottomRight: 0 };
-  const fionaBarRoundingShared = (fionaPersonal === 0 && fionaShared > 0) ? 12 : { topLeft: 0, bottomLeft: 0, topRight: 12, bottomRight: 12 };
-  chart.data.labels = ["Francis", "Fiona"];
-  chart.data.datasets = [
-    {
-      label: 'Personal',
-      data: [francisPersonal, fionaPersonal],
-      backgroundColor: (ctx) => {
-        if (ctx.dataIndex === 0) return "rgba(10, 132, 255, 0.5)";
-        if (ctx.dataIndex === 1) return "rgba(255, 55, 95, 0.5)";
-        return 'transparent';
-      },
-      stack: 'expenses',
-      borderRadius: [francisBarRoundingPersonal, fionaBarRoundingPersonal],
-      borderSkipped: false
-    },
-    {
-      label: 'Shared',
-      data: [francisShared, fionaShared],
-      backgroundColor: (ctx) => {
-        if (ctx.dataIndex === 0) return "#0a84ff";
-        if (ctx.dataIndex === 1) return "#d14d21";
-        return 'transparent';
-      },
-      stack: 'expenses',
-      borderRadius: [francisBarRoundingShared, fionaBarRoundingShared],
-      borderSkipped: false
-    }
-  ];
-  chart.update();
-}
-function updateViewModeText() {
-  if (viewMode === 'monthly') {
-    currentViewTextSpan.textContent = "Monthly View";
-  } else {
-    currentViewTextSpan.textContent = `Annual View (${activeYear})`;
-  }
-}
-function toggleViewMode() {
-  if (viewMode === 'monthly') {
-    viewMode = 'annual';
-  } else {
-    viewMode = 'monthly';
-  }
-  cancelEditMode();
-  updateViewModeText();
-  updateChart();
-}
-function exportJSON() {
-  const blob = new Blob([JSON.stringify(data,null,2)], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "home-bills.json";
-  a.click();
-}
-function importJSON() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'application/json';
-  input.onchange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const importedData = JSON.parse(e.target.result);
-          if (importedData.francis && Array.isArray(importedData.francis) &&
-            importedData.fiona && Array.isArray(importedData.fiona)) {
-            if (confirm("Are you sure you want to import this data? This will overwrite your current data.")) {
-              data.francis = importedData.francis;
-              data.fiona = importedData.fiona;
-              data.settlements = importedData.settlements || {};
-              save();
-              migrateData();
-              normalizeExpenseData();
-              updateLogosForAllExpenses();
-              cancelEditMode();
-              updateAll();
-              alert("Data imported successfully!");
-            }
-          } else {
-            alert("Invalid JSON file format. Please ensure it's a valid Home Bill Tracker export.");
-          }
-        } catch (error) {
-          alert("Error parsing JSON file: " + error.message);
-          console.error("Error parsing JSON file:", error);
-        }
-      };
-      reader.readAsText(file);
-    }
-  };
-  input.click();
-}
-function applyRecurring() {
-  let changed = false;
-  ["francis", "fiona"].forEach(p => {
-    if (data[p]) {
-      const initialLength = data[p].length;
-      data[p] = data[p].filter(e => !e.isProjected);
-      if (data[p].length !== initialLength) {
-        changed = true;
-      }
-    }
-  });
-  ["francis", "fiona"].forEach(p => {
-    if (!data[p]) return;
-    const recurringSeriesInfo = new Map();
-    data[p].filter(e => e.recurring && !e.isProjected).forEach(e => {
-      const seriesKey = `${e.note.toLowerCase()}_${e.isPersonal}`;
-      let series = recurringSeriesInfo.get(seriesKey);
-      if (!series) {
-        series = {
-          latestActualEntry: { ...e },
-          firstActualMonth: e.month
-        };
-        recurringSeriesInfo.set(seriesKey, series);
+    const a = francisMonthly.shared;
+    const b = fionaMonthly.shared;
+    const diff = Math.abs(a - b) / 2;
+    let balanceMessage = "";
+    let actionButton = "";
+    const isSettled = data.settlements[activeMonth];
+    if (isSettled) {
+      balanceMessage = `All settled for ${activeMonth}!`;
+      actionButton = `<button class="action-button" onclick="markMonthAsSettled(false)"><i class="fa-solid fa-undo"></i> Unmark as Settled</button>`;
+    } else {
+      if (a === b) {
+        balanceMessage = "All settled";
+      } else if (a > b) {
+        balanceMessage = `Fiona owes Francis £${diff.toFixed(2)}`;
+        actionButton = `<button class="action-button" onclick="markMonthAsSettled(true)"><i class="fa-solid fa-check"></i> Mark as Settled</button>`;
       } else {
-        if (getMonthNum(e.month) > getMonthNum(series.latestActualEntry.month)) {
-          series.latestActualEntry = { ...e };
-        }
-        if (getMonthNum(e.month) < getMonthNum(series.firstActualMonth)) {
-          series.firstActualMonth = e.month;
-        }
+        balanceMessage = `Francis owes Fiona £${diff.toFixed(2)}`;
+        actionButton = `<button class="action-button" onclick="markMonthAsSettled(true)"><i class="fa-solid fa-check"></i> Mark as Settled</button>`;
       }
-    });
-    recurringSeriesInfo.forEach(series => {
-      const { latestActualEntry, firstActualMonth } = series;
-      const [firstYear, firstMonthAbbr] = firstActualMonth.split('-');
-      const firstMonthIndex = MONTHS.indexOf(firstMonthAbbr);
-      const startYear = parseInt(firstYear);
-      const currentYear = new Date().getFullYear();
-      const endYear = currentYear + 3;
-      for (let year = startYear; year <= endYear; year++) {
-        const startMonth = (year === startYear) ? firstMonthIndex : 0;
-        const endMonth = 11;
-        for (let monthIndex = startMonth; monthIndex <= endMonth; monthIndex++) {
-          const targetMonthKey = `${year}-${MONTHS[monthIndex]}`;
-          const actualExistingEntry = data[p].find(e =>
-            e.month === targetMonthKey &&
-            e.recurring &&
-            e.note.toLowerCase() === latestActualEntry.note.toLowerCase() &&
-            e.isPersonal === latestActualEntry.isPersonal &&
-            !e.isProjected
-          );
-          if (!actualExistingEntry) {
-            const templateEntry = data[p].filter(e =>
-              e.recurring &&
-              e.note.toLowerCase() === latestActualEntry.note.toLowerCase() &&
-              e.isPersonal === latestActualEntry.isPersonal &&
-              getMonthNum(e.month) <= getMonthNum(targetMonthKey) &&
-              !e.isProjected
-            ).sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month)).pop();
-            if (templateEntry) {
-              data[p].push({
-                uuid: generateUUID(),
-                month: targetMonthKey,
-                amount: templateEntry.amount,
-                note: templateEntry.note,
-                logo: templateEntry.logo,
-                recurring: true,
-                isPersonal: templateEntry.isPersonal,
-                isProjected: true
-              });
-              changed = true;
-            }
-          }
-        }
-      }
-    });
-  });
-  if (changed) {
-    data.francis.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.uuid.localeCompare(b.uuid));
-    if (data.fiona) {
-      data.fiona.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.uuid.localeCompare(b.uuid));
     }
-    save();
+    balanceTextDiv.innerHTML = `
+      <span>${balanceMessage}</span>
+      ${actionButton}
+    `;
   }
-}
-function toggleExpenseChart(toggleButtonElement, uuid) {
-  if (editMode) return;
-  const chartWrapper = document.getElementById(`expenseChartWrapper_${uuid}`);
-  const chevronIcon = toggleButtonElement.querySelector('i');
-  if (chartWrapper.style.display === 'none') {
-    chartWrapper.style.display = 'block';
-    toggleButtonElement.classList.add('expanded');
+  function renderExpenseHeader() {
+    const avatarImgSrc = (activePerson === "francis") ? "assets/person001.png" : "assets/person002.png";
+    let actionButtonsHtml = '';
+    if (!editMode) {
+      actionButtonsHtml = `<button class="action-button" onclick="toggleEditMode()"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`;
+    } else {
+      const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
+      const allSelected = expensesForMonth.length > 0 && expensesForMonth.every(e => selectedExpenses.includes(e.uuid));
+      const deleteButtonDisabled = selectedExpenses.length === 0 ? 'disabled' : '';
+      actionButtonsHtml = `
+        <button class="action-button" onclick="cancelEditMode()" title="Cancel Edit"><i class="fa-solid fa-xmark"></i></button>
+        <button class="action-button" onclick="toggleSelectAll()" title="${allSelected ? 'Deselect All' : 'Select All'}"><i class="fa-regular fa-square-check"></i></button>
+        <button class="action-button delete-selected ${deleteButtonDisabled}" onclick="confirmDeleteSelected()" ${deleteButtonDisabled} title="Delete Selected Expenses"><i class="fa-solid fa-trash"></i></button>
+      `;
+    }
+
+    // Modified expense-header-info content to support mobile layout
+    expenseHeaderDiv.innerHTML = `
+      <div class="expense-header-content">
+        <div class="expense-header-info">
+          <img src="${avatarImgSrc}" class="expense-header-avatar">
+          <div class="desktop-display">
+            <span>${capitalise(activePerson)} – ${activeMonth}</span>
+          </div>
+          <div class="mobile-display">
+            <span class="person-name-line">${capitalise(activePerson)}</span>
+            <span class="month-year-line">${activeMonth}</span>
+          </div>
+        </div>
+        <div class="expense-header-actions">
+          ${actionButtonsHtml}
+        </div>
+      </div>
+      <div class="expense-separator"></div>
+    `;
+  }
+  function getExpenseByUUID(uuid) {
+    return data[activePerson].find(e => e.uuid === uuid);
+  }
+  function getExpenseIndexByUUID(uuid) {
+    return data[activePerson].findIndex(e => e.uuid === uuid);
+  }
+  function renderExpenses() {
+    for (const uuid in expenseChartInstances) {
+      if (expenseChartInstances.hasOwnProperty(uuid)) {
+        expenseChartInstances[uuid].destroy();
+      }
+    }
+    Object.keys(expenseChartInstances).forEach(key => delete expenseChartInstances[key]);
+    expenseListDiv.innerHTML = "";
+    const expensesForMonth = data[activePerson]
+      .filter(e => normalizeMonthKey(e.month) === activeMonth)
+      .sort((a, b) => {
+        if (a.isProjected && !b.isProjected) return 1;
+        if (!a.isProjected && b.isProjected) return -1;
+        if (a.amount < b.amount) return 1;
+        if (a.amount > b.amount) return -1;
+        return a.note.localeCompare(b.note);
+      });
+    expensesForMonth.forEach((e) => {
+      const expenseUuid = e.uuid;
+      const row = document.createElement("div");
+      row.className = "expense";
+      const iconContent = e.logo ? `<img class="logo" src="${e.logo}" onerror="this.remove()">` : `<i class="fa-solid fa-receipt"></i>`;
+      const recurringIndicator = e.recurring ? `<i class="fa-solid fa-repeat recurring-indicator" title="Recurring expense"></i>` : '';
+      const personalIndicator = e.isPersonal ? `<i class="fa-solid fa-user personal-indicator" title="Personal expense (not shared)"></i>` : '';
+      const projectedIndicator = e.isProjected ? `<i class="fa-solid fa-clock recurring-indicator" title="This is a forecast based on your recurring bill – not yet paid"></i>` : '';
+      let actionsHtml = '';
+      let checkboxHtml = '';
+      if (editMode) {
+        const isChecked = selectedExpenses.includes(expenseUuid) ? 'checked' : '';
+        checkboxHtml = `<input type="checkbox" class="expense-select-checkbox" ${isChecked} onchange="toggleExpenseSelection(this, '${expenseUuid}')">`;
+      } else {
+        actionsHtml = `
+          ${personalIndicator}
+          ${projectedIndicator}
+          <span class="action expand-chart-toggle" data-uuid="${expenseUuid}" onclick="toggleExpenseChart(this, '${expenseUuid}')"><i class="fa-solid fa-chevron-down"></i></span>
+          <span class="action" onclick="editExpenseByUUID('${expenseUuid}')"><i class="fa-solid fa-pencil"></i></span>
+          <span class="action delete ${e.isProjected ? 'disabled' : ''}"
+                onclick="${e.isProjected ? '' : `deleteExpenseByUUID('${expenseUuid}')`}">
+            <i class="fa-solid fa-trash"></i>
+          </span>
+        `;
+      }
+      row.innerHTML = `
+        <div class="expense-left">
+          ${iconContent}
+          <div>${e.note} ${recurringIndicator}<br><small>£${e.amount.toFixed(2)}</small></div>
+        </div>
+        <div class="actions">
+          ${checkboxHtml}
+          ${actionsHtml}
+        </div>
+        <div id="expenseChartWrapper_${expenseUuid}" class="expense-chart-container" style="display:none;">
+          <canvas id="expenseChartCanvas_${expenseUuid}"></canvas>
+        </div>
+      `;
+      expenseListDiv.appendChild(row);
+    });
+  }
+  async function addExpense() { // Make addExpense an async function
+    const amount = parseFloat(amountInput.value);
+    const note = noteInput.value.trim();
+    const isRecurring = recurringInput.value === "yes";
+    const isPersonal = sharedStatusInput.value === "personal";
+
+    if (!amount || !note) {
+      alert("Please enter both amount and description");
+      return;
+    }
+    if (amount <= 0) {
+      alert("Amount must be greater than zero");
+      return;
+    }
+    if (amount > 999999) {
+      alert("Amount seems too large. Please check.");
+      return;
+    }
+
+    // Prepare the expense object for Supabase
+    // Note the column names match your Supabase table (e.g., is_personal, not isPersonal)
+    const newExpenseForSupabase = {
+      // Supabase will auto-generate 'id' and 'created_at'
+      month: activeMonth,
+      amount: amount,
+      note: note,
+      logo: detectLogo(note),
+      recurring: isRecurring,
+      is_personal: isPersonal, // Use is_personal for Supabase column
+      is_projected: false, // New expenses are never projected
+      person: activePerson // Add the active person
+    };
+
+    // Insert the new expense into Supabase
+    const { data: insertedData, error } = await mySupabaseClient // Use mySupabaseClient here
+      .from('expenses')
+      .insert([newExpenseForSupabase])
+      .select(); // Use .select() to return the inserted data, including auto-generated id
+
+    if (error) {
+      console.error("Error adding expense to Supabase:", error);
+      alert("Error adding expense. Please check the console.");
+      return;
+    }
+
+    // If successful, clear the form and update the UI
+    amountInput.value = "";
+    noteInput.value = "";
+    recurringInput.value = "no";
+    sharedStatusInput.value = "shared";
+    suggestionsDiv.style.display = 'none';
+
+    // After successful insert, re-fetch all data to update the UI
+    // The updateAll() function already handles fetching and rendering
+    updateAll();
+  }
+
+  function editExpenseByUUID(uuid) {
+    if (editMode) {
+      cancelEditMode();
+      setTimeout(() => editExpenseByUUID(uuid), 100);
+      return;
+    }
     const expense = getExpenseByUUID(uuid);
-    if (expense) {
-      drawExpenseHistoryChart(expense, `expenseChartCanvas_${uuid}`, uuid);
-    } else {
-      console.error("Expense not found for chart with UUID:", uuid);
+    if (!expense) {
+      console.error("Expense not found for editing with UUID:", uuid);
+      return;
     }
-  } else {
-    chartWrapper.style.display = 'none';
-    toggleButtonElement.classList.remove('expanded');
-    if (expenseChartInstances[uuid]) {
-      expenseChartInstances[uuid].destroy();
-      delete expenseChartInstances[uuid];
+    if (expense.isProjected) {
+      alert("Projected expenses cannot be edited directly. Please edit an actual entry for this recurring series.");
+      return;
     }
-  }
-}
-function getExpenseHistoryData(currentExpense, personKey, year) {
-  const amountsByMonth = new Array(12).fill(0);
-  const yearPrefix = year.toString();
-  const expenseIsPersonal = currentExpense.isPersonal;
-  let chartSeriesStartMonthIndex = 0;
-  let matcher;
-  if (currentExpense.recurring) {
-    matcher = e => e.recurring && e.note.toLowerCase() === currentExpense.note.toLowerCase() && e.isPersonal === expenseIsPersonal;
-    const allActualSeriesExpenses = data[personKey].filter(e =>
-      matcher(e) && !e.isProjected
-    ).sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month));
-    if (allActualSeriesExpenses.length > 0) {
-      const seriesFirstActualMonthKey = allActualSeriesExpenses[0].month;
-      const [firstActualYear, firstActualMonthAbbr] = seriesFirstActualMonthKey.split('-');
-      if (parseInt(firstActualYear) === year) {
-        chartSeriesStartMonthIndex = MONTHS.indexOf(firstActualMonthAbbr);
-      } else if (parseInt(firstActualYear) > year) {
-        chartSeriesStartMonthIndex = 12;
-      }
-    } else {
-      const [currentExpenseYear, currentExpenseMonthAbbr] = currentExpense.month.split('-');
-      if (parseInt(currentExpenseYear) === year) {
-        chartSeriesStartMonthIndex = MONTHS.indexOf(currentExpenseMonthAbbr);
-      } else if (parseInt(currentExpenseYear) > year) {
-        chartSeriesStartMonthIndex = 12;
-      }
+    const newNote = prompt("Description", expense.note);
+    if (newNote === null) return;
+    const newAmountStr = prompt("Amount", expense.amount);
+    if (newAmountStr === null) return;
+    if (!newNote.trim() || !newAmountStr.trim()) {
+      alert("Description and Amount cannot be empty.");
+      return;
     }
-  } else {
-    matcher = e => e.uuid === currentExpense.uuid;
-    const [currentExpenseYear, currentExpenseMonthAbbr] = currentExpense.month.split('-');
-    if (parseInt(currentExpenseYear) === year) {
-      chartSeriesStartMonthIndex = MONTHS.indexOf(currentExpenseMonthAbbr);
-    } else {
-      chartSeriesStartMonthIndex = 12;
+    const newAmount = parseFloat(newAmountStr);
+    if (isNaN(newAmount) || newAmount <= 0) {
+      alert("Please enter a valid amount greater than zero");
+      return;
     }
-  }
-  const entriesForChartYearAndSeries = data[personKey].filter(e => {
-    const expenseYear = e.month.substring(0, 4);
-    return expenseYear === yearPrefix && matcher(e);
-  });
-  entriesForChartYearAndSeries.forEach(e => {
-    const monthIndex = MONTHS.indexOf(e.month.substring(5, 8));
-    if (monthIndex !== -1) {
-      amountsByMonth[monthIndex] += e.amount;
+    if (newAmount > 999999) {
+      alert("Amount seems too large. Please check.");
+      return;
     }
-  });
-  for (let i = 0; i < chartSeriesStartMonthIndex; i++) {
-    amountsByMonth[i] = 0;
-  }
-  return amountsByMonth;
-}
-function drawExpenseHistoryChart(expense, canvasId, uuid) {
-  const ctx = document.getElementById(canvasId);
-  if (expenseChartInstances[uuid]) {
-    expenseChartInstances[uuid].destroy();
-  }
-  const amounts = getExpenseHistoryData(expense, activePerson, activeYear);
-  expenseChartInstances[uuid] = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: MONTHS,
-      datasets: [{
-        data: amounts,
-        backgroundColor: (context) => {
-          if (expense.isPersonal) {
-            return activePerson === 'francis' ? 'rgba(10, 132, 255, 0.5)' : 'rgba(255, 55, 95, 0.5)';
-          } else {
-            return activePerson === 'francis' ? '#0a84ff' : '#ff375f';
+    const originalAmount = expense.amount;
+    const originalNote = expense.note;
+    let dataChanged = false;
+    if (expense.recurring && newNote.trim().toLowerCase() !== originalNote.toLowerCase()) {
+      if (confirm("You changed the description for a recurring expense. Do you want to update the description for all occurrences of this series?")) {
+        data[activePerson].forEach(e => {
+          if (e.recurring && e.note.toLowerCase() === originalNote.toLowerCase() && e.isPersonal === expense.isPersonal) {
+            e.note = newNote.trim();
+            e.logo = detectLogo(e.note);
+            dataChanged = true;
           }
-        },
-        borderColor: 'transparent',
-        borderRadius: 4,
-        barPercentage: 0.8,
-        categoryPercentage: 0.8
-      }]
+        });
+      }
+    }
+    expense.note = newNote.trim();
+    expense.amount = newAmount;
+    expense.logo = detectLogo(newNote.trim());
+    if (expense.recurring && newAmount !== originalAmount) {
+      if (confirm("Do you want to update all future occurrences of this recurring expense to the new amount?")) {
+        data[activePerson].forEach(e => {
+          if (e.recurring && e.note.toLowerCase() === expense.note.toLowerCase() && e.isPersonal === expense.isPersonal && getMonthNum(e.month) > getMonthNum(expense.month) && !e.isProjected) {
+            e.amount = newAmount;
+            dataChanged = true;
+          }
+        });
+      }
+    }
+    if (newAmount !== originalAmount || newNote.trim() !== originalNote) {
+      dataChanged = true;
+    }
+    if (dataChanged) {
+      save();
+      updateAll();
+    }
+  }
+  function deleteExpenseByUUID(uuid) {
+    if (editMode) {
+      cancelEditMode();
+      setTimeout(() => deleteExpenseByUUID(uuid), 100);
+      return;
+    }
+    const expenseToDelete = getExpenseByUUID(uuid);
+    if (!expenseToDelete) {
+      console.error("Expense not found for deletion with UUID:", uuid);
+      return;
+    }
+    if (expenseToDelete.isProjected) {
+      alert("Projected expenses cannot be deleted directly. Please delete an actual entry for this recurring series to stop its projection.");
+      return;
+    }
+    if (expenseToDelete.recurring) {
+      if (confirm("This is a recurring expense. Do you want to delete all future occurrences of this series as well?")) {
+        data[activePerson] = data[activePerson].filter(e => {
+          return !(e.recurring && e.note.toLowerCase() === expenseToDelete.note.toLowerCase() && e.isPersonal === expenseToDelete.isPersonal && getMonthNum(e.month) > getMonthNum(expenseToDelete.month));
+        });
+        save();
+        updateAll();
+        return;
+      }
+    }
+    if (!confirm("Delete expense?")) return;
+    const indexToDelete = getExpenseIndexByUUID(uuid);
+    if (indexToDelete === -1) {
+      console.error("Expense not found for deletion with UUID:", uuid);
+      return;
+    }
+    data[activePerson].splice(indexToDelete, 1);
+    save();
+    updateAll();
+  }
+  function selectPerson(p) {
+    activePerson = p;
+    francisBtn.classList.toggle("active", p === "francis");
+    fionaBtn.classList.toggle("active", p === "fiona");
+    cancelEditMode();
+    updateAll();
+  }
+  const chart = new Chart(document.getElementById("billChart"), {
+    type: "bar",
+    data: {
+      labels: ["Francis", "Fiona"],
+      datasets: []
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      indexAxis: "y",
       plugins: {
         legend: {
           display: false
         },
         tooltip: {
+          mode: 'index',
+          intersect: false,
           callbacks: {
             label: function(context) {
               let label = context.dataset.label || '';
               if (label) {
                 label += ': ';
               }
-              if (context.parsed.y !== null) {
-                label += new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(context.parsed.y);
+              if (context.parsed.x !== null) {
+                label += new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(context.parsed.x);
               }
               return label;
+            },
+            footer: function(tooltipItems) {
+              let total = 0;
+              tooltipItems.forEach(function(tooltipItem) {
+                total += tooltipItem.parsed.x;
+              });
+              return 'Total: ' + new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(total);
             }
           },
           titleColor: 'white',
@@ -1500,121 +1200,529 @@ function drawExpenseHistoryChart(expense, canvasId, uuid) {
       },
       scales: {
         x: {
-          grid: {
-            display: false,
-          },
-          ticks: {
-            color: 'white',
-            font: {
-              size: 10
-            }
-          }
+          stacked: true,
+          ticks: { color: "#f5f5f7" },
+          grid: { color: "#2a2a31" }
         },
         y: {
-          beginAtZero: true,
-          grid: {
-            color: '#2a2a31',
-          },
-          ticks: {
-            color: 'white',
-            font: {
-              size: 10
-            },
-            callback: function(value) {
-              return '£' + value.toFixed(0);
-            }
-          }
+          stacked: true,
+          ticks: { color: "#f5f5f7" },
+          grid: { display: false }
+        }
+      },
+      elements: {
+        bar: {
+          borderRadius: 0
         }
       }
     }
   });
-}
-function toggleEditMode() {
-  editMode = !editMode;
-  selectedExpenses = [];
-  updateAll();
-}
-function cancelEditMode() {
-  editMode = false;
-  selectedExpenses = [];
-  updateAll();
-}
-function toggleExpenseSelection(checkboxElement, uuid) {
-  if (checkboxElement.checked) {
-    if (!selectedExpenses.includes(uuid)) {
-      selectedExpenses.push(uuid);
+  function updateChart() {
+    let francisShared, francisPersonal, fionaShared, fionaPersonal;
+    if (viewMode === 'monthly') {
+      const francisMonthly = getMonthlyExpenses("francis", activeMonth);
+      const fionaMonthly = getMonthlyExpenses("fiona", activeMonth);
+      francisShared = francisMonthly.shared;
+      francisPersonal = francisMonthly.personal;
+      fionaShared = fionaMonthly.shared;
+      fionaPersonal = fionaMonthly.personal;
+    } else {
+      const annualTotals = calculateAnnualTotals();
+      francisShared = annualTotals.francis.shared;
+      francisPersonal = annualTotals.francis.personal;
+      fionaShared = annualTotals.fiona ? annualTotals.fiona.shared : 0;
+      fionaPersonal = annualTotals.fiona ? annualTotals.fiona.personal : 0;
     }
-  } else {
-    selectedExpenses = selectedExpenses.filter(id => id !== uuid);
+    const francisBarRoundingPersonal = (francisShared === 0 && francisPersonal > 0) ? 12 : { topLeft: 12, bottomLeft: 12, topRight: 0, bottomRight: 0 };
+    const francisBarRoundingShared = (francisPersonal === 0 && francisShared > 0) ? 12 : { topLeft: 0, bottomLeft: 0, topRight: 12, bottomRight: 12 };
+    const fionaBarRoundingPersonal = (fionaShared === 0 && fionaPersonal > 0) ? 12 : { topLeft: 12, bottomLeft: 12, topRight: 0, bottomRight: 0 };
+    const fionaBarRoundingShared = (fionaPersonal === 0 && fionaShared > 0) ? 12 : { topLeft: 0, bottomLeft: 0, topRight: 12, bottomRight: 12 };
+    chart.data.labels = ["Francis", "Fiona"];
+    chart.data.datasets = [
+      {
+        label: 'Personal',
+        data: [francisPersonal, fionaPersonal],
+        backgroundColor: (ctx) => {
+          if (ctx.dataIndex === 0) return "rgba(10, 132, 255, 0.5)";
+          if (ctx.dataIndex === 1) return "rgba(255, 55, 95, 0.5)";
+          return 'transparent';
+        },
+        stack: 'expenses',
+        borderRadius: [francisBarRoundingPersonal, fionaBarRoundingPersonal],
+        borderSkipped: false
+      },
+      {
+        label: 'Shared',
+        data: [francisShared, fionaShared],
+        backgroundColor: (ctx) => {
+          if (ctx.dataIndex === 0) return "#0a84ff";
+          if (ctx.dataIndex === 1) return "#d14d21";
+          return 'transparent';
+        },
+        stack: 'expenses',
+        borderRadius: [francisBarRoundingShared, fionaBarRoundingShared],
+        borderSkipped: false
+      }
+    ];
+    chart.update();
   }
-  renderExpenseHeader();
-}
-function toggleSelectAll() {
-  const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
-  const allUUIDsForMonth = expensesForMonth.map(e => e.uuid);
-  const allCurrentlySelected = allUUIDsForMonth.length > 0 && allUUIDsForMonth.every(uuid => selectedExpenses.includes(uuid));
-  if (allCurrentlySelected) {
-    selectedExpenses = selectedExpenses.filter(uuid => !allUUIDsForMonth.includes(uuid));
-  } else {
-    allUUIDsForMonth.forEach(uuid => {
-      if (!selectedExpenses.includes(uuid)) {
-        selectedExpenses.push(uuid);
+  function updateViewModeText() {
+    if (viewMode === 'monthly') {
+      currentViewTextSpan.textContent = "Monthly View";
+    } else {
+      currentViewTextSpan.textContent = `Annual View (${activeYear})`;
+    }
+  }
+  function toggleViewMode() {
+    if (viewMode === 'monthly') {
+      viewMode = 'annual';
+    } else {
+      viewMode = 'monthly';
+    }
+    cancelEditMode();
+    updateViewModeText();
+    updateChart();
+  }
+  function exportJSON() {
+    const blob = new Blob([JSON.stringify(data,null,2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "home-bills.json";
+    a.click();
+  }
+  function importJSON() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const importedData = JSON.parse(e.target.result);
+            if (importedData.francis && Array.isArray(importedData.francis) &&
+              importedData.fiona && Array.isArray(importedData.fiona)) {
+              if (confirm("Are you sure you want to import this data? This will overwrite your current data.")) {
+                data.francis = importedData.francis;
+                data.fiona = importedData.fiona;
+                data.settlements = importedData.settlements || {};
+                save();
+                migrateData();
+                normalizeExpenseData();
+                updateLogosForAllExpenses();
+                cancelEditMode();
+                updateAll();
+                alert("Data imported successfully!");
+              }
+            } else {
+              alert("Invalid JSON file format. Please ensure it's a valid Home Bill Tracker export.");
+            }
+          } catch (error) {
+            alert("Error parsing JSON file: " + error.message);
+            console.error("Error parsing JSON file:", error);
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  }
+  function applyRecurring() {
+    let changed = false;
+    ["francis", "fiona"].forEach(p => {
+      if (data[p]) {
+        const initialLength = data[p].length;
+        data[p] = data[p].filter(e => !e.isProjected);
+        if (data[p].length !== initialLength) {
+          changed = true;
+        }
+      }
+    });
+    ["francis", "fiona"].forEach(p => {
+      if (!data[p]) return;
+      const recurringSeriesInfo = new Map();
+      data[p].filter(e => e.recurring && !e.isProjected).forEach(e => {
+        const seriesKey = `${e.note.toLowerCase()}_${e.isPersonal}`;
+        let series = recurringSeriesInfo.get(seriesKey);
+        if (!series) {
+          series = {
+            latestActualEntry: { ...e },
+            firstActualMonth: e.month
+          };
+          recurringSeriesInfo.set(seriesKey, series);
+        } else {
+          if (getMonthNum(e.month) > getMonthNum(series.latestActualEntry.month)) {
+            series.latestActualEntry = { ...e };
+          }
+          if (getMonthNum(e.month) < getMonthNum(series.firstActualMonth)) {
+            series.firstActualMonth = e.month;
+          }
+        }
+      });
+      recurringSeriesInfo.forEach(series => {
+        const { latestActualEntry, firstActualMonth } = series;
+        const [firstYear, firstMonthAbbr] = firstActualMonth.split('-');
+        const firstMonthIndex = MONTHS.indexOf(firstMonthAbbr);
+        const startYear = parseInt(firstYear);
+        const currentYear = new Date().getFullYear();
+        const endYear = currentYear + 3;
+        for (let year = startYear; year <= endYear; year++) {
+          const startMonth = (year === startYear) ? firstMonthIndex : 0;
+          const endMonth = 11;
+          for (let monthIndex = startMonth; monthIndex <= endMonth; monthIndex++) {
+            const targetMonthKey = `${year}-${MONTHS[monthIndex]}`;
+            const actualExistingEntry = data[p].find(e =>
+              e.month === targetMonthKey &&
+              e.recurring &&
+              e.note.toLowerCase() === latestActualEntry.note.toLowerCase() &&
+              e.isPersonal === latestActualEntry.isPersonal &&
+              !e.isProjected
+            );
+            if (!actualExistingEntry) {
+              const templateEntry = data[p].filter(e =>
+                e.recurring &&
+                e.note.toLowerCase() === latestActualEntry.note.toLowerCase() &&
+                e.isPersonal === latestActualEntry.isPersonal &&
+                getMonthNum(e.month) <= getMonthNum(targetMonthKey) &&
+                !e.isProjected
+              ).sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month)).pop();
+              if (templateEntry) {
+                data[p].push({
+                  uuid: generateUUID(),
+                  month: targetMonthKey,
+                  amount: templateEntry.amount,
+                  note: templateEntry.note,
+                  logo: templateEntry.logo,
+                  recurring: true,
+                  isPersonal: templateEntry.isPersonal,
+                  isProjected: true
+                });
+                changed = true;
+              }
+            }
+          }
+        }
+      });
+    });
+    if (changed) {
+      data.francis.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.uuid.localeCompare(b.uuid));
+      if (data.fiona) {
+        data.fiona.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.uuid.localeCompare(b.uuid));
+      }
+      save();
+    }
+  }
+  function toggleExpenseChart(toggleButtonElement, uuid) {
+    if (editMode) return;
+    const chartWrapper = document.getElementById(`expenseChartWrapper_${uuid}`);
+    const chevronIcon = toggleButtonElement.querySelector('i');
+    if (chartWrapper.style.display === 'none') {
+      chartWrapper.style.display = 'block';
+      toggleButtonElement.classList.add('expanded');
+      const expense = getExpenseByUUID(uuid);
+      if (expense) {
+        drawExpenseHistoryChart(expense, `expenseChartCanvas_${uuid}`, uuid);
+      } else {
+        console.error("Expense not found for chart with UUID:", uuid);
+      }
+    } else {
+      chartWrapper.style.display = 'none';
+      toggleButtonElement.classList.remove('expanded');
+      if (expenseChartInstances[uuid]) {
+        expenseChartInstances[uuid].destroy();
+        delete expenseChartInstances[uuid];
+      }
+    }
+  }
+  function getExpenseHistoryData(currentExpense, personKey, year) {
+    const amountsByMonth = new Array(12).fill(0);
+    const yearPrefix = year.toString();
+    const expenseIsPersonal = currentExpense.isPersonal;
+    let chartSeriesStartMonthIndex = 0;
+    let matcher;
+    if (currentExpense.recurring) {
+      matcher = e => e.recurring && e.note.toLowerCase() === currentExpense.note.toLowerCase() && e.isPersonal === expenseIsPersonal;
+      const allActualSeriesExpenses = data[personKey].filter(e =>
+        matcher(e) && !e.isProjected
+      ).sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month));
+      if (allActualSeriesExpenses.length > 0) {
+        const seriesFirstActualMonthKey = allActualSeriesExpenses[0].month;
+        const [firstActualYear, firstActualMonthAbbr] = seriesFirstActualMonthKey.split('-');
+        if (parseInt(firstActualYear) === year) {
+          chartSeriesStartMonthIndex = MONTHS.indexOf(firstActualMonthAbbr);
+        } else if (parseInt(firstActualYear) > year) {
+          chartSeriesStartMonthIndex = 12;
+        }
+      } else {
+        const [currentExpenseYear, currentExpenseMonthAbbr] = currentExpense.month.split('-');
+        if (parseInt(currentExpenseYear) === year) {
+          chartSeriesStartMonthIndex = MONTHS.indexOf(currentExpenseMonthAbbr);
+        } else if (parseInt(currentExpenseYear) > year) {
+          chartSeriesStartMonthIndex = 12;
+        }
+      }
+    } else {
+      matcher = e => e.uuid === currentExpense.uuid;
+      const [currentExpenseYear, currentExpenseMonthAbbr] = currentExpense.month.split('-');
+      if (parseInt(currentExpenseYear) === year) {
+        chartSeriesStartMonthIndex = MONTHS.indexOf(currentExpenseMonthAbbr);
+      } else {
+        chartSeriesStartMonthIndex = 12;
+      }
+    }
+    const entriesForChartYearAndSeries = data[personKey].filter(e => {
+      const expenseYear = e.month.substring(0, 4);
+      return expenseYear === yearPrefix && matcher(e);
+    });
+    entriesForChartYearAndSeries.forEach(e => {
+      const monthIndex = MONTHS.indexOf(e.month.substring(5, 8));
+      if (monthIndex !== -1) {
+        amountsByMonth[monthIndex] += e.amount;
+      }
+    });
+    for (let i = 0; i < chartSeriesStartMonthIndex; i++) {
+      amountsByMonth[i] = 0;
+    }
+    return amountsByMonth;
+  }
+  function drawExpenseHistoryChart(expense, canvasId, uuid) {
+    const ctx = document.getElementById(canvasId);
+    if (expenseChartInstances[uuid]) {
+      expenseChartInstances[uuid].destroy();
+    }
+    const amounts = getExpenseHistoryData(expense, activePerson, activeYear);
+    expenseChartInstances[uuid] = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: MONTHS,
+        datasets: [{
+          data: amounts,
+          backgroundColor: (context) => {
+            if (expense.isPersonal) {
+              return activePerson === 'francis' ? 'rgba(10, 132, 255, 0.5)' : 'rgba(255, 55, 95, 0.5)';
+            } else {
+              return activePerson === 'francis' ? '#0a84ff' : '#ff375f';
+            }
+          },
+          borderColor: 'transparent',
+          borderRadius: 4,
+          barPercentage: 0.8,
+          categoryPercentage: 0.8
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                let label = context.dataset.label || '';
+                if (label) {
+                  label += ': ';
+                }
+                if (context.parsed.y !== null) {
+                  label += new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(context.parsed.y);
+                }
+                return label;
+              }
+            },
+            titleColor: 'white',
+            bodyColor: 'white',
+            backgroundColor: 'rgba(27, 27, 32, 0.8)'
+          }
+        },
+        scales: {
+          x: {
+            grid: {
+              display: false,
+            },
+            ticks: {
+              color: 'white',
+              font: {
+                size: 10
+              }
+            }
+          },
+          y: {
+            beginAtZero: true,
+            grid: {
+              color: '#2a2a31',
+            },
+            ticks: {
+              color: 'white',
+              font: {
+                size: 10
+              },
+              callback: function(value) {
+                return '£' + value.toFixed(0);
+              }
+            }
+          }
+        }
       }
     });
   }
-  renderExpenses();
-  renderExpenseHeader();
-}
-function confirmDeleteSelected() {
-  if (selectedExpenses.length === 0) {
-    alert("No expenses selected for deletion.");
-    return;
+  function toggleEditMode() {
+    editMode = !editMode;
+    selectedExpenses = [];
+    updateAll();
   }
-  const actualSelected = [];
-  const projectedSelected = [];
-  selectedExpenses.forEach(uuid => {
-    const expense = getExpenseByUUID(uuid);
-    if (expense) {
-      if (expense.isProjected) {
-        projectedSelected.push(uuid);
-      } else {
-        actualSelected.push(uuid);
+  function cancelEditMode() {
+    editMode = false;
+    selectedExpenses = [];
+    updateAll();
+  }
+  function toggleExpenseSelection(checkboxElement, uuid) {
+    if (checkboxElement.checked) {
+      if (!selectedExpenses.includes(uuid)) {
+        selectedExpenses.push(uuid);
       }
+    } else {
+      selectedExpenses = selectedExpenses.filter(id => id !== uuid);
     }
-  });
-  if (projectedSelected.length > 0) {
-    alert("You have selected projected expenses. Projected expenses cannot be deleted directly. Please deselect them or delete their actual entry to stop their projection.");
-    return;
+    renderExpenseHeader();
   }
-  const hasActualRecurringSelected = actualSelected.some(uuid => {
-    const expense = getExpenseByUUID(uuid);
-    return expense && expense.recurring;
-  });
-  let confirmationMessage = `Are you sure you want to delete ${actualSelected.length} selected expense(s)?`;
-  if (hasActualRecurringSelected) {
-    confirmationMessage += "\n\n(Note: If any of these are recurring, only the selected occurrence(s) will be deleted, not future ones. To stop a recurring series, use the single delete button on one of its actual entries.)";
+  function toggleSelectAll() {
+    const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
+    const allUUIDsForMonth = expensesForMonth.map(e => e.uuid);
+    const allCurrentlySelected = allUUIDsForMonth.length > 0 && allUUIDsForMonth.every(uuid => selectedExpenses.includes(uuid));
+    if (allCurrentlySelected) {
+      selectedExpenses = selectedExpenses.filter(uuid => !allUUIDsForMonth.includes(uuid));
+    } else {
+      allUUIDsForMonth.forEach(uuid => {
+        if (!selectedExpenses.includes(uuid)) {
+          selectedExpenses.push(uuid);
+        }
+      });
+    }
+    renderExpenses();
+    renderExpenseHeader();
   }
-  if (!confirm(confirmationMessage)) {
-    return;
+  function confirmDeleteSelected() {
+    if (selectedExpenses.length === 0) {
+      alert("No expenses selected for deletion.");
+      return;
+    }
+    const actualSelected = [];
+    const projectedSelected = [];
+    selectedExpenses.forEach(uuid => {
+      const expense = getExpenseByUUID(uuid);
+      if (expense) {
+        if (expense.isProjected) {
+          projectedSelected.push(uuid);
+        } else {
+          actualSelected.push(uuid);
+        }
+      }
+    });
+    if (projectedSelected.length > 0) {
+      alert("You have selected projected expenses. Projected expenses cannot be deleted directly. Please deselect them or delete their actual entry to stop their projection.");
+      return;
+    }
+    const hasActualRecurringSelected = actualSelected.some(uuid => {
+      const expense = getExpenseByUUID(uuid);
+      return expense && expense.recurring;
+    });
+    let confirmationMessage = `Are you sure you want to delete ${actualSelected.length} selected expense(s)?`;
+    if (hasActualRecurringSelected) {
+      confirmationMessage += "\n\n(Note: If any of these are recurring, only the selected occurrence(s) will be deleted, not future ones. To stop a recurring series, use the single delete button on one of its actual entries.)";
+    }
+    if (!confirm(confirmationMessage)) {
+      return;
+    }
+    data[activePerson] = data[activePerson].filter(e => !actualSelected.includes(e.uuid));
+    save();
+    cancelEditMode();
   }
-  data[activePerson] = data[activePerson].filter(e => !actualSelected.includes(e.uuid));
-  save();
-  cancelEditMode();
-}
-function updateAll() {
-  renderYears();
-  renderMonths();
-  applyRecurring();
-  updateViewModeText();
-  updateChart();
-  updateBalance();
-  renderExpenseHeader();
-  renderExpenses();
-}
-migrateData();
-normalizeExpenseData();
-updateLogosForAllExpenses();
-updateAll();
+
+  // NEW: This function MUST be defined BEFORE updateAll()
+  async function fetchExpensesFromSupabase() {
+    // Fetch expenses for Francis
+    let { data: francisExpenses, error: francisError } = await mySupabaseClient // Use mySupabaseClient here
+      .from('expenses') // Select from the 'expenses' table
+      .select('*')      // Select all columns
+      .eq('person', 'francis') // Filter for expenses belonging to 'francis'
+      .order('month', { ascending: true }) // Order them by month
+      .order('created_at', { ascending: true }); // Then by creation date for consistent order
+
+    if (francisError) {
+      console.error("Error fetching Francis's expenses:", francisError);
+      alert("Error loading Francis's expenses. Please check the console.");
+      return;
+    }
+    data.francis = francisExpenses.map(e => ({
+      ...e,
+      // Supabase returns 'id', we need 'uuid' for existing code compatibility
+      uuid: e.id,
+      // Supabase returns 'is_personal', we need 'isPersonal'
+      isPersonal: e.is_personal,
+      // Supabase returns 'is_projected', we need 'isProjected'
+      isProjected: e.is_projected,
+      // Convert amount from string (Supabase numeric type) to number
+      amount: parseFloat(e.amount)
+    }));
+
+    // Fetch expenses for Fiona
+    let { data: fionaExpenses, error: fionaError } = await mySupabaseClient // Use mySupabaseClient here
+      .from('expenses')
+      .select('*')
+      .eq('person', 'fiona')
+      .order('month', { ascending: true })
+      .order('created_at', { ascending: true });
+
+    if (fionaError) {
+      console.error("Error fetching Fiona's expenses:", fionaError);
+      alert("Error loading Fiona's expenses. Please check the console.");
+      return;
+    }
+    data.fiona = fionaExpenses.map(e => ({
+      ...e,
+      uuid: e.id,
+      isPersonal: e.is_personal,
+      isProjected: e.is_projected,
+      amount: parseFloat(e.amount)
+    }));
+
+    // After fetching, ensure logos are up-to-date and apply any necessary normalizations
+    updateLogosForAllExpenses(); // This will update logos for fetched data
+  }
+
+  async function updateAll() { // Make updateAll an async function
+    // 1. Fetch expenses from Supabase
+    await fetchExpensesFromSupabase();
+
+    // 2. Clear existing projected expenses before reapplying (important for recurring logic)
+    ["francis", "fiona"].forEach(p => {
+      if (data[p]) {
+        data[p] = data[p].filter(e => !e.isProjected);
+      }
+    });
+
+    // 3. Apply recurring logic (this will re-add projected expenses based on fetched actual ones)
+    applyRecurring();
+
+    // 4. Render UI components
+    renderYears();
+    renderMonths();
+    updateViewModeText();
+    updateChart();
+    updateBalance();
+    renderExpenseHeader();
+    renderExpenses();
+  }
+
+  // These lines should remain at the very end to kick everything off
+  migrateData();
+  normalizeExpenseData();
+  // updateLogosForAllExpenses(); // This is now called within fetchExpensesFromSupabase
+  await updateAll(); // Call updateAll when the DOM is ready
+}); // End of DOMContentLoaded listener
 </script>
+
 </body>
 </html>
