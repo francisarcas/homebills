@@ -421,6 +421,75 @@ input[type="checkbox"].expense-select-checkbox:focus {
   display: none;
 }
 
+/* Styling for the logout button */
+#logoutButton {
+  display: inline-flex; /* Use flexbox to align icon and text */
+  background: #555;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  width: 44px; /* Adjust as needed for your icon size */
+  height: 44px; /* Make it square */
+  justify-content: center; /* Center the icon horizontally */
+  align-items: center; /* Center the icon vertically */
+  overflow: hidden; /* Hide text initially */
+  white-space: nowrap; /* Prevent text wrapping */
+  transition: width 0.3s ease, background 0.2s ease, padding 0.3s ease;
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2); /* Add shadow for consistency */
+}
+
+#logoutButton i {
+  font-size: 0.9em; /* Ensure icon is clearly visible */
+}
+
+#logoutButton .logout-text {
+  display: inline-block;
+  max-width: 0; /* Initially hidden */
+  opacity: 0; /* Initially transparent */
+  margin-left: 0; /* No margin initially */
+  transition: max-width 0.3s ease, opacity 0.3s ease, margin-left 0.3s ease;
+  vertical-align: middle;
+}
+
+#logoutButton:hover {
+  width: 120px; /* Expanded width to show "Log out" text */
+  background: var(--danger); /* Optional: change color on hover */
+  justify-content: flex-start; /* Align icon and text to the left */
+}
+
+#logoutButton:hover .logout-text {
+  max-width: 100px; /* Sufficient width for "Log out" */
+  opacity: 1; /* Fully visible */
+  margin-left: 8px; /* Space between icon and text */
+}
+
+/* Styles for the auth container width */
+#authContainer {
+  /* Existing styles */
+  text-align: center;
+  /* Override .container max-width for desktop */
+  max-width: 540px; /* Approximately 60% of 900px */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Styles for login/signup buttons */
+.auth-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.auth-buttons button {
+  flex-grow: 1; /* Allow buttons to take equal space */
+  /* Ensure these buttons inherit general button styles but can be overridden */
+}
+
+
 /* Mobile specific styles */
 @media (max-width: 600px) {
   /* Expense header info */
@@ -437,6 +506,10 @@ input[type="checkbox"].expense-select-checkbox:focus {
   .form button .add-button-text {
     display: inline; /* Show "Add" text on mobile */
     margin-left: 5px; /* Space between icon and text */
+  }
+  /* Login/Signup buttons on mobile - flex-grow handles width */
+  .auth-buttons button {
+    flex-grow: 1; /* Ensure they share space on mobile */
   }
 }
 /* New styles for month tabs */
@@ -463,9 +536,12 @@ input[type="checkbox"].expense-select-checkbox:focus {
 <body>
 <!-- Main application content wrapper -->
 <div id="appContentWrapper" class="container" style="display: none;">
+  <div style="text-align: right; margin-bottom: 16px;">
+    <!-- Logout button with icon and hidden text -->
+    <button id="logoutButton" onclick="handleLogout()"><i class="fa-solid fa-right-from-bracket"></i> <span class="logout-text">Log out</span></button>
+  </div>
   <h1>Bills Overview</h1>
   <div class="balance" id="balanceText"></div>
-  <button id="logoutButton" onclick="handleLogout()" style="display: none; margin-bottom: 16px; background: #555;">Logout</button>
 
   <div class="profiles">
     <img src="assets/person001.png" id="francisBtn" class="profile active" onclick="selectPerson('francis')">
@@ -516,8 +592,10 @@ input[type="checkbox"].expense-select-checkbox:focus {
     <h2>Login / Sign Up</h2>
     <input type="email" id="authEmail" placeholder="Email" style="margin-bottom: 8px;">
     <input type="password" id="authPassword" placeholder="Password" style="margin-bottom: 16px;">
-    <button onclick="handleAuth('signup')" style="margin-bottom: 8px;">Sign Up</button>
-    <button onclick="handleAuth('login')">Login</button>
+    <div class="auth-buttons"> <!-- Added a wrapper for buttons -->
+      <button onclick="handleAuth('signup')">Sign Up</button>
+      <button onclick="handleAuth('login')">Login</button>
+    </div>
     <p id="authMessage" style="color: var(--danger); margin-top: 10px;"></p>
 </div>
 <!-- End Authentication UI -->
@@ -687,7 +765,7 @@ function updateAuthUI() {
         authContainer.style.display = 'none'; // Hide auth form
         appContentWrapper.style.display = 'block'; // Show main app content
         profilesDiv.style.display = 'flex'; // Show profiles (Francis/Fiona)
-        logoutButton.style.display = 'block'; // Show logout button
+        logoutButton.style.display = 'inline-flex'; // Show logout button as inline-flex
     } else {
         authContainer.style.display = 'block'; // Show auth form
         appContentWrapper.style.display = 'none'; // Hide main app content
