@@ -461,51 +461,67 @@ input[type="checkbox"].expense-select-checkbox:focus {
 </style>
 </head>
 <body>
-<div class="container">
-<h1>Bills Overview</h1>
-<div class="balance" id="balanceText"></div>
-<div class="profiles">
-<img src="assets/person001.png" id="francisBtn" class="profile active" onclick="selectPerson('francis')">
-<img src="assets/person002.png" id="fionaBtn" class="profile" onclick="selectPerson('fiona')">
+<!-- Main application content wrapper -->
+<div id="appContentWrapper" class="container" style="display: none;">
+  <h1>Bills Overview</h1>
+  <div class="balance" id="balanceText"></div>
+  <button id="logoutButton" onclick="handleLogout()" style="display: none; margin-bottom: 16px; background: #555;">Logout</button>
+
+  <div class="profiles">
+    <img src="assets/person001.png" id="francisBtn" class="profile active" onclick="selectPerson('francis')">
+    <img src="assets/person002.png" id="fionaBtn" class="profile" onclick="selectPerson('fiona')">
+  </div>
+
+  <div class="view-switcher">
+    <button id="prevViewBtn" onclick="toggleViewMode()"><i class="fa-solid fa-chevron-left"></i></button>
+    <span id="currentViewText">Monthly View</span>
+    <button id="nextViewBtn" onclick="toggleViewMode()"><i class="fa-solid fa-chevron-right"></i></button>
+  </div>
+  <div class="card">
+    <div class="chart-wrapper">
+      <canvas id="billChart"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="year-tabs" id="yearTabs"></div>
+    <div class="year-month-separator"></div>
+    <div class="month-tabs" id="monthTabs"></div>
+  </div>
+  <div class="card">
+    <div class="form">
+      <input id="amountInput" type="number" step="0.01" placeholder="£ amount">
+      <div class="note-input-wrapper">
+        <input id="noteInput" type="text" placeholder="Description or brand">
+        <div id="suggestions" class="suggestions-dropdown"></div>
+      </div>
+      <select id="recurringInput">
+        <option value="no">One-off</option>
+        <option value="yes">Recurring</option>
+      </select>
+      <select id="sharedStatusInput">
+        <option value="shared">Shared</option>
+        <option value="personal">Personal</option>
+      </select>
+      <button onclick="addExpense()"><i class="fa-solid fa-circle-plus"></i> <span class="add-button-text">Add</span></button>
+    </div>
+  </div>
+  <div class="card">
+    <div id="expenseHeader"></div>
+    <div id="expenseList"></div>
+  </div>
+</div> <!-- End appContentWrapper -->
+
+<!-- Authentication UI - This is now a sibling to the main content wrapper -->
+<div class="card container" id="authContainer" style="display: none; text-align: center;">
+    <h2>Login / Sign Up</h2>
+    <input type="email" id="authEmail" placeholder="Email" style="margin-bottom: 8px;">
+    <input type="password" id="authPassword" placeholder="Password" style="margin-bottom: 16px;">
+    <button onclick="handleAuth('signup')" style="margin-bottom: 8px;">Sign Up</button>
+    <button onclick="handleAuth('login')">Login</button>
+    <p id="authMessage" style="color: var(--danger); margin-top: 10px;"></p>
 </div>
-<div class="view-switcher">
-<button id="prevViewBtn" onclick="toggleViewMode()"><i class="fa-solid fa-chevron-left"></i></button>
-<span id="currentViewText">Monthly View</span>
-<button id="nextViewBtn" onclick="toggleViewMode()"><i class="fa-solid fa-chevron-right"></i></button>
-</div>
-<div class="card">
-<div class="chart-wrapper">
-<canvas id="billChart"></canvas>
-</div>
-</div>
-<div class="card">
-<div class="year-tabs" id="yearTabs"></div>
-<div class="year-month-separator"></div>
-<div class="month-tabs" id="monthTabs"></div>
-</div>
-<div class="card">
-<div class="form">
-<input id="amountInput" type="number" step="0.01" placeholder="£ amount">
-<div class="note-input-wrapper">
-<input id="noteInput" type="text" placeholder="Description or brand">
-<div id="suggestions" class="suggestions-dropdown"></div>
-</div>
-<select id="recurringInput">
-<option value="no">One-off</option>
-<option value="yes">Recurring</option>
-</select>
-<select id="sharedStatusInput">
-<option value="shared">Shared</option>
-<option value="personal">Personal</option>
-</select>
-<button onclick="addExpense()"><i class="fa-solid fa-circle-plus"></i> <span class="add-button-text">Add</span></button>
-</div>
-</div>
-<div class="card">
-<div id="expenseHeader"></div>
-<div id="expenseList"></div>
-</div>
-</div>
+<!-- End Authentication UI -->
+
 <div class="footer">
 <a href="https://www.linkedin.com/in/francisarcas/" target="_blank" class="footer-link" title="Francis Arcas LinkedIn">
 <i class="fa-brands fa-linkedin footer-icon"></i>
@@ -519,13 +535,15 @@ input[type="checkbox"].expense-select-checkbox:focus {
 <script>
   // Global declaration for mySupabaseClient
   let mySupabaseClient;
+  let currentUser = null; // Stores the currently logged-in Supabase user object
+  let authContainer, authEmail, authPassword, authMessage; // DOM element references
+  let appContentWrapper; // New global reference for the main app content
 
   // Global constants (moved up for broader scope and immediate availability)
   const SUPABASE_URL = "https://qkbzkswjzzhrvqtssfxt.supabase.co"; // Your Project URL
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFrYnprc3dqenpocnZxdHNzZnh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MTIzNzAsImV4cCI6MjA4NTI4ODM3MH0.BiDcAO2TDdIMIi888Uq7NQE7Bj-ZnjwI7sDMu6Erk6g"; // Your actual anon key!
 
   // Attempt to initialize Supabase client immediately.
-  // CORRECTED: Changed 'Supabase.createClient' to 'supabase.createClient'
   try {
     mySupabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   } catch (e) {
@@ -598,9 +616,88 @@ input[type="checkbox"].expense-select-checkbox:focus {
 
   // Global DOM element references - will be assigned in initApp()
   let noteInput, suggestionsDiv, yearTabsDiv, expenseHeaderDiv, balanceTextDiv,
-      currentViewTextSpan, sharedStatusInput, amountInput, recurringInput, expenseListDiv;
+    currentViewTextSpan, sharedStatusInput, amountInput, recurringInput, expenseListDiv,
+    francisBtn, fionaBtn, logoutButton;
 
   // --- ALL FUNCTION DEFINITIONS (GLOBAL SCOPE) ---
+
+// --- AUTHENTICATION FUNCTIONS ---
+
+// Handles login and signup actions
+async function handleAuth(type) {
+    authMessage.textContent = ''; // Clear previous messages
+    const email = authEmail.value;
+    const password = authPassword.value;
+
+    if (!email || !password) {
+        authMessage.textContent = 'Please enter both email and password.';
+        return;
+    }
+
+    let response;
+    if (type === 'signup') {
+        authMessage.textContent = 'Signing up... Please wait.';
+        response = await mySupabaseClient.auth.signUp({ email, password });
+    } else { // type === 'login'
+        authMessage.textContent = 'Logging in...';
+        response = await mySupabaseClient.auth.signInWithPassword({ email, password });
+    }
+
+    if (response.error) {
+        authMessage.textContent = response.error.message;
+        console.error("Auth error:", response.error);
+    } else {
+        if (type === 'signup' && !response.data.user?.identities?.length) {
+            authMessage.textContent = 'Sign up successful! Please check your email for confirmation to log in.';
+            // Do not set currentUser or update UI for unconfirmed user
+        } else {
+            authMessage.textContent = 'Login successful!';
+            authEmail.value = '';
+            authPassword.value = '';
+            currentUser = response.data.user; // Store the logged-in user
+            updateAuthUI(); // Update UI based on login status
+            updateAll(); // Refresh app data
+        }
+    }
+}
+
+async function handleLogout() {
+    const { error } = await mySupabaseClient.auth.signOut();
+    if (error) {
+        console.error("Logout error:", error);
+        alert("Error logging out: " + error.message);
+    } else {
+        currentUser = null; // Clear current user
+        // Clear local data for the previous user
+        data.francis = [];
+        data.fiona = [];
+        data.settlements = {};
+        localStorage.removeItem("billSettlements"); // Clear settlements
+        updateAuthUI(); // Show login form
+        updateAll(); // Re-render with no data
+        alert("Logged out successfully!");
+    }
+}
+
+// Toggles visibility of auth form and main app content
+function updateAuthUI() {
+    const profilesDiv = document.querySelector('.profiles');
+
+    if (currentUser) {
+        authContainer.style.display = 'none'; // Hide auth form
+        appContentWrapper.style.display = 'block'; // Show main app content
+        profilesDiv.style.display = 'flex'; // Show profiles (Francis/Fiona)
+        logoutButton.style.display = 'block'; // Show logout button
+    } else {
+        authContainer.style.display = 'block'; // Show auth form
+        appContentWrapper.style.display = 'none'; // Hide main app content
+        profilesDiv.style.display = 'none'; // Hide profiles
+        logoutButton.style.display = 'none'; // Hide logout button
+    }
+}
+
+// --- End AUTHENTICATION FUNCTIONS ---
+
 
   // Helper function to initialize DOM element references
   function initializeDOMElements() {
@@ -614,6 +711,14 @@ input[type="checkbox"].expense-select-checkbox:focus {
     amountInput = document.getElementById('amountInput');
     recurringInput = document.getElementById('recurringInput');
     expenseListDiv = document.getElementById('expenseList');
+    authContainer = document.getElementById('authContainer');
+    authEmail = document.getElementById('authEmail');
+    authPassword = document.getElementById('authPassword');
+    authMessage = document.getElementById('authMessage');
+    francisBtn = document.getElementById('francisBtn');
+    fionaBtn = document.getElementById('fionaBtn');
+    logoutButton = document.getElementById('logoutButton');
+    appContentWrapper = document.getElementById('appContentWrapper'); // Assign new wrapper
   }
 
   function generateUUID() {
@@ -823,6 +928,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
   function getMonthlyExpenses(personKey, monthKey) {
     const expenses = data[personKey].filter(e => normalizeMonthKey(e.month) === monthKey);
     const shared = expenses.filter(e => !e.isPersonal).reduce((sum, e) => sum + e.amount, 0);
+    // Corrected: Removed extra comma before 0
     const personal = expenses.filter(e => e.isPersonal).reduce((sum, e) => sum + e.amount, 0);
     return { shared, personal };
   }
@@ -1038,8 +1144,10 @@ input[type="checkbox"].expense-select-checkbox:focus {
       recurring: isRecurring,
       isPersonal: isPersonal, // CORRECTED: to match Supabase table
       isProjected: false,     // CORRECTED: to match Supabase table
-      person: activePerson
+      person: activePerson,
+      user_id: currentUser ? currentUser.id : null // NEW: Add user_id
     };
+    console.log("Attempting to insert new expense with data:", newExpenseForSupabase);
 
     // Insert the new expense into Supabase
     const { data: insertedData, error } = await mySupabaseClient
@@ -1155,7 +1263,8 @@ input[type="checkbox"].expense-select-checkbox:focus {
         const { error } = await mySupabaseClient
           .from('expenses')
           .delete()
-          .eq('id', uuid);
+          .eq('id', uuid)
+          .eq('user_id', currentUser.id); // NEW: Add user_id filter
 
         if (error) {
           console.error("Error deleting expense from Supabase:", error);
@@ -1176,7 +1285,8 @@ input[type="checkbox"].expense-select-checkbox:focus {
         .delete()
         .eq('note', expenseToDelete.note)
         .eq('isPersonal', expenseToDelete.isPersonal)
-        .gte('month', expenseToDelete.month); // Delete from this month onwards
+        .gte('month', expenseToDelete.month) // Delete from this month onwards
+        .eq('user_id', currentUser.id); // NEW: Add user_id filter
 
       if (error) {
         console.error("Error deleting recurring series from Supabase:", error);
@@ -1190,13 +1300,14 @@ input[type="checkbox"].expense-select-checkbox:focus {
     // For non-recurring expenses
     if (!confirm(confirmMessage)) return;
 
-    const { error } = await mySupabaseClient
+    const { error: singleDeleteError } = await mySupabaseClient
       .from('expenses')
       .delete()
-      .eq('id', uuid);
+      .eq('id', uuid)
+      .eq('user_id', currentUser.id); // ADDED: user_id filter
 
-    if (error) {
-      console.error("Error deleting expense from Supabase:", error);
+    if (singleDeleteError) {
+      console.error("Error deleting expense from Supabase:", singleDeleteError);
       alert("Error deleting expense. Please check the console.");
       return;
     }
@@ -1209,7 +1320,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
     const francisBtn = document.getElementById('francisBtn');
     const fionaBtn = document.getElementById('fionaBtn');
     if(francisBtn) francisBtn.classList.toggle("active", p === "francis");
-    if(fionaBtn) fionaBtn.classList.toggle("active", p === "fiona");
+    if(fionaBtn) fionaBtn.classList.toggle("active", p === "fiona")
     cancelEditMode();
     updateAll();
   }
@@ -1339,92 +1450,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
     updateViewModeText();
     updateChart();
   }
-  function exportJSON() {
-    const blob = new Blob([JSON.stringify(data,null,2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "home-bills.json";
-    a.click();
-  }
-  function importJSON() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json';
-    input.onchange = async (event) => { // Made async to await updateAll
-      const file = event.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = async (e) => { // Made async to await updateAll
-          try {
-            const importedData = JSON.parse(e.target.result);
-            if (importedData.francis && Array.isArray(importedData.francis) &&
-              importedData.fiona && Array.isArray(importedData.fiona)) {
-              if (confirm("Are you sure you want to import this data? This will overwrite your current data and attempt to upload it to Supabase.")) {
 
-                // Clear existing Supabase data before importing new
-                const { error: deleteError } = await mySupabaseClient
-                  .from('expenses')
-                  .delete()
-                  .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all rows (excluding a dummy ID)
-
-                if (deleteError) {
-                  console.error("Error clearing existing Supabase data:", deleteError);
-                  alert("Error clearing existing data. Import aborted.");
-                  return;
-                }
-
-                // Prepare data for Supabase insert
-                const allImportedExpenses = [
-                  ...importedData.francis.map(e => ({ ...e, person: 'francis', isPersonal: e.isPersonal || false, isProjected: e.isProjected || false })),
-                  ...importedData.fiona.map(e => ({ ...e, person: 'fiona', isPersonal: e.isPersonal || false, isProjected: e.isProjected || false }))
-                ].filter(e => !e.isProjected); // Only import actual expenses, not projected ones
-
-                // Insert into Supabase
-                const { error: insertError } = await mySupabaseClient
-                  .from('expenses')
-                  .insert(allImportedExpenses.map(e => ({
-                    // Map old data format to new Supabase column names
-                    month: e.month,
-                    amount: e.amount,
-                    note: e.note,
-                    logo: e.logo || detectLogo(e.note), // Re-detect if missing
-                    recurring: e.recurring || false,
-                    isPersonal: e.isPersonal,
-                    isProjected: e.isProjected,
-                    person: e.person
-                  })));
-
-                if (insertError) {
-                  console.error("Error importing data to Supabase:", insertError);
-                  alert("Error importing data. Please check the console.");
-                  return;
-                }
-
-                data.settlements = importedData.settlements || {};
-                save(); // Save settlements locally
-
-                // These migrate/normalize/updateLogos functions operate on the `data` object, which will be refilled by updateAll
-                migrateData();
-                normalizeExpenseData();
-                // updateLogosForAllExpenses(); // This will be called by updateAll again
-
-                cancelEditMode();
-                await updateAll(); // Re-fetch all data from Supabase and render
-                alert("Data imported successfully!");
-              }
-            } else {
-              alert("Invalid JSON file format. Please ensure it's a valid Home Bill Tracker export.");
-            }
-          } catch (error) {
-            alert("Error parsing JSON file: " + error.message);
-            console.error("Error parsing JSON file:", error);
-          }
-        };
-        reader.readAsText(file);
-      }
-    };
-    input.click();
-  }
   function applyRecurring() {
     let changed = false;
     ["francis", "fiona"].forEach(p => {
@@ -1737,7 +1763,8 @@ input[type="checkbox"].expense-select-checkbox:focus {
     const { error } = await mySupabaseClient
       .from('expenses')
       .delete()
-      .in('id', actualSelected); // Delete all selected IDs
+      .in('id', actualSelected) // Delete all selected IDs
+      .eq('user_id', currentUser.id); // ADDED: user_id filter
 
     if (error) {
       console.error("Error deleting selected expenses from Supabase:", error);
@@ -1759,12 +1786,19 @@ input[type="checkbox"].expense-select-checkbox:focus {
       alert("Application error: Supabase connection not established. Please refresh.");
       return;
     }
+     // NEW: If no current user, clear data and return
+  if (!currentUser) {
+    data.francis = [];
+    data.fiona = [];
+    return;
+  }
 
     // Fetch expenses for Francis
     let { data: francisExpenses, error: francisError } = await mySupabaseClient
       .from('expenses')
       .select('*')
       .eq('person', 'francis')
+      .eq('user_id', currentUser.id) // NEW: Filter by logged-in user
       .order('month', { ascending: true })
       .order('created_at', { ascending: true });
 
@@ -1786,6 +1820,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
       .from('expenses')
       .select('*')
       .eq('person', 'fiona')
+      .eq('user_id', currentUser.id) // NEW: Filter by logged-in user
       .order('month', { ascending: true })
       .order('created_at', { ascending: true });
 
@@ -1876,11 +1911,11 @@ input[type="checkbox"].expense-select-checkbox:focus {
   }
 
   // --- Main application initialization ---
-  async function initApp() {
+async function initApp() {
     // If Supabase client failed to initialize globally, stop here.
     if (!mySupabaseClient) {
-      console.error("initApp: Supabase client is not available. Aborting initialization.");
-      return;
+        console.error("initApp: Supabase client is not available. Aborting initialization.");
+        return;
     }
 
     initializeDOMElements(); // Assign DOM elements once they are ready
@@ -1890,13 +1925,29 @@ input[type="checkbox"].expense-select-checkbox:focus {
     noteInput.addEventListener('focus', showSuggestions);
     noteInput.addEventListener('blur', hideSuggestions);
 
-    // Initial data migration and normalization (can run once at startup)
-    migrateData();
-    normalizeExpenseData();
+    // Check if a user is already logged in
+    const { data: { session }, error } = await mySupabaseClient.auth.getSession();
+    if (session) {
+        currentUser = session.user; // Set the current user if logged in
+    }
 
-    // Kick off the main update cycle
-    await updateAll();
-  }
+    updateAuthUI(); // Update UI based on initial login status
+
+    if (currentUser) {
+        // Only proceed with data loading and rendering if a user is logged in
+        // Initial data migration and normalization (can run once at startup)
+        migrateData();
+        normalizeExpenseData();
+
+        // Kick off the main update cycle
+        await updateAll();
+    } else {
+        // If no user is logged in, hide main content and show auth form
+        appContentWrapper.style.display = 'none';
+        authContainer.style.display = 'block';
+    }
+}
+
 
   // Call initApp when the DOM is fully loaded
   document.addEventListener('DOMContentLoaded', initApp);
