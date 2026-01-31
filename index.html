@@ -825,24 +825,25 @@ function updateAuthUI() {
       suggestionsDiv.style.display = 'none';
       return;
     }
-    const matchingBrands = SUGGESTION_BRANDS.filter(brand =>
-      brand.includes(inputValue)
+    const matchingBrands = SUGGESTION_BRANDS.filter(brandItem => // Renamed loop variable to brandItem
+      brandItem.includes(inputValue)
     );
     if (matchingBrands.length > 0) {
-      matchingBrands.forEach(brand => {
+      matchingBrands.forEach(brandItem => { // Use brandItem here
         const suggestionItem = document.createElement('div');
-        let displayText = brand.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-        if (brand === "m&s") displayText = "M&S";
-        if (brand === "b&q") displayText = "B&Q";
-        if (brand === "hsbc") displayText = "HSBC";
-        if (brand === "lner") displayText = "LNER";
-        if (brand === "tfl") displayText = "TFL";
-        if (brand === "amex") displayText = "AMEX";
-        if (brand === "tk.max") displayText = "TK.MAX";
+        let displayText = brandItem.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        // Corrected all instances to use brandItem
+        if (brandItem === "m&s") displayText = "M&S";
+        if (brandItem === "b&q") displayText = "B&Q";
+        if (brandItem === "hsbc") displayText = "HSBC";
+        if (brandItem === "lner") displayText = "LNER";
+        if (brandItem === "tfl") displayText = "TFL";
+        if (brandItem === "amex") displayText = "AMEX";
+        if (brandItem === "tk.max") displayText = "TK.MAX";
         suggestionItem.textContent = displayText;
         suggestionItem.onmousedown = (event) => {
           event.preventDefault();
-          selectSuggestion(brand);
+          selectSuggestion(brandItem); // Pass brandItem
         };
         suggestionsDiv.appendChild(suggestionItem);
       });
@@ -1006,7 +1007,6 @@ function updateAuthUI() {
   function getMonthlyExpenses(personKey, monthKey) {
     const expenses = data[personKey].filter(e => normalizeMonthKey(e.month) === monthKey);
     const shared = expenses.filter(e => !e.isPersonal).reduce((sum, e) => sum + e.amount, 0);
-    // Corrected: Removed extra comma before 0
     const personal = expenses.filter(e => e.isPersonal).reduce((sum, e) => sum + e.amount, 0);
     return { shared, personal };
   }
@@ -1467,7 +1467,7 @@ function updateAuthUI() {
       const francisMonthly = getMonthlyExpenses("francis", activeMonth);
       const fionaMonthly = getMonthlyExpenses("fiona", activeMonth);
       francisShared = francisMonthly.shared;
-      francisPersonal = francisMonthly.personal;
+      francisPersonal = fionaMonthly.personal;
       fionaShared = fionaMonthly.shared;
       fionaPersonal = fionaMonthly.personal;
     } else {
@@ -1864,54 +1864,39 @@ function updateAuthUI() {
       alert("Application error: Supabase connection not established. Please refresh.");
       return;
     }
-     // NEW: If no current user, clear data and return
-  if (!currentUser) {
-    data.francis = [];
-    data.fiona = [];
-    return;
-  }
+    // If no current user, clear data and return
+    if (!currentUser) {
+      data.francis = [];
+      data.fiona = [];
+      return;
+    }
 
-    // Fetch expenses for Francis
-    let { data: francisExpenses, error: francisError } = await mySupabaseClient
+    // Fetch ALL expenses that the RLS policy allows (i.e., all household expenses)
+    let { data: allHouseholdExpenses, error: fetchError } = await mySupabaseClient
       .from('expenses')
       .select('*')
-      .eq('person', 'francis')
-      .eq('user_id', currentUser.id) // NEW: Filter by logged-in user
       .order('month', { ascending: true })
       .order('created_at', { ascending: true });
 
-    if (francisError) {
-      console.error("Error fetching Francis's expenses:", francisError);
-      alert("Error loading Francis's expenses. Please check the console.");
+    if (fetchError) {
+      console.error("Error fetching household expenses:", fetchError);
+      alert("Error loading household expenses. Please check the console.");
       return;
     }
-    data.francis = francisExpenses.map(e => ({
+
+    // Distribute fetched expenses into data.francis and data.fiona based on the 'person' field
+    data.francis = allHouseholdExpenses.filter(e => e.person === 'francis').map(e => ({
       ...e,
       uuid: e.id,
-      isPersonal: e.isPersonal, // CORRECTED: to match Supabase table
-      isProjected: e.isProjected, // CORRECTED: to match Supabase table
+      isPersonal: e.isPersonal,
+      isProjected: e.isProjected,
       amount: parseFloat(e.amount)
     }));
-
-    // Fetch expenses for Fiona
-    let { data: fionaExpenses, error: fionaError } = await mySupabaseClient
-      .from('expenses')
-      .select('*')
-      .eq('person', 'fiona')
-      .eq('user_id', currentUser.id) // NEW: Filter by logged-in user
-      .order('month', { ascending: true })
-      .order('created_at', { ascending: true });
-
-    if (fionaError) {
-      console.error("Error fetching Fiona's expenses:", fionaError);
-      alert("Error loading Fiona's expenses. Please check the console.");
-      return;
-    }
-    data.fiona = fionaExpenses.map(e => ({
+    data.fiona = allHouseholdExpenses.filter(e => e.person === 'fiona').map(e => ({
       ...e,
       uuid: e.id,
-      isPersonal: e.isPersonal, // CORRECTED: to match Supabase table
-      isProjected: e.isProjected, // CORRECTED: to match Supabase table
+      isPersonal: e.isPersonal,
+      isProjected: e.isProjected,
       amount: parseFloat(e.amount)
     }));
 
