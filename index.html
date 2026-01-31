@@ -18,8 +18,8 @@
   --accent1: #0a84ff;
   --accent2: #ff375f;
   --danger: #ff453a;
-  --francis-color: #0a84ff;
-  --fiona-color:   #d14d21;
+  --user01-color: #0a84ff;
+  --user02-color:   #d14d21;
   --radius: 18px;
 }
 * {
@@ -257,11 +257,11 @@ button i, .action-button i {
 }
 
 .profile.active {
-    border-color: var(--francis-color);
+    border-color: var(--user01-color);
 }
 
-#fionaBtn.active {
-    border-color: var(--fiona-color);
+#user02Btn.active {
+    border-color: var(--user02-color);
 }
 .export {
   display: flex;
@@ -531,8 +531,8 @@ input[type="checkbox"].expense-select-checkbox:focus {
   <div class="balance" id="balanceText"></div>
 
   <div class="profiles">
-    <img src="assets/person001.png" id="francisBtn" class="profile active" onclick="selectPerson('francis')">
-    <img src="assets/person002.png" id="fionaBtn" class="profile" onclick="selectPerson('fiona')">
+    <img src="assets/person001.png" id="user01Btn" class="profile active" onclick="selectPerson('user01')">
+    <img src="assets/person002.png" id="user02Btn" class="profile" onclick="selectPerson('user02')">
   </div>
 
   <div class="view-switcher">
@@ -586,7 +586,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
 </div>
 
 <div class="footer">
-<a href="https://www.linkedin.com/in/francisarcas/" target="_blank" class="footer-link" title="Francis Arcas LinkedIn">
+<a href="https://www.linkedin.com/in/francisarcas/" target="_blank" class="footer-link" title="user01 Arcas LinkedIn">
 <i class="fa-brands fa-linkedin footer-icon"></i>
 </a>
 <span style="margin: 0 10px;">|</span>
@@ -599,6 +599,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
   let mySupabaseClient;
   let currentUser = null;
   let loggedInUserProfile = null;
+  let householdProfilesMap = new Map(); // NEW: Store all household profiles
   let authContainer, authEmail, authPassword, authMessage;
   let appContentWrapper;
 
@@ -660,11 +661,11 @@ input[type="checkbox"].expense-select-checkbox:focus {
   const today = new Date();
   let activeYear = today.getFullYear();
   let activeMonth = `${activeYear}-${MONTHS[today.getMonth()]}`;
-  let activePerson = "francis";
+  let activePerson = "user01";
   let viewMode = 'monthly';
   const data = {
-    francis: [],
-    fiona: [],
+    user01: [],
+    user02: [],
     settlements: JSON.parse(localStorage.getItem("billSettlements")) || {}
   };
   if (!data.settlements) { data.settlements = {}; }
@@ -675,7 +676,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
 
   let noteInput, suggestionsDiv, yearTabsDiv, expenseHeaderDiv, balanceTextDiv,
     currentViewTextSpan, sharedStatusInput, amountInput, recurringInput, expenseListDiv,
-    francisBtn, fionaBtn, logoutButton, greetingText, userAvatar;
+    user01Btn, user02Btn, logoutButton, greetingText, userAvatar;
 
 function getGreeting(userName) {
     const hour = new Date().getHours();
@@ -718,14 +719,12 @@ async function handleAuth(type) {
     } else {
         if (type === 'signup' && !response.data.user?.identities?.length) {
             authMessage.textContent = 'Sign up successful! Please check your email for confirmation to log in.';
-            // No further action needed until email is confirmed and user logs in
         } else {
             authMessage.textContent = 'Login successful!';
             authEmail.value = '';
             authPassword.value = '';
             currentUser = response.data.user;
 
-            // NEW: Fetch profile immediately after successful login/signup
             const { data: profileData, error: profileError } = await mySupabaseClient
                 .from('profiles')
                 .select('*')
@@ -734,17 +733,15 @@ async function handleAuth(type) {
 
             if (profileError) {
                 console.error("Error fetching user profile after auth:", profileError);
-                // If profile fetch fails, log out or show an error and prevent app access
                 await mySupabaseClient.auth.signOut();
                 currentUser = null;
                 loggedInUserProfile = null;
-                authMessage.textContent = 'Login failed: Could not retrieve user profile.';
-                updateAuthUI(); // Show login form again
+                authMessage.textContent = 'Login failed: Could not retrieve user profile. Please ensure you have a profile entry.';
+                updateAuthUI();
             } else {
                 loggedInUserProfile = profileData;
-                // Now that both currentUser and loggedInUserProfile are set, re-initialize the app
-                // This will correctly call updateAuthUI and updateAll
-                await initApp();
+                updateAuthUI();
+                await updateAll();
             }
         }
     }
@@ -759,8 +756,9 @@ async function handleLogout() {
     } else {
         currentUser = null;
         loggedInUserProfile = null;
-        data.francis = [];
-        data.fiona = [];
+        householdProfilesMap.clear(); // Clear household profiles on logout
+        data.user01 = [];
+        data.user02 = [];
         data.settlements = {};
         localStorage.removeItem("billSettlements");
         updateAuthUI();
@@ -782,7 +780,7 @@ function updateAuthUI() {
         const personKey = loggedInUserProfile.role;
         const avatarSrc = loggedInUserProfile.avatar_url;
 
-        selectPerson(personKey);
+        selectPerson(personKey); // Initialize active person
 
         userAvatar.src = avatarSrc;
         userAvatar.style.display = 'block';
@@ -814,8 +812,8 @@ function updateAuthUI() {
     authEmail = document.getElementById('authEmail');
     authPassword = document.getElementById('authPassword');
     authMessage = document.getElementById('authMessage');
-    francisBtn = document.getElementById('francisBtn');
-    fionaBtn = document.getElementById('fionaBtn');
+    user01Btn = document.getElementById('user01Btn');
+    user02Btn = document.getElementById('user02Btn');
     logoutButton = document.getElementById('logoutButton');
     appContentWrapper = document.getElementById('appContentWrapper');
     greetingText = document.getElementById('greetingText');
@@ -927,7 +925,7 @@ function updateAuthUI() {
   }
   function updateLogosForAllExpenses() {
     let changed = false;
-    ["francis", "fiona"].forEach(p => {
+    ["user01", "user02"].forEach(p => {
       data[p].forEach(e => {
         const newLogo = detectLogo(e.note);
         if (e.logo !== newLogo) {
@@ -943,7 +941,7 @@ function updateAuthUI() {
   function getYears() {
     const years = new Set();
     years.add(new Date().getFullYear().toString());
-    ["francis", "fiona"].forEach(p => {
+    ["user01", "user02"].forEach(p => {
       data[p].forEach(e => {
         if (e.month) {
           years.add(e.month.substring(0, 4));
@@ -1030,13 +1028,13 @@ function updateAuthUI() {
   }
   function calculateAnnualTotals() {
     const annualTotals = {
-      francis: { shared: 0, personal: 0 }
+      user01: { shared: 0, personal: 0 }
     };
-    if (data.fiona) {
-      annualTotals.fiona = { shared: 0, personal: 0 };
+    if (data.user02) {
+      annualTotals.user02 = { shared: 0, personal: 0 };
     }
     const yearPrefix = activeYear.toString();
-    ["francis", "fiona"].forEach(personKey => {
+    ["user01", "user02"].forEach(personKey => {
       if (!data[personKey]) return;
       const actualPersonExpenses = data[personKey].filter(e => !e.isProjected);
       const latestRecurringSharedAmounts = {};
@@ -1077,10 +1075,17 @@ function updateAuthUI() {
   }
   function updateBalance() {
     if (!balanceTextDiv) return;
-    const francisMonthly = getMonthlyExpenses("francis", activeMonth);
-    const fionaMonthly = getMonthlyExpenses("fiona", activeMonth);
-    const a = francisMonthly.shared;
-    const b = fionaMonthly.shared;
+
+    const user01Profile = householdProfilesMap.get('user01');
+    const user02Profile = householdProfilesMap.get('user02');
+    const user01DisplayName = user01Profile ? user01Profile.display_name : 'user01';
+    const user02DisplayName = user02Profile ? user02Profile.display_name : 'user02';
+
+
+    const user01Monthly = getMonthlyExpenses("user01", activeMonth);
+    const user02Monthly = getMonthlyExpenses("user02", activeMonth);
+    const a = user01Monthly.shared;
+    const b = user02Monthly.shared;
     const diff = Math.abs(a - b) / 2;
     let balanceMessage = "";
     let actionButton = "";
@@ -1092,10 +1097,10 @@ function updateAuthUI() {
       if (a === b) {
         balanceMessage = "All settled";
       } else if (a > b) {
-        balanceMessage = `Fiona owes Francis £${diff.toFixed(2)}`;
+        balanceMessage = `${user02DisplayName} owes ${user01DisplayName} £${diff.toFixed(2)}`;
         actionButton = `<button class="action-button" onclick="markMonthAsSettled(true)"><i class="fa-solid fa-check"></i> Mark as Settled</button>`;
       } else {
-        balanceMessage = `Francis owes Fiona £${diff.toFixed(2)}`;
+        balanceMessage = `${user01DisplayName} owes ${user02DisplayName} £${diff.toFixed(2)}`;
         actionButton = `<button class="action-button" onclick="markMonthAsSettled(true)"><i class="fa-solid fa-check"></i> Mark as Settled</button>`;
       }
     }
@@ -1106,7 +1111,12 @@ function updateAuthUI() {
   }
   function renderExpenseHeader() {
     if (!expenseHeaderDiv) return;
-    const avatarImgSrc = (activePerson === "francis") ? "assets/person001.png" : "assets/person002.png";
+
+    const activePersonProfile = householdProfilesMap.get(activePerson);
+    const activePersonDisplayName = activePersonProfile ? activePersonProfile.display_name : capitalise(activePerson);
+    const avatarImgSrc = activePersonProfile ? activePersonProfile.avatar_url : (activePerson === "user01" ? "assets/person001.png" : "assets/person002.png");
+
+
     let actionButtonsHtml = '';
     if (!editMode) {
       actionButtonsHtml = `<button class="action-button" onclick="toggleEditMode()"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`;
@@ -1126,10 +1136,10 @@ function updateAuthUI() {
         <div class="expense-header-info">
           <img src="${avatarImgSrc}" class="expense-header-avatar">
           <div class="desktop-display">
-            <span>${capitalise(activePerson)} – ${activeMonth}</span>
+            <span>${activePersonDisplayName} – ${activeMonth}</span>
           </div>
           <div class="mobile-display">
-            <span class="person-name-line">${capitalise(activePerson)}</span>
+            <span class="person-name-line">${activePersonDisplayName}</span>
             <span class="month-year-line">${activeMonth}</span>
           </div>
         </div>
@@ -1313,7 +1323,8 @@ function updateAuthUI() {
         .update({ note: newNote.trim(), logo: detectLogo(newNote.trim()) })
         .eq('note', originalNote)
         .eq('isPersonal', expense.isPersonal)
-        .eq('recurring', true);
+        .eq('recurring', true)
+        .eq('person', activePerson);
 
       if (updateSeriesError) {
         console.error("Error updating recurring series description:", updateSeriesError);
@@ -1332,7 +1343,8 @@ function updateAuthUI() {
         .eq('note', updatedFields.note)
         .eq('isPersonal', expense.isPersonal)
         .eq('recurring', true)
-        .gte('month', expense.month);
+        .gte('month', expense.month)
+        .eq('person', activePerson);
 
       if (updateFutureError) {
         console.error("Error updating future recurring amounts:", updateFutureError);
@@ -1346,7 +1358,8 @@ function updateAuthUI() {
   const { error: updateError } = await mySupabaseClient
     .from('expenses')
     .update(updatedFields)
-    .eq('id', uuid);
+    .eq('id', uuid)
+    .eq('person', activePerson);
 
   if (updateError) {
     console.error("Error updating expense in Supabase:", updateError);
@@ -1379,7 +1392,8 @@ function updateAuthUI() {
         const { error } = await mySupabaseClient
           .from('expenses')
           .delete()
-          .eq('id', uuid);
+          .eq('id', uuid)
+          .eq('person', activePerson);
 
         if (error) {
           console.error("Error deleting expense from Supabase:", error);
@@ -1398,7 +1412,8 @@ function updateAuthUI() {
         .delete()
         .eq('note', expenseToDelete.note)
         .eq('isPersonal', expenseToDelete.isPersonal)
-        .gte('month', expenseToDelete.month);
+        .gte('month', expenseToDelete.month)
+        .eq('person', activePerson);
 
       if (error) {
         console.error("Error deleting recurring series from Supabase:", error);
@@ -1414,7 +1429,8 @@ function updateAuthUI() {
     const { error: singleDeleteError } = await mySupabaseClient
       .from('expenses')
       .delete()
-      .eq('id', uuid);
+      .eq('id', uuid)
+      .eq('person', activePerson);
 
     if (singleDeleteError) {
       console.error("Error deleting expense from Supabase:", singleDeleteError);
@@ -1426,20 +1442,25 @@ function updateAuthUI() {
 
   function selectPerson(p) {
     activePerson = p;
-    const francisBtn = document.getElementById('francisBtn');
-    const fionaBtn = document.getElementById('fionaBtn');
+    const user01Btn = document.getElementById('user01Btn');
+    const user02Btn = document.getElementById('user02Btn');
 
-    if (francisBtn) {
-        francisBtn.classList.toggle("active", p === 'francis');
+    if (user01Btn) {
+        user01Btn.classList.toggle("active", p === 'user01');
+        user01Btn.style.borderColor = (p === 'user01') ? 'var(--user01-color)' : 'transparent';
     }
-    if (fionaBtn) {
-        fionaBtn.classList.toggle("active", p === 'fiona');
+    if (user02Btn) {
+        user02Btn.classList.toggle("active", p === 'user02');
+        user02Btn.style.borderColor = (p === 'user02') ? 'var(--user02-color)' : 'transparent';
     }
     
-    if (p === 'francis' && fionaBtn) {
-        fionaBtn.classList.remove('active');
-    } else if (p === 'fiona' && francisBtn) {
-        francisBtn.classList.remove('active');
+    // Ensure the other button is not active and its border is transparent
+    if (p === 'user01' && user02Btn) {
+        user02Btn.classList.remove('active');
+        user02Btn.style.borderColor = 'transparent';
+    } else if (p === 'user02' && user01Btn) {
+        user01Btn.classList.remove('active');
+        user01Btn.style.borderColor = 'transparent';
     }
 
     cancelEditMode();
@@ -1448,7 +1469,7 @@ function updateAuthUI() {
   const chart = new Chart(document.getElementById("billChart"), {
     type: "bar",
     data: {
-      labels: ["Francis", "Fiona"],
+      labels: ["user01", "user02"],
       datasets: []
     },
     options: {
@@ -1504,49 +1525,53 @@ function updateAuthUI() {
     }
   });
   function updateChart() {
-    let francisShared, francisPersonal, fionaShared, fionaPersonal;
+    const user01DisplayName = householdProfilesMap.get('user01')?.display_name || 'user01';
+    const user02DisplayName = householdProfilesMap.get('user02')?.display_name || 'user02';
+
+    let user01Shared, user01Personal, user02Shared, user02Personal;
     if (viewMode === 'monthly') {
-      const francisMonthly = getMonthlyExpenses("francis", activeMonth);
-      const fionaMonthly = getMonthlyExpenses("fiona", activeMonth);
-      francisShared = francisMonthly.shared;
-      francisPersonal = fionaMonthly.personal;
-      fionaShared = fionaMonthly.shared;
-      fionaPersonal = fionaMonthly.personal;
+      const user01Monthly = getMonthlyExpenses("user01", activeMonth);
+      const user02Monthly = getMonthlyExpenses("user02", activeMonth);
+      user01Shared = user01Monthly.shared;
+      user01Personal = user02Monthly.personal;
+      user02Shared = user02Monthly.shared;
+      user02Personal = user02Monthly.personal;
     } else {
       const annualTotals = calculateAnnualTotals();
-      francisShared = annualTotals.francis.shared;
-      francisPersonal = annualTotals.francis.personal;
-      fionaShared = annualTotals.fiona ? annualTotals.fiona.shared : 0;
-      fionaPersonal = annualTotals.fiona ? annualTotals.fiona.personal : 0;
+      user01Shared = annualTotals.user01.shared;
+      user01Personal = annualTotals.user01.personal;
+      user02Shared = annualTotals.user02 ? annualTotals.user02.shared : 0;
+      user02Personal = annualTotals.user02 ? annualTotals.user02.personal : 0;
     }
-    const francisBarRoundingPersonal = (francisShared === 0 && francisPersonal > 0) ? 12 : { topLeft: 12, bottomLeft: 12, topRight: 0, bottomRight: 0 };
-    const francisBarRoundingShared = (francisPersonal === 0 && francisShared > 0) ? 12 : { topLeft: 0, bottomLeft: 0, topRight: 12, bottomRight: 12 };
-    const fionaBarRoundingPersonal = (fionaShared === 0 && fionaPersonal > 0) ? 12 : { topLeft: 12, bottomLeft: 12, topRight: 0, bottomRight: 0 };
-    const fionaBarRoundingShared = (fionaPersonal === 0 && fionaShared > 0) ? 12 : { topLeft: 0, bottomLeft: 0, topRight: 12, bottomRight: 12 };
-    chart.data.labels = ["Francis", "Fiona"];
+    const user01BarRoundingPersonal = (user01Shared === 0 && user01Personal > 0) ? 12 : { topLeft: 12, bottomLeft: 12, topRight: 0, bottomRight: 0 };
+    const user01BarRoundingShared = (user01Personal === 0 && user01Shared > 0) ? 12 : { topLeft: 0, bottomLeft: 0, topRight: 12, bottomRight: 12 };
+    const user02BarRoundingPersonal = (user02Shared === 0 && user02Personal > 0) ? 12 : { topLeft: 12, bottomLeft: 12, topRight: 0, bottomRight: 0 };
+    const user02BarRoundingShared = (user02Personal === 0 && user02Shared > 0) ? 12 : { topLeft: 0, bottomLeft: 0, topRight: 12, bottomRight: 12 };
+    
+    chart.data.labels = [user01DisplayName, user02DisplayName]; // Use display names here
     chart.data.datasets = [
       {
         label: 'Personal',
-        data: [francisPersonal, fionaPersonal],
+        data: [user01Personal, user02Personal],
         backgroundColor: (ctx) => {
           if (ctx.dataIndex === 0) return "rgba(10, 132, 255, 0.5)";
           if (ctx.dataIndex === 1) return "rgba(255, 55, 95, 0.5)";
           return 'transparent';
         },
         stack: 'expenses',
-        borderRadius: [francisBarRoundingPersonal, fionaBarRoundingPersonal],
+        borderRadius: [user01BarRoundingPersonal, user02BarRoundingPersonal],
         borderSkipped: false
       },
       {
         label: 'Shared',
-        data: [francisShared, fionaShared],
+        data: [user01Shared, user02Shared],
         backgroundColor: (ctx) => {
           if (ctx.dataIndex === 0) return "#0a84ff";
           if (ctx.dataIndex === 1) return "#d14d21";
           return 'transparent';
         },
         stack: 'expenses',
-        borderRadius: [francisBarRoundingShared, fionaBarRoundingShared],
+        borderRadius: [user01BarRoundingShared, user02BarRoundingShared],
         borderSkipped: false
       }
     ];
@@ -1571,9 +1596,9 @@ function updateAuthUI() {
     updateChart();
   }
 
-  function applyRecurring() {
+function applyRecurring() {
     let changed = false;
-    ["francis", "fiona"].forEach(p => {
+    ["user01", "user02"].forEach(p => {
       if (data[p]) {
         const initialLength = data[p].length;
         data[p] = data[p].filter(e => !e.isProjected);
@@ -1582,7 +1607,7 @@ function updateAuthUI() {
         }
       }
     });
-    ["francis", "fiona"].forEach(p => {
+    ["user01", "user02"].forEach(p => {
       if (!data[p]) return;
       const recurringSeriesInfo = new Map();
       data[p].filter(e => e.recurring && !e.isProjected).forEach(e => {
@@ -1649,9 +1674,9 @@ function updateAuthUI() {
       });
     });
     if (changed) {
-      data.francis.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.uuid.localeCompare(b.uuid));
-      if (data.fiona) {
-        data.fiona.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.uuid.localeCompare(b.uuid));
+      data.user01.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.uuid.localeCompare(b.uuid));
+      if (data.user02) {
+        data.user02.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.uuid.localeCompare(b.uuid));
       }
       save();
     }
@@ -1744,9 +1769,9 @@ function updateAuthUI() {
           data: amounts,
           backgroundColor: (context) => {
             if (expense.isPersonal) {
-              return activePerson === 'francis' ? 'rgba(10, 132, 255, 0.5)' : 'rgba(255, 55, 95, 0.5)';
+              return activePerson === 'user01' ? 'rgba(10, 132, 255, 0.5)' : 'rgba(255, 55, 95, 0.5)';
             } else {
-              return activePerson === 'francis' ? '#0a84ff' : '#ff375f';
+              return activePerson === 'user01' ? '#0a84ff' : '#ff375f';
             }
           },
           borderColor: 'transparent',
@@ -1836,7 +1861,7 @@ function updateAuthUI() {
     const allUUIDsForMonth = expensesForMonth.map(e => e.uuid);
     const allCurrentlySelected = allUUIDsForMonth.length > 0 && allUUIDsForMonth.every(uuid => selectedExpenses.includes(uuid));
     if (allCurrentlySelected) {
-      selectedExpenses = selectedExpenses.filter(uuid => !allUUIDsForMonth.includes(uuid));
+      selectedExpenses = selectedExpenses.filter(id => !allUUIDsForMonth.includes(id));
     } else {
       allUUIDsForMonth.forEach(uuid => {
         if (!selectedExpenses.includes(uuid)) {
@@ -1883,7 +1908,8 @@ function updateAuthUI() {
     const { error } = await mySupabaseClient
       .from('expenses')
       .delete()
-      .in('id', actualSelected);
+      .in('id', actualSelected)
+      .eq('person', activePerson);
 
     if (error) {
       console.error("Error deleting selected expenses from Supabase:", error);
@@ -1903,8 +1929,8 @@ function updateAuthUI() {
         return;
     }
     if (!currentUser) {
-        data.francis = [];
-        data.fiona = [];
+        data.user01 = [];
+        data.user02 = [];
         return;
     }
 
@@ -1920,14 +1946,14 @@ function updateAuthUI() {
         return;
     }
 
-    data.francis = allHouseholdExpenses.filter(e => e.person === 'francis').map(e => ({
+    data.user01 = allHouseholdExpenses.filter(e => e.person === 'user01').map(e => ({
         ...e,
         uuid: e.id,
         isPersonal: e.isPersonal,
         isProjected: e.isProjected,
         amount: parseFloat(e.amount)
     }));
-    data.fiona = allHouseholdExpenses.filter(e => e.person === 'fiona').map(e => ({
+    data.user02 = allHouseholdExpenses.filter(e => e.person === 'user02').map(e => ({
         ...e,
         uuid: e.id,
         isPersonal: e.isPersonal,
@@ -1939,9 +1965,28 @@ function updateAuthUI() {
 }
 
   async function updateAll() {
+    // NEW: Fetch all household profiles first
+    if (loggedInUserProfile && loggedInUserProfile.household_id) {
+        const { data: profiles, error: profilesError } = await mySupabaseClient
+            .from('profiles')
+            .select('*')
+            .eq('household_id', loggedInUserProfile.household_id);
+
+        if (profilesError) {
+            console.error("Error fetching household profiles:", profilesError);
+            // Decide how to handle this error, e.g., proceed with default names, or alert
+        } else {
+            householdProfilesMap.clear();
+            profiles.forEach(profile => {
+                householdProfilesMap.set(profile.role, profile);
+            });
+        }
+    }
+
+
     await fetchExpensesFromSupabase();
 
-    ["francis", "fiona"].forEach(p => {
+    ["user01", "user02"].forEach(p => {
       if (data[p]) {
         data[p] = data[p].filter(e => !e.isProjected);
       }
@@ -1960,7 +2005,7 @@ function updateAuthUI() {
 
   function migrateData() {
     let changed = false;
-    ["francis", "fiona"].forEach(p => {
+    ["user01", "user02"].forEach(p => {
       data[p].forEach(e => {
         const normalized = normalizeMonthKey(e.month);
         if (normalized !== e.month) {
@@ -1975,7 +2020,7 @@ function updateAuthUI() {
   }
   function normalizeExpenseData() {
     let changed = false;
-    ["francis", "fiona"].forEach(p => {
+    ["user01", "user02"].forEach(p => {
       data[p].forEach(e => {
         if (!e.uuid) {
           e.uuid = generateUUID();
@@ -2015,8 +2060,6 @@ async function initApp() {
     noteInput.addEventListener('focus', showSuggestions);
     noteInput.addEventListener('blur', hideSuggestions);
 
-    // Check if a user is already logged in (for page load, not for new login)
-    // Only try to get session if currentUser is not already set (e.g., from handleAuth)
     if (!currentUser) {
         const { data: { session }, error } = await mySupabaseClient.auth.getSession();
         if (session) {
@@ -2038,7 +2081,7 @@ async function initApp() {
         }
     }
 
-    updateAuthUI(); // This will now correctly show/hide UI based on currentUser and loggedInUserProfile
+    updateAuthUI();
 
     if (currentUser && loggedInUserProfile) {
         migrateData();
@@ -2049,7 +2092,6 @@ async function initApp() {
         authContainer.style.display = 'block';
     }
 }
-
 
   document.addEventListener('DOMContentLoaded', initApp);
 
