@@ -536,9 +536,12 @@ input[type="checkbox"].expense-select-checkbox:focus {
 <body>
 <!-- Main application content wrapper -->
 <div id="appContentWrapper" class="container" style="display: none;">
-  <div style="text-align: right; margin-bottom: 16px; display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
-  <span id="greetingText" style="font-weight: 500; color: var(--muted)"></span> <!-- New greeting span -->
-  <button id="logoutButton" onclick="handleLogout()"><i class="fa-solid fa-right-from-bracket"></i> <span class="logout-text">Log out</span></button>
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <img id="userAvatar" src="" alt="User Avatar" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; display: none;">
+        <span id="greetingText" style="font-weight: 500; color: var(--muted);"></span>
+    </div>
+    <button id="logoutButton" onclick="handleLogout()"><i class="fa-solid fa-right-from-bracket"></i> <span class="logout-text">Log out</span></button>
 </div>
 
   <h1>Bills Overview</h1>
@@ -696,7 +699,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
   // Global DOM element references - will be assigned in initApp()
   let noteInput, suggestionsDiv, yearTabsDiv, expenseHeaderDiv, balanceTextDiv,
     currentViewTextSpan, sharedStatusInput, amountInput, recurringInput, expenseListDiv,
-    francisBtn, fionaBtn, logoutButton, greetingText;
+    francisBtn, fionaBtn, logoutButton, greetingText, userAvatar;
 
   // --- ALL FUNCTION DEFINITIONS (GLOBAL SCOPE) ---
 
@@ -788,22 +791,27 @@ function updateAuthUI() {
         const userEmail = currentUser.email;
         let personName = "User"; // Default if email not mapped
         let personKey = "francis"; // Default to Francis if not explicitly mapped
+        let avatarSrc = "";
 
         // Hardcoded mapping for Francis and Fiona's emails to their "person" key
         // IMPORTANT: Replace with the actual emails you used for Francis and Fiona
         if (userEmail === "francisarcas@hotmail.com") { // Replace with Francis's actual email
             personName = "Francis";
             personKey = "francis";
+            avatarSrc = "assets/person001.png";
         } else if (userEmail === "fiona@example.com") { // Replace with Fiona's actual email
             personName = "Fiona";
             personKey = "fiona";
+            avatarSrc = "assets/person002.png";
         }
         // If you have other users, you might extend this logic or use user_metadata in Supabase
 
         // Set activePerson and update profile UI
         selectPerson(personKey); // This will also trigger updateAll()
 
-        // Generate and display greeting
+        // Display avatar and greeting
+        userAvatar.src = avatarSrc;
+        userAvatar.style.display = 'block';
         greetingText.textContent = getGreeting(personName);
         // --- END NEW GREETING AND PROFILE SELECTION LOGIC ---
 
@@ -812,6 +820,8 @@ function updateAuthUI() {
         appContentWrapper.style.display = 'none'; // Hide main app content
         profilesDiv.style.display = 'none'; // Hide profiles
         logoutButton.style.display = 'none'; // Hide logout button
+        userAvatar.style.display = 'none'; // Hide avatar on logout
+        userAvatar.src = ""; // Clear avatar source
         greetingText.textContent = ''; // Clear greeting on logout
     }
 }
@@ -841,6 +851,7 @@ function updateAuthUI() {
     logoutButton = document.getElementById('logoutButton');
     appContentWrapper = document.getElementById('appContentWrapper'); // Assign new wrapper
     greetingText = document.getElementById('greetingText'); // Assign greetingText
+    userAvatar = document.getElementById('userAvatar'); // Assign userAvatar
 
   }
 
@@ -1696,7 +1707,8 @@ function updateAuthUI() {
       }
       save();
     }
-  }
+}
+
   function toggleExpenseChart(toggleButtonElement, uuid) {
     if (editMode) return;
     const chartWrapper = document.getElementById(`expenseChartWrapper_${uuid}`);
