@@ -31,7 +31,10 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  padding: 20px; /* Keep body padding for overall content */
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 .container {
   max-width: 900px;
@@ -381,7 +384,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
   outline-offset: max(2px, 0.15em);
 }
 .footer {
-  margin-top: 40px;
+  margin-top: auto;
   padding-bottom: 20px;
   text-align: center;
   font-size: 0.9em;
@@ -419,11 +422,24 @@ input[type="checkbox"].expense-select-checkbox:focus {
   display: none;
 }
 
+.auth-inputs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.auth-inputs input {
+  flex-grow: 1;
+  width: auto; /* Important: Allows flex-grow to work */
+  margin-bottom: 0; /* Clear any residual margin from previous inline styles */
+}
+
 #authContainer {
   text-align: center;
   max-width: 540px;
-  margin-left: auto;
-  margin-right: auto;
+  margin: auto; /* This will center it horizontally and vertically within the flex column */
+  z-index: 1000; /* Still good to have if other things overlap */
+  width: 90%; /* Ensure it takes full available width on small screens, respecting max-width */
+  box-sizing: border-box; /* Important for padding */
 }
 
 .auth-buttons {
@@ -466,7 +482,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
   opacity: 0;
   z-index: 999;
   margin: 0;
-  width: 100%;
+  width: 100%; /* Default: cover entire parent #user-menu */
   height: 100%;
   position: absolute;
   top: 0;
@@ -487,6 +503,9 @@ input[type="checkbox"].expense-select-checkbox:focus {
 /* Expanded state */
 #userMenuToggle:checked ~ .menu-content {
   width: 220px;          /* extra ~70px for logout area */
+}
+#userMenuToggle:checked {
+  width: 180px;
 }
 
 .avatar {
@@ -579,6 +598,10 @@ input[type="checkbox"].expense-select-checkbox:focus {
   }
   .auth-buttons button {
     flex-grow: 1;
+  }
+  .auth-inputs {
+    flex-direction: column; /* Stack inputs vertically on mobile */
+    gap: 8px; /* Adjust gap for stacked inputs */
   }
 
   /* Mobile: Center the user menu */
@@ -714,14 +737,17 @@ input[type="checkbox"].expense-select-checkbox:focus {
 
 <div class="card container" id="authContainer" style="display: none; text-align: center;">
     <h2>Login / Sign Up</h2>
-    <input type="email" id="authEmail" placeholder="Email" style="margin-bottom: 8px;">
-    <input type="password" id="authPassword" placeholder="Password" style="margin-bottom: 16px;">
+    <div class="auth-inputs">
+      <input type="email" id="authEmail" placeholder="Email">
+      <input type="password" id="authPassword" placeholder="Password">
+    </div>
     <div class="auth-buttons">
       <button onclick="handleAuth('signup')">Sign Up</button>
       <button onclick="handleAuth('login')">Login</button>
     </div>
     <p id="authMessage" style="color: var(--danger); margin-top: 10px;"></p>
 </div>
+
 
 <div class="footer">
 <a href="https://www.linkedin.com/in/francisarcas/" target="_blank" class="footer-link" title="Francis Arcas LinkedIn">
