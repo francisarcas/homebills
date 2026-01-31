@@ -31,20 +31,20 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
+  /* Removed padding from body, moved to .container */
+  display: flex; /* Flexbox for sticky footer */
+  flex-direction: column; /* Flexbox for sticky footer */
+  min-height: 100vh; /* Flexbox for sticky footer */
 }
 .container {
   max-width: 900px;
   margin: auto;
-  padding: 0 20px;
-  width: 100%;
+  padding: 0 20px; /* Added horizontal padding here */
+  width: 100%; /* Ensure it takes full available width */
 }
-
 h1 {
   text-align: center;
-  margin-top: 16px; /* Adjusted: No longer needs large top margin due to absolute positioning */
+  margin-top: 16px;
   margin-bottom: 6px;
 }
 .balance {
@@ -386,7 +386,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
   outline-offset: max(2px, 0.15em);
 }
 .footer {
-  margin-top: auto;
+  margin-top: auto; /* Pushes the footer to the bottom */
   padding-bottom: 20px;
   text-align: center;
   font-size: 0.9em;
@@ -424,6 +424,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
   display: none;
 }
 
+/* Auth Inputs Layout */
 .auth-inputs {
   display: flex;
   gap: 10px;
@@ -435,13 +436,14 @@ input[type="checkbox"].expense-select-checkbox:focus {
   margin-bottom: 0; /* Clear any residual margin from previous inline styles */
 }
 
+/* Auth Container Centering */
 #authContainer {
   text-align: center;
   max-width: 540px;
-  margin: auto; /* This will center it horizontally and vertically within the flex column */
-  z-index: 1000; /* Still good to have if other things overlap */
-  width: 90%; /* Ensure it takes full available width on small screens, respecting max-width */
-  box-sizing: border-box; /* Important for padding */
+  margin: auto; /* Centers it horizontally and vertically within the flex body */
+  z-index: 1000;
+  width: 90%;
+  box-sizing: border-box;
 }
 
 .auth-buttons {
@@ -459,14 +461,13 @@ input[type="checkbox"].expense-select-checkbox:focus {
 .top-bar-container {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: flex-start; /* Default to left for desktop */
+  margin-top: 16px;   /* Added top margin for desktop */
   margin-bottom: 16px;
-  margin-top: 16px;
 }
 
 /* User Menu Styles */
 #user-menu {
-  /* Removed absolute positioning */
   z-index: 500;
   height: 48px;
   border-radius: var(--radius);
@@ -474,8 +475,8 @@ input[type="checkbox"].expense-select-checkbox:focus {
   background: var(--card);
   box-shadow: 0 4px 15px rgba(0,0,0,0.25);
   transition: width 0.4s ease;
-  /* display: none; controlled by JS updateAuthUI now */
-  width: fit-content; /* Allow it to size based on content for initial state */
+  width: fit-content; /* Let it adapt to menu-content width */
+  position: relative; /* Crucial for absolute positioning of toggle */
 }
 
 #userMenuToggle {
@@ -484,7 +485,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
   opacity: 0;
   z-index: 999;
   margin: 0;
-  width: 100%; /* Default: cover entire parent #user-menu */
+  width: 180px; /* Fixed width for clickable area (desktop and mobile) */
   height: 100%;
   position: absolute;
   top: 0;
@@ -505,9 +506,6 @@ input[type="checkbox"].expense-select-checkbox:focus {
 /* Expanded state */
 #userMenuToggle:checked ~ .menu-content {
   width: 220px;          /* extra ~70px for logout area */
-}
-#userMenuToggle:checked {
-  width: 180px;
 }
 
 .avatar {
@@ -610,6 +608,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
   .top-bar-container {
     justify-content: center; /* Center the menu horizontally */
     margin-bottom: 10px; /* Slightly less margin on mobile */
+    margin-top: 0;       /* Reset top margin for mobile */
   }
   #user-menu {
     margin: 10px auto; /* Center itself within the flex container */
@@ -622,7 +621,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
     min-width: 180px;
   }
   #userMenuToggle:checked ~ .menu-content {
-    width: 240px;
+    width: 240px; /* Expanded width for mobile */
   }
   .avatar {
     width: 30px;
@@ -639,13 +638,13 @@ input[type="checkbox"].expense-select-checkbox:focus {
     width: 0;
   }
   #userMenuToggle:checked ~ .menu-content .logout-area {
-    width: 60px;
+    width: 60px; /* Logout area width for mobile */
   }
   .logout-btn {
     font-size: 1.1rem;
   }
   h1 {
-    margin-top: 16px; /* Keep consistent or slightly reduce if needed */
+    margin-top: 16px;
   }
 }
 @keyframes blink {
@@ -667,6 +666,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
 }
 
 </style>
+
 </head>
 <body>
 <div id="appContentWrapper" class="container" style="display: none;">
