@@ -536,10 +536,11 @@ input[type="checkbox"].expense-select-checkbox:focus {
 <body>
 <!-- Main application content wrapper -->
 <div id="appContentWrapper" class="container" style="display: none;">
-  <div style="text-align: right; margin-bottom: 16px;">
-    <!-- Logout button with icon and hidden text -->
-    <button id="logoutButton" onclick="handleLogout()"><i class="fa-solid fa-right-from-bracket"></i> <span class="logout-text">Log out</span></button>
-  </div>
+  <div style="text-align: right; margin-bottom: 16px; display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+  <span id="greetingText" style="font-weight: 500; color: var(--muted)"></span> <!-- New greeting span -->
+  <button id="logoutButton" onclick="handleLogout()"><i class="fa-solid fa-right-from-bracket"></i> <span class="logout-text">Log out</span></button>
+</div>
+
   <h1>Bills Overview</h1>
   <div class="balance" id="balanceText"></div>
 
@@ -695,11 +696,26 @@ input[type="checkbox"].expense-select-checkbox:focus {
   // Global DOM element references - will be assigned in initApp()
   let noteInput, suggestionsDiv, yearTabsDiv, expenseHeaderDiv, balanceTextDiv,
     currentViewTextSpan, sharedStatusInput, amountInput, recurringInput, expenseListDiv,
-    francisBtn, fionaBtn, logoutButton;
+    francisBtn, fionaBtn, logoutButton, greetingText;
 
   // --- ALL FUNCTION DEFINITIONS (GLOBAL SCOPE) ---
 
 // --- AUTHENTICATION FUNCTIONS ---
+function getGreeting(userName) {
+    const hour = new Date().getHours();
+    let greetingPhrase;
+
+    if (hour >= 6 && hour < 12) {
+        greetingPhrase = "Good morning";
+    } else if (hour >= 12 && hour < 18) {
+        greetingPhrase = "Good afternoon";
+    } else if (hour >= 18 && hour < 24) {
+        greetingPhrase = "Good evening";
+    } else { // 12am to 6am
+        greetingPhrase = "Good night";
+    }
+    return `${greetingPhrase}, ${userName}`;
+}
 
 // Handles login and signup actions
 async function handleAuth(type) {
@@ -758,6 +774,7 @@ async function handleLogout() {
 }
 
 // Toggles visibility of auth form and main app content
+// Toggles visibility of auth form and main app content
 function updateAuthUI() {
     const profilesDiv = document.querySelector('.profiles');
 
@@ -766,13 +783,39 @@ function updateAuthUI() {
         appContentWrapper.style.display = 'block'; // Show main app content
         profilesDiv.style.display = 'flex'; // Show profiles (Francis/Fiona)
         logoutButton.style.display = 'inline-flex'; // Show logout button as inline-flex
+
+        // --- NEW GREETING AND PROFILE SELECTION LOGIC ---
+        const userEmail = currentUser.email;
+        let personName = "User"; // Default if email not mapped
+        let personKey = "francis"; // Default to Francis if not explicitly mapped
+
+        // Hardcoded mapping for Francis and Fiona's emails to their "person" key
+        // IMPORTANT: Replace with the actual emails you used for Francis and Fiona
+        if (userEmail === "francisarcas@hotmail.com") { // Replace with Francis's actual email
+            personName = "Francis";
+            personKey = "francis";
+        } else if (userEmail === "fiona@example.com") { // Replace with Fiona's actual email
+            personName = "Fiona";
+            personKey = "fiona";
+        }
+        // If you have other users, you might extend this logic or use user_metadata in Supabase
+
+        // Set activePerson and update profile UI
+        selectPerson(personKey); // This will also trigger updateAll()
+
+        // Generate and display greeting
+        greetingText.textContent = getGreeting(personName);
+        // --- END NEW GREETING AND PROFILE SELECTION LOGIC ---
+
     } else {
         authContainer.style.display = 'block'; // Show auth form
         appContentWrapper.style.display = 'none'; // Hide main app content
         profilesDiv.style.display = 'none'; // Hide profiles
         logoutButton.style.display = 'none'; // Hide logout button
+        greetingText.textContent = ''; // Clear greeting on logout
     }
 }
+
 
 // --- End AUTHENTICATION FUNCTIONS ---
 
@@ -797,6 +840,8 @@ function updateAuthUI() {
     fionaBtn = document.getElementById('fionaBtn');
     logoutButton = document.getElementById('logoutButton');
     appContentWrapper = document.getElementById('appContentWrapper'); // Assign new wrapper
+    greetingText = document.getElementById('greetingText'); // Assign greetingText
+
   }
 
   function generateUUID() {
@@ -1250,73 +1295,111 @@ function updateAuthUI() {
     updateAll();
   }
 
-  function editExpenseByUUID(uuid) {
-    if (editMode) {
-      cancelEditMode();
-      setTimeout(() => editExpenseByUUID(uuid), 100);
-      return;
-    }
-    const expense = getExpenseByUUID(uuid);
-    if (!expense) {
-      console.error("Expense not found for editing with UUID:", uuid);
-      return;
-    }
-    if (expense.isProjected) {
-      alert("Projected expenses cannot be edited directly. Please edit an actual entry for this recurring series.");
-      return;
-    }
-    const newNote = prompt("Description", expense.note);
-    if (newNote === null) return;
-    const newAmountStr = prompt("Amount", expense.amount);
-    if (newAmountStr === null) return;
-    if (!newNote.trim() || !newAmountStr.trim()) {
-      alert("Description and Amount cannot be empty.");
-      return;
-    }
-    const newAmount = parseFloat(newAmountStr);
-    if (isNaN(newAmount) || newAmount <= 0) {
-      alert("Please enter a valid amount greater than zero");
-      return;
-    }
-    if (newAmount > 999999) {
-      alert("Amount seems too large. Please check.");
-      return;
-    }
-    const originalAmount = expense.amount;
-    const originalNote = expense.note;
-    let dataChanged = false;
-    if (expense.recurring && newNote.trim().toLowerCase() !== originalNote.toLowerCase()) {
-      if (confirm("You changed the description for a recurring expense. Do you want to update the description for all occurrences of this series?")) {
-        data[activePerson].forEach(e => {
-          if (e.recurring && e.note.toLowerCase() === originalNote.toLowerCase() && e.isPersonal === expense.isPersonal) {
-            e.note = newNote.trim();
-            e.logo = detectLogo(e.note);
-            dataChanged = true;
-          }
-        });
+  async function editExpenseByUUID(uuid) { // Make it async
+  if (editMode) {
+    cancelEditMode();
+    setTimeout(() => editExpenseByUUID(uuid), 100);
+    return;
+  }
+  const expense = getExpenseByUUID(uuid);
+  if (!expense) {
+    console.error("Expense not found for editing with UUID:", uuid);
+    return;
+  }
+  if (expense.isProjected) {
+    alert("Projected expenses cannot be edited directly. Please edit an actual entry for this recurring series.");
+    return;
+  }
+
+  const newNote = prompt("Description", expense.note);
+  if (newNote === null) return; // User cancelled
+  const newAmountStr = prompt("Amount", expense.amount);
+  if (newAmountStr === null) return; // User cancelled
+
+  if (!newNote.trim() || !newAmountStr.trim()) {
+    alert("Description and Amount cannot be empty.");
+    return;
+  }
+  const newAmount = parseFloat(newAmountStr);
+  if (isNaN(newAmount) || newAmount <= 0) {
+    alert("Please enter a valid amount greater than zero");
+    return;
+  }
+  if (newAmount > 999999) {
+    alert("Amount seems too large. Please check.");
+    return;
+  }
+
+  const originalAmount = expense.amount;
+  const originalNote = expense.note;
+  let dataChanged = false;
+
+  // Prepare the update object for Supabase
+  const updatedFields = {
+    note: newNote.trim(),
+    amount: newAmount,
+    logo: detectLogo(newNote.trim())
+  };
+
+  // Handle recurring expenses update logic
+  if (expense.recurring && newNote.trim().toLowerCase() !== originalNote.toLowerCase()) {
+    if (confirm("You changed the description for a recurring expense. Do you want to update the description for all occurrences of this series?")) {
+      // Update all matching recurring expenses in Supabase
+      const { error: updateSeriesError } = await mySupabaseClient
+        .from('expenses')
+        .update({ note: newNote.trim(), logo: detectLogo(newNote.trim()) })
+        .eq('note', originalNote)
+        .eq('isPersonal', expense.isPersonal)
+        .eq('recurring', true)
+        .eq('user_id', currentUser.id);
+
+      if (updateSeriesError) {
+        console.error("Error updating recurring series description:", updateSeriesError);
+        alert("Error updating recurring series description. Please check console.");
+        return;
       }
-    }
-    expense.note = newNote.trim();
-    expense.amount = newAmount;
-    expense.logo = detectLogo(newNote.trim());
-    if (expense.recurring && newAmount !== originalAmount) {
-      if (confirm("Do you want to update all future occurrences of this recurring expense to the new amount?")) {
-        data[activePerson].forEach(e => {
-          if (e.recurring && e.note.toLowerCase() === expense.note.toLowerCase() && e.isPersonal === expense.isPersonal && getMonthNum(e.month) > getMonthNum(expense.month) && !e.isProjected) {
-            e.amount = newAmount;
-            dataChanged = true;
-          }
-        });
-      }
-    }
-    if (newAmount !== originalAmount || newNote.trim() !== originalNote) {
       dataChanged = true;
     }
-    if (dataChanged) {
-      save();
-      updateAll();
+  }
+
+  if (expense.recurring && newAmount !== originalAmount) {
+    if (confirm("Do you want to update all future occurrences of this recurring expense to the new amount?")) {
+      // Update all future matching recurring expenses in Supabase
+      const { error: updateFutureError } = await mySupabaseClient
+        .from('expenses')
+        .update({ amount: newAmount })
+        .eq('note', updatedFields.note) // Use new note if it was just updated
+        .eq('isPersonal', expense.isPersonal)
+        .eq('recurring', true)
+        .gte('month', expense.month) // From this month onwards
+        .eq('user_id', currentUser.id);
+
+      if (updateFutureError) {
+        console.error("Error updating future recurring amounts:", updateFutureError);
+        alert("Error updating future recurring amounts. Please check console.");
+        return;
+      }
+      dataChanged = true;
     }
   }
+
+  // Update the specific expense in Supabase
+  const { error: updateError } = await mySupabaseClient
+    .from('expenses')
+    .update(updatedFields)
+    .eq('id', uuid)
+    .eq('user_id', currentUser.id); // Ensure user can only update their own
+
+  if (updateError) {
+    console.error("Error updating expense in Supabase:", updateError);
+    alert("Error updating expense. Please check the console.");
+    return;
+  }
+
+  // If successful, refresh the UI
+  updateAll();
+}
+
   async function deleteExpenseByUUID(uuid) { // Make async since it will interact with Supabase
     if (editMode) {
       cancelEditMode();
@@ -1858,51 +1941,51 @@ function updateAuthUI() {
 
   // This function MUST be defined BEFORE updateAll()
   async function fetchExpensesFromSupabase() {
-    // Check if mySupabaseClient is initialized
     if (!mySupabaseClient) {
-      console.error("Supabase client is not initialized. Cannot fetch expenses.");
-      alert("Application error: Supabase connection not established. Please refresh.");
-      return;
+        console.error("Supabase client is not initialized. Cannot fetch expenses.");
+        alert("Application error: Supabase connection not established. Please refresh.");
+        return;
     }
-    // If no current user, clear data and return
     if (!currentUser) {
-      data.francis = [];
-      data.fiona = [];
-      return;
+        data.francis = [];
+        data.fiona = [];
+        return;
     }
 
     // Fetch ALL expenses that the RLS policy allows (i.e., all household expenses)
+    // The RLS policy "Allow household members to read all shared expenses" will ensure
+    // only Francis's and Fiona's entries are returned, regardless of who is logged in.
     let { data: allHouseholdExpenses, error: fetchError } = await mySupabaseClient
-      .from('expenses')
-      .select('*')
-      .order('month', { ascending: true })
-      .order('created_at', { ascending: true });
+        .from('expenses')
+        .select('*')
+        .order('month', { ascending: true })
+        .order('created_at', { ascending: true });
 
     if (fetchError) {
-      console.error("Error fetching household expenses:", fetchError);
-      alert("Error loading household expenses. Please check the console.");
-      return;
+        console.error("Error fetching household expenses:", fetchError);
+        alert("Error loading household expenses. Please check the console.");
+        return;
     }
 
     // Distribute fetched expenses into data.francis and data.fiona based on the 'person' field
     data.francis = allHouseholdExpenses.filter(e => e.person === 'francis').map(e => ({
-      ...e,
-      uuid: e.id,
-      isPersonal: e.isPersonal,
-      isProjected: e.isProjected,
-      amount: parseFloat(e.amount)
+        ...e,
+        uuid: e.id,
+        isPersonal: e.isPersonal,
+        isProjected: e.isProjected,
+        amount: parseFloat(e.amount)
     }));
     data.fiona = allHouseholdExpenses.filter(e => e.person === 'fiona').map(e => ({
-      ...e,
-      uuid: e.id,
-      isPersonal: e.isPersonal,
-      isProjected: e.isProjected,
-      amount: parseFloat(e.amount)
+        ...e,
+        uuid: e.id,
+        isPersonal: e.isPersonal,
+        isProjected: e.isProjected,
+        amount: parseFloat(e.amount)
     }));
 
-    // After fetching, ensure logos are up-to-date and apply any necessary normalizations
-    updateLogosForAllExpenses(); // This will update logos for fetched data
-  }
+    updateLogosForAllExpenses();
+}
+
 
   async function updateAll() {
     // 1. Fetch expenses from Supabase
