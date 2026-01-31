@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -30,7 +31,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  padding: 20px;
+  padding: 20px; /* Keep body padding for overall content */
 }
 .container {
   max-width: 900px;
@@ -38,6 +39,7 @@ body {
 }
 h1 {
   text-align: center;
+  margin-top: 16px; /* Adjusted: No longer needs large top margin due to absolute positioning */
   margin-bottom: 6px;
 }
 .balance {
@@ -417,50 +419,6 @@ input[type="checkbox"].expense-select-checkbox:focus {
   display: none;
 }
 
-#logoutButton {
-  display: inline-flex;
-  background: #555;
-  color: white;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  width: 44px;
-  height: 44px;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-  white-space: nowrap;
-  transition: width 0.3s ease, background 0.2s ease, padding 0.3s ease;
-  font-weight: 600;
-  font-size: 0.9rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-
-#logoutButton i {
-  font-size: 0.9em;
-}
-
-#logoutButton .logout-text {
-  display: inline-block;
-  max-width: 0;
-  opacity: 0;
-  margin-left: 0;
-  transition: max-width 0.3s ease, opacity 0.3s ease, margin-left 0.3s ease;
-  vertical-align: middle;
-}
-
-#logoutButton:hover {
-  width: 120px;
-  background: var(--danger);
-  justify-content: flex-start;
-}
-
-#logoutButton:hover .logout-text {
-  max-width: 100px;
-  opacity: 1;
-  margin-left: 8px;
-}
-
 #authContainer {
   text-align: center;
   max-width: 540px;
@@ -479,6 +437,132 @@ input[type="checkbox"].expense-select-checkbox:focus {
   flex-grow: 1;
 }
 
+/* New Top Bar Container for the User Menu */
+.top-bar-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start; /* Default to left for desktop */
+  margin-bottom: 16px;
+  /* Removed padding here, as body padding handles overall spacing */
+}
+
+/* User Menu Styles */
+#user-menu {
+  /* Removed absolute positioning */
+  z-index: 500;
+  height: 48px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--card);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+  transition: width 0.4s ease;
+  /* display: none; controlled by JS updateAuthUI now */
+  width: fit-content; /* Allow it to size based on content for initial state */
+}
+
+#userMenuToggle {
+  display: block;
+  cursor: pointer;
+  opacity: 0;
+  z-index: 999;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.menu-content {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  width: 180px;          /* enough space for avatar + full greeting + username */
+  min-width: 180px;
+  transition: width 0.4s ease;
+  background: var(--card);
+  color: var(--text);
+}
+
+/* Expanded state */
+#userMenuToggle:checked ~ .menu-content {
+  width: 220px;          /* extra ~70px for logout area */
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 12px 0 8px;
+  border: 2px solid rgba(255,255,255,0.2);
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+  padding-right: 12px;
+}
+
+.greeting {
+  font-size: 0.84rem;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.1;
+}
+
+.username {
+  font-size: 1.02rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logout-area {
+  width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--danger);
+  color: var(--text);
+  overflow: hidden;
+  transition: width 0.4s ease;
+  flex-shrink: 0;
+}
+
+#userMenuToggle:checked ~ .menu-content .logout-area {
+  width: 40px;           /* becomes visible only when expanded */
+}
+
+.logout-area:hover {
+  background: var(--danger);
+  opacity: 0.85; /* Add a slight opacity change on hover */
+}
+
+.logout-btn {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0; /* Remove default button padding */
+}
+
+/* Optional: tiny avatar zoom on open */
+#userMenuToggle:checked ~ .menu-content .avatar {
+  transform: scale(1.06);
+  transition: transform 0.5s ease;
+}
+
 @media (max-width: 600px) {
   .expense-header-info .desktop-display {
     display: none;
@@ -495,6 +579,48 @@ input[type="checkbox"].expense-select-checkbox:focus {
   }
   .auth-buttons button {
     flex-grow: 1;
+  }
+
+  /* Mobile: Center the user menu */
+  .top-bar-container {
+    justify-content: center; /* Center the menu horizontally */
+    margin-bottom: 10px; /* Slightly less margin on mobile */
+  }
+  #user-menu {
+    margin: 10px auto; /* Center itself within the flex container */
+    height: 40px;
+    border-radius: 20px;
+  }
+  .menu-content {
+    height: 40px;
+    width: 180px;
+    min-width: 180px;
+  }
+  #userMenuToggle:checked ~ .menu-content {
+    width: 240px;
+  }
+  .avatar {
+    width: 30px;
+    height: 30px;
+    margin: 0 10px 0 6px;
+  }
+  .greeting {
+    font-size: 0.75rem;
+  }
+  .username {
+    font-size: 0.9rem;
+  }
+  .logout-area {
+    width: 0;
+  }
+  #userMenuToggle:checked ~ .menu-content .logout-area {
+    width: 60px;
+  }
+  .logout-btn {
+    font-size: 1.1rem;
+  }
+  h1 {
+    margin-top: 16px; /* Keep consistent or slightly reduce if needed */
   }
 }
 @keyframes blink {
@@ -519,13 +645,25 @@ input[type="checkbox"].expense-select-checkbox:focus {
 </head>
 <body>
 <div id="appContentWrapper" class="container" style="display: none;">
-  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-    <div style="display: flex; align-items: center; gap: 10px;">
-        <img id="userAvatar" src="" alt="User Avatar" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; display: none;">
-        <span id="greetingText" style="font-weight: 500; color: var(--muted);"></span>
+  <!-- New Top Bar Container to hold the User Menu -->
+  <div class="top-bar-container">
+    <div id="user-menu">
+      <input type="checkbox" id="userMenuToggle" />
+      <div class="menu-content">
+        <img id="userMenuAvatar" class="avatar" src="" alt="User Avatar">
+        <div class="user-info">
+          <div id="userMenuGreeting" class="greeting"></div>
+          <div id="userMenuUsername" class="username"></div>
+        </div>
+        <div class="logout-area">
+          <button class="logout-btn" onclick="handleLogout()">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </button>
+        </div>
+      </div>
     </div>
-    <button id="logoutButton" onclick="handleLogout()"><i class="fa-solid fa-right-from-bracket"></i> <span class="logout-text">Log out</span></button>
-</div>
+  </div>
+  <!-- End New Top Bar Container -->
 
   <h1>Bills Overview</h1>
   <div class="balance" id="balanceText"></div>
@@ -586,7 +724,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
 </div>
 
 <div class="footer">
-<a href="https://www.linkedin.com/in/francisarcas/" target="_blank" class="footer-link" title="user01 Arcas LinkedIn">
+<a href="https://www.linkedin.com/in/francisarcas/" target="_blank" class="footer-link" title="Francis Arcas LinkedIn">
 <i class="fa-brands fa-linkedin footer-icon"></i>
 </a>
 <span style="margin: 0 10px;">|</span>
@@ -602,6 +740,9 @@ input[type="checkbox"].expense-select-checkbox:focus {
   let householdProfilesMap = new Map(); // NEW: Store all household profiles
   let authContainer, authEmail, authPassword, authMessage;
   let appContentWrapper;
+
+  // NEW User Menu elements
+  let userMenu, userMenuToggle, userMenuAvatar, userMenuGreeting, userMenuUsername;
 
   const SUPABASE_URL = "https://qkbzkswjzzhrvqtssfxt.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFrYnprc3dqenpocnZxdHNzZnh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MTIzNzAsImV4cCI6MjA4NTI4ODM3MH0.BiDcAO2TDdIMIi888Uq7NQE7Bj-ZnjwI7sDMu6Erk6g";
@@ -676,7 +817,8 @@ input[type="checkbox"].expense-select-checkbox:focus {
 
   let noteInput, suggestionsDiv, yearTabsDiv, expenseHeaderDiv, balanceTextDiv,
     currentViewTextSpan, sharedStatusInput, amountInput, recurringInput, expenseListDiv,
-    user01Btn, user02Btn, logoutButton, greetingText, userAvatar;
+    user01Btn, user02Btn;
+    // Removed old logoutButton, greetingText, userAvatar from global scope as they are replaced
 
 function getGreeting(userName) {
     const hour = new Date().getHours();
@@ -691,7 +833,7 @@ function getGreeting(userName) {
     } else {
         greetingPhrase = "Good night";
     }
-    return `${greetingPhrase}, ${userName}`;
+    return `${greetingPhrase},`; // Adjusted to fit into the two lines
 }
 
 async function handleAuth(type) {
@@ -774,26 +916,29 @@ function updateAuthUI() {
         authContainer.style.display = 'none';
         appContentWrapper.style.display = 'block';
         profilesDiv.style.display = 'flex';
-        logoutButton.style.display = 'inline-flex';
+        userMenu.style.display = 'block'; // Show the new user menu
 
-        const personName = loggedInUserProfile.display_name;
+        const personName = loggedInUserProfile.display_name || currentUser.email.split('@')[0]; // Fallback to email prefix
         const personKey = loggedInUserProfile.role;
-        const avatarSrc = loggedInUserProfile.avatar_url;
+        const avatarSrc = loggedInUserProfile.avatar_url || (personKey === 'user01' ? "assets/person001.png" : "assets/person002.png"); // Fallback avatar
 
         selectPerson(personKey); // Initialize active person
 
-        userAvatar.src = avatarSrc;
-        userAvatar.style.display = 'block';
-        greetingText.textContent = getGreeting(personName);
+        userMenuAvatar.src = avatarSrc;
+        userMenuGreeting.textContent = getGreeting(personName);
+        userMenuUsername.textContent = personName;
+        userMenuToggle.checked = false; // Ensure menu is closed on login/refresh
 
     } else {
         authContainer.style.display = 'block';
         appContentWrapper.style.display = 'none';
         profilesDiv.style.display = 'none';
-        logoutButton.style.display = 'none';
-        userAvatar.style.display = 'none';
-        userAvatar.src = "";
-        greetingText.textContent = '';
+        userMenu.style.display = 'none'; // Hide the new user menu
+
+        userMenuAvatar.src = "";
+        userMenuGreeting.textContent = "";
+        userMenuUsername.textContent = "";
+        userMenuToggle.checked = false; // Ensure menu is closed
     }
 }
 
@@ -814,10 +959,14 @@ function updateAuthUI() {
     authMessage = document.getElementById('authMessage');
     user01Btn = document.getElementById('user01Btn');
     user02Btn = document.getElementById('user02Btn');
-    logoutButton = document.getElementById('logoutButton');
     appContentWrapper = document.getElementById('appContentWrapper');
-    greetingText = document.getElementById('greetingText');
-    userAvatar = document.getElementById('userAvatar');
+
+    // NEW User Menu elements
+    userMenu = document.getElementById('user-menu');
+    userMenuToggle = document.getElementById('userMenuToggle');
+    userMenuAvatar = document.getElementById('userMenuAvatar');
+    userMenuGreeting = document.getElementById('userMenuGreeting');
+    userMenuUsername = document.getElementById('userMenuUsername');
   }
 
   function generateUUID() {
@@ -855,11 +1004,11 @@ function updateAuthUI() {
         let displayText = brandItem.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
         if (brandItem === "m&s") displayText = "M&S";
         if (brandItem === "b&q") displayText = "B&Q";
-        if (brandItem === "hsbc") displayText = "HSBC";
-        if (brandItem === "lner") displayText = "LNER";
-        if (brandItem === "tfl") displayText = "TFL";
-        if (brandItem === "amex") displayText = "AMEX";
-        if (brandItem === "tk.max") displayText = "TK.MAX";
+        if (brandName === "hsbc") displayText = "HSBC";
+        if (brandName === "lner") displayText = "LNER";
+        if (brandName === "tfl") displayText = "TFL";
+        if (brandName === "amex") displayText = "AMEX";
+        if (brandName === "tk.max") displayText = "TK.MAX";
         suggestionItem.textContent = displayText;
         suggestionItem.onmousedown = (event) => {
           event.preventDefault();
@@ -1078,8 +1227,8 @@ function updateAuthUI() {
 
     const user01Profile = householdProfilesMap.get('user01');
     const user02Profile = householdProfilesMap.get('user02');
-    const user01DisplayName = user01Profile ? user01Profile.display_name : 'user01';
-    const user02DisplayName = user02Profile ? user02Profile.display_name : 'user02';
+    const user01DisplayName = user01Profile ? user01Profile.display_name : 'User 1';
+    const user02DisplayName = user02Profile ? user02Profile.display_name : 'User 2';
 
 
     const user01Monthly = getMonthlyExpenses("user01", activeMonth);
@@ -1525,15 +1674,15 @@ function updateAuthUI() {
     }
   });
   function updateChart() {
-    const user01DisplayName = householdProfilesMap.get('user01')?.display_name || 'user01';
-    const user02DisplayName = householdProfilesMap.get('user02')?.display_name || 'user02';
+    const user01DisplayName = householdProfilesMap.get('user01')?.display_name || 'User 1';
+    const user02DisplayName = householdProfilesMap.get('user02')?.display_name || 'User 2';
 
     let user01Shared, user01Personal, user02Shared, user02Personal;
     if (viewMode === 'monthly') {
       const user01Monthly = getMonthlyExpenses("user01", activeMonth);
       const user02Monthly = getMonthlyExpenses("user02", activeMonth);
       user01Shared = user01Monthly.shared;
-      user01Personal = user02Monthly.personal;
+      user01Personal = user01Monthly.personal; // Corrected: this should be user01's personal expenses
       user02Shared = user02Monthly.shared;
       user02Personal = user02Monthly.personal;
     } else {
@@ -1555,7 +1704,7 @@ function updateAuthUI() {
         data: [user01Personal, user02Personal],
         backgroundColor: (ctx) => {
           if (ctx.dataIndex === 0) return "rgba(10, 132, 255, 0.5)";
-          if (ctx.dataIndex === 1) return "rgba(255, 55, 95, 0.5)";
+          if (ctx.dataIndex === 1) return "rgba(209, 77, 33, 0.5)"; // Changed to user02-color with opacity
           return 'transparent';
         },
         stack: 'expenses',
@@ -1769,9 +1918,9 @@ function applyRecurring() {
           data: amounts,
           backgroundColor: (context) => {
             if (expense.isPersonal) {
-              return activePerson === 'user01' ? 'rgba(10, 132, 255, 0.5)' : 'rgba(255, 55, 95, 0.5)';
+              return activePerson === 'user01' ? 'rgba(10, 132, 255, 0.5)' : 'rgba(209, 77, 33, 0.5)'; // Changed to user02-color with opacity
             } else {
-              return activePerson === 'user01' ? '#0a84ff' : '#ff375f';
+              return activePerson === 'user01' ? '#0a84ff' : '#d14d21'; // Changed to user02-color
             }
           },
           borderColor: 'transparent',
