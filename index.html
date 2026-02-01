@@ -457,12 +457,15 @@ input[type="checkbox"].expense-select-checkbox:focus {
   flex-grow: 1;
 }
 
-/* New Top Bar Container for the User Menu */
+/* New Top Bar Container to hold the User Menu */
 .top-bar-container {
   display: flex;
   align-items: center;
   justify-content: flex-start; /* Default to left for desktop */
-  margin-top: 16px;   /* Added top margin for desktop */
+  margin-top: 0;   /* Reset top margin */
+  padding-top: 20px; /* Add top padding to match original vertical position */
+  padding-left: 20px; /* Add left padding to match original horizontal position */
+  padding-right: 20px; /* Add right padding */
   margin-bottom: 16px;
 }
 
@@ -496,7 +499,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
   display: flex;
   align-items: center;
   height: 48px;
-  width: 180px;          /* enough space for avatar + full greeting + username */
+  width: 180px;          /* enough space for avatar + greeting + username */
   min-width: 180px;
   transition: width 0.4s ease;
   background: var(--card);
@@ -607,8 +610,10 @@ input[type="checkbox"].expense-select-checkbox:focus {
   /* Mobile: Center the user menu */
   .top-bar-container {
     justify-content: center; /* Center the menu horizontally */
-    margin-bottom: 10px; /* Slightly less margin on mobile */
     margin-top: 0;       /* Reset top margin for mobile */
+    padding-top: 10px; /* Slightly less padding on mobile */
+    padding-left: 10px;
+    padding-right: 10px;
   }
   #user-menu {
     margin: 10px auto; /* Center itself within the flex container */
@@ -1029,13 +1034,14 @@ function updateAuthUI() {
       matchingBrands.forEach(brandItem => {
         const suggestionItem = document.createElement('div');
         let displayText = brandItem.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        // FIX: Corrected `brandName` to `brandItem` for special capitalization
         if (brandItem === "m&s") displayText = "M&S";
         if (brandItem === "b&q") displayText = "B&Q";
-        if (brandName === "hsbc") displayText = "HSBC";
-        if (brandName === "lner") displayText = "LNER";
-        if (brandName === "tfl") displayText = "TFL";
-        if (brandName === "amex") displayText = "AMEX";
-        if (brandName === "tk.max") displayText = "TK.MAX";
+        if (brandItem === "hsbc") displayText = "HSBC";
+        if (brandItem === "lner") displayText = "LNER";
+        if (brandItem === "tfl") displayText = "TFL";
+        if (brandItem === "amex") displayText = "AMEX";
+        if (brandItem === "tk.max") displayText = "TK.MAX";
         suggestionItem.textContent = displayText;
         suggestionItem.onmousedown = (event) => {
           event.preventDefault();
