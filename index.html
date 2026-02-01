@@ -18,9 +18,22 @@
   --muted: #9a9aa0;
   --accent1: #0a84ff;
   --accent2: #ff375f;
-  --danger: #ff453a;
+  --danger: #b90900;
+  --danger-border: #ff453a;
   --user01-color: #0a84ff;
-  --user02-color:   #d14d21;
+  --user02-color:   #e85a2a;
+  --interactive-bg: #2a2a31;
+  --interactive-bg-hover: #3a3a41;
+  --white: #ffffff;
+  --shadow-light: rgba(0,0,0,0.2);
+  --shadow-medium: rgba(0,0,0,0.3);
+  --shadow-strong: rgba(0,0,0,0.25);
+  --avatar-border: rgba(255,255,255,0.2);
+  --disabled-bg: #555;  
+  --testin:#0a84ff #c13e13;
+  --success: #00478f;
+  --success-border: #0a84ff;
+  --tooltip-bg: #1b1b20cc;
   --radius: 18px;
 }
 * {
@@ -31,7 +44,6 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  /* Removed padding from body, moved to .container */
   display: flex; /* Flexbox for sticky footer */
   flex-direction: column; /* Flexbox for sticky footer */
   min-height: 100vh; /* Flexbox for sticky footer */
@@ -70,7 +82,7 @@ h1 {
   justify-content: center;
   gap: 6px;
   width: auto;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 3px var(--shadow-light);
 }
 .balance .action-button:hover {
   background: #3a3a41;
@@ -171,7 +183,7 @@ button:active {
   opacity: 0.85;
 }
 button.disabled, .action-button.disabled {
-  background-color: #555 !important;
+  background-color: var(--disabled-bg) !important;
   cursor: not-allowed;
   opacity: 0.7;
 }
@@ -476,7 +488,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--card);
-  box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+  box-shadow: 0 4px 15px var(--shadow-strong);
   transition: width 0.4s ease;
   width: fit-content; /* Let it adapt to menu-content width */
   position: relative; /* Crucial for absolute positioning of toggle */
@@ -517,7 +529,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
   border-radius: 50%;
   object-fit: cover;
   margin: 0 12px 0 8px;
-  border: 2px solid rgba(255,255,255,0.2);
+  border: 2px solid var(--avatar-border);
   flex-shrink: 0;
 }
 
@@ -658,15 +670,18 @@ input[type="checkbox"].expense-select-checkbox:focus {
 }
 
 .month-tab.settled {
-  background: #28a745;
-  color: white;
+  background: var(--success);
+  color: #0a84ff;
   font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--success-border);
 }
+
 
 .month-tab.unsettled-past-month {
   background: var(--danger);
   color: white;
   font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--danger-border);
   animation: blink 1.5s infinite ease-in-out;
 }
 
@@ -1684,7 +1699,7 @@ function updateAuthUI() {
           },
           titleColor: 'white',
           bodyColor: 'white',
-          backgroundColor: 'rgba(27, 27, 32, 0.8)'
+          backgroundColor: 'var(--tooltip-bg)'
         }
       },
       scales: {
@@ -1736,8 +1751,8 @@ function updateAuthUI() {
         label: 'Personal',
         data: [user01Personal, user02Personal],
         backgroundColor: (ctx) => {
-          if (ctx.dataIndex === 0) return "rgba(10, 132, 255, 0.5)";
-          if (ctx.dataIndex === 1) return "rgba(209, 77, 33, 0.5)"; // Changed to user02-color with opacity
+          if (ctx.dataIndex === 0) return "#0a84ff80";
+          if (ctx.dataIndex === 1) return "#d14d2180";
           return 'transparent';
         },
         stack: 'expenses',
@@ -1951,7 +1966,7 @@ function applyRecurring() {
           data: amounts,
           backgroundColor: (context) => {
             if (expense.isPersonal) {
-              return activePerson === 'user01' ? 'rgba(10, 132, 255, 0.5)' : 'rgba(209, 77, 33, 0.5)'; // Changed to user02-color with opacity
+              return activePerson === 'user01' ? '#0a84ff80' : '#d14d2180'; // Changed to user02-color with opacity
             } else {
               return activePerson === 'user01' ? '#0a84ff' : '#d14d21'; // Changed to user02-color
             }
@@ -1984,7 +1999,7 @@ function applyRecurring() {
             },
             titleColor: 'white',
             bodyColor: 'white',
-            backgroundColor: 'rgba(27, 27, 32, 0.8)'
+            backgroundColor: 'var(--tooltip-bg)'
           }
         },
         scales: {
