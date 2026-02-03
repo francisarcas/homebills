@@ -807,12 +807,13 @@ input[type="checkbox"].expense-select-checkbox:focus {
 
   const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
   const SUGGESTION_BRANDS = [
-    "amex", "affinity water", "amazon", "b&q", "barclays", "british airways", "costco", "council tax", "eurostar",
+    "apple", "amex", "affinity water", "amazon", "b&q", "barclays", "british airways", "costco", "council tax", "eurostar",
     "hotel", "hsbc", "hyperoptic", "iberia", "insite energy", "itsu", "john lewis", "klarna", "lidl", "lottery", "lner", "m&s", "morrisons", "mortgage", "netflix",
-    "octopus energy", "play station", "prime", "renfe", "revolut", "rent", "ryanair", "sainsbury's", "strava", "tfl", "tk.max", "accommodation", "third space"
+    "octopus energy", "play station", "prime", "renfe", "revolut", "rent", "ryanair", "sainsbury's", "sky", "strava", "tfl", "tk.max", "accommodation", "third space"
   ].sort();
   const BRAND_LOGO_RULES = [
     { keywords: ["affinity water"], logo: "assets/logos/affinitywater.png" },
+    { keywords: ["apple"], logo: "assets/logos/apple.png" },
     { keywords: ["amex"], logo: "assets/logos/amex.png" },
     { keywords: ["amazon"], logo: "assets/logos/amazon.png" },
     { keywords: ["b&q"], logo: "assets/logos/bandq.png" },
@@ -841,6 +842,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
     { keywords: ["rent"], logo: "assets/logos/rent.png" },
     { keywords: ["ryanair"], logo: "assets/logos/ryanair.png" },
     { keywords: ["sainsbury's"], logo: "assets/logos/sainsburys.png" },
+    { keywords: ["sky"], logo: "assets/logos/sky.png" },
     { keywords: ["strava"], logo: "assets/logos/strava.png" },
     { keywords: ["tfl"], logo: "assets/logos/tfl.png" },
     { keywords: ["tk.max"], logo: "assets/logos/tkmax.png" },
@@ -858,9 +860,9 @@ input[type="checkbox"].expense-select-checkbox:focus {
   const data = {
     user01: [],
     user02: [],
-    settlements: JSON.parse(localStorage.getItem("billSettlements")) || {}
+    settlements: {} // Will be populated from Supabase
   };
-  if (!data.settlements) { data.settlements = {}; }
+  // Removed: if (!data.settlements) { data.settlements = {}; }
 
   let editMode = false;
   let selectedExpenses = [];
@@ -953,7 +955,7 @@ async function handleLogout() {
         data.user01 = [];
         data.user02 = [];
         data.settlements = {};
-        localStorage.removeItem("billSettlements");
+        // Removed: localStorage.removeItem("billSettlements");
         updateAuthUI();
         updateAll();
         alert("Logged out successfully!");
@@ -969,6 +971,7 @@ function updateAuthUI() {
         profilesDiv.style.display = 'flex';
         userMenu.style.display = 'block'; // Show the new user menu
 
+        // FIX: Corrected syntax error here
         const personName = loggedInUserProfile.display_name || currentUser.email.split('@')[0]; // Fallback to email prefix
         const personKey = loggedInUserProfile.role;
         const avatarSrc = loggedInUserProfile.avatar_url || (personKey === 'user01' ? "assets/person001.png" : "assets/person002.png"); // Fallback avatar
@@ -1106,9 +1109,6 @@ function updateAuthUI() {
     return monthKey;
   }
 
-  function save() {
-    localStorage.setItem("billSettlements", JSON.stringify(data.settlements));
-  }
 
   function capitalise(name) {
     return name.charAt(0).toUpperCase() + name.slice(1);
@@ -1135,9 +1135,7 @@ function updateAuthUI() {
         }
       });
     });
-    if (changed) {
-      save();
-    }
+    // Removed: if (changed) { save(); }
   }
   function getYears() {
     const years = new Set();
@@ -1216,17 +1214,57 @@ function updateAuthUI() {
   }
 }
 
-  function markMonthAsSettled(status) {
-    data.settlements[activeMonth] = status;
-    save();
-    updateAll();
-  }
+  async function markMonthAsSettled(status) {
+    if (!loggedInUserProfile || !loggedInUserProfile.household_id) {
+        alert("You must be logged in and part of a household to mark months as settled.");
+        return;
+    }
+
+    const householdId = loggedInUserProfile.household_id;
+
+    // Attempt to update first, if it doesn't exist, insert
+    const { data: updatedData, error: updateError } = await mySupabaseClient
+        .from('month_settlements')
+        .update({ is_settled: status, updated_at: new Date().toISOString() }) // Explicitly set updated_at
+        .eq('household_id', householdId)
+        .eq('month_key', activeMonth)
+        .select(); // Select the updated row
+
+    if (updateError) {
+        // If the error is 'no rows found for update' (PGRST116), it means we need to insert
+        if (updateError.code === 'PGRST116' || updateError.message.includes('0 rows')) { // Check for '0 rows' in message for older Supabase versions
+            const { error: insertError } = await mySupabaseClient
+                .from('month_settlements')
+                .insert({
+                    household_id: householdId,
+                    month_key: activeMonth,
+                    is_settled: status
+                });
+
+            if (insertError) {
+                console.error("Error inserting new settlement status:", insertError);
+                alert("Error inserting settlement status. Please try again.");
+                return;
+            }
+        } else {
+            console.error("Error updating settlement status:", updateError);
+            alert("Error updating settlement status. Please try again.");
+            return;
+        }
+    }
+
+    // Update local data and re-render
+    data.settlements[activeMonth] = status; // Update in-memory cache
+    await updateAll(); // Re-fetch and re-render everything to ensure consistency
+}
+
   function getMonthlyExpenses(personKey, monthKey) {
     const expenses = data[personKey].filter(e => normalizeMonthKey(e.month) === monthKey);
     const shared = expenses.filter(e => !e.isPersonal).reduce((sum, e) => sum + e.amount, 0);
     const personal = expenses.filter(e => e.isPersonal).reduce((sum, e) => sum + e.amount, 0);
     return { shared, personal };
   }
+
   function calculateAnnualTotals() {
     const annualTotals = {
       user01: { shared: 0, personal: 0 }
@@ -1274,6 +1312,7 @@ function updateAuthUI() {
     });
     return annualTotals;
   }
+
   function updateBalance() {
     if (!balanceTextDiv) return;
 
@@ -1874,12 +1913,13 @@ function applyRecurring() {
         }
       });
     });
+    // Removed: if (changed) { data.user01.sort(...); if (data.user02) { data.user02.sort(...); } save(); }
+    // The sorting logic should still be applied if 'changed' is true, but without 'save()'
     if (changed) {
-      data.user01.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.uuid.localeCompare(b.uuid));
-      if (data.user02) {
-        data.user02.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.uuid.localeCompare(b.uuid));
-      }
-      save();
+        data.user01.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.uuid.localeCompare(b.uuid));
+        if (data.user02) {
+            data.user02.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.uuid.localeCompare(b.uuid));
+        }
     }
 }
 
@@ -2119,7 +2159,7 @@ function applyRecurring() {
     }
 
     data[activePerson] = data[activePerson].filter(e => !actualSelected.includes(e.uuid));
-    save();
+    // Removed: save();
     cancelEditMode();
   }
 
@@ -2166,26 +2206,76 @@ function applyRecurring() {
 }
 
   async function updateAll() {
-    // NEW: Fetch all household profiles first
-    if (loggedInUserProfile && loggedInUserProfile.household_id) {
-        const { data: profiles, error: profilesError } = await mySupabaseClient
-            .from('profiles')
-            .select('*')
-            .eq('household_id', loggedInUserProfile.household_id);
-
-        if (profilesError) {
-            console.error("Error fetching household profiles:", profilesError);
-            // Decide how to handle this error, e.g., proceed with default names, or alert
-        } else {
-            householdProfilesMap.clear();
-            profiles.forEach(profile => {
-                householdProfilesMap.set(profile.role, profile);
-            });
-        }
+    // Ensure user is logged in and household_id is available before fetching shared data
+    if (!loggedInUserProfile || !loggedInUserProfile.household_id) {
+        console.warn("updateAll: Not logged in or household_id is missing. Clearing local data and rendering defaults.");
+        data.user01 = [];
+        data.user02 = [];
+        data.settlements = {}; // Clear settlements
+        // Still render UI elements, but they will reflect empty/default states
+        renderYears();
+        renderMonths();
+        updateViewModeText();
+        updateChart();
+        updateBalance();
+        renderExpenseHeader();
+        renderExpenses();
+        return; // Exit early if no authenticated household context
     }
 
+    // --- CRITICAL DEBUGGING SECTION: Fetching Household Profiles ---
+    const householdId = loggedInUserProfile.household_id;
+    console.log(`updateAll: Attempting to fetch profiles for household_id: ${householdId}`);
 
-    await fetchExpensesFromSupabase();
+    const { data: profiles, error: profilesError } = await mySupabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('household_id', householdId);
+
+    if (profilesError) {
+        console.error("updateAll: Error fetching household profiles:", profilesError);
+        alert("Error fetching household profiles: " + profilesError.message + ". Check console for details.");
+        householdProfilesMap.clear(); // Ensure it's clear if there's an error
+    } else {
+        householdProfilesMap.clear(); // Clear before repopulating
+        if (profiles && profiles.length > 0) {
+            profiles.forEach(profile => {
+                if (profile.role) { // Only set if role exists
+                    householdProfilesMap.set(profile.role, profile);
+                } else {
+                    console.warn("updateAll: Profile found without a 'role' property:", profile);
+                }
+            });
+            console.log("updateAll: Successfully fetched household profiles:", profiles);
+            console.log("updateAll: Populated householdProfilesMap:", householdProfilesMap);
+        } else {
+            console.warn("updateAll: No profiles found for household_id:", householdId, "or empty data returned.");
+        }
+    }
+    // --- END CRITICAL DEBUGGING SECTION ---
+
+    // --- NEW CODE FOR FETCHING SETTLEMENTS STARTS HERE ---
+    console.log(`updateAll: Attempting to fetch settlements for household_id: ${householdId}`);
+    const { data: settlementsData, error: settlementsError } = await mySupabaseClient
+        .from('month_settlements')
+        .select('month_key, is_settled')
+        .eq('household_id', householdId);
+
+    if (settlementsError) {
+        console.error("updateAll: Error fetching month settlements:", settlementsError);
+        alert("Error loading month settlements. Please try again. Check console for details.");
+        data.settlements = {}; // Proceed with empty settlements to avoid blocking the app
+    } else {
+        data.settlements = {}; // Clear previous settlements
+        settlementsData.forEach(s => {
+            data.settlements[s.month_key] = s.is_settled;
+        });
+        console.log("updateAll: Successfully fetched month settlements:", data.settlements);
+    }
+    // --- NEW CODE FOR FETCHING SETTLEMENTS ENDS HERE ---
+
+    // The rest of your existing updateAll function follows:
+    await fetchExpensesFromSupabase(); // This calls updateLogosForAllExpenses() - ensure it's awaited
 
     ["user01", "user02"].forEach(p => {
       if (data[p]) {
@@ -2202,7 +2292,9 @@ function applyRecurring() {
     updateBalance();
     renderExpenseHeader();
     renderExpenses();
-  }
+
+}
+
 
   function migrateData() {
     let changed = false;
@@ -2215,9 +2307,7 @@ function applyRecurring() {
         }
       });
     });
-    if (changed) {
-      save();
-    }
+    // Removed: if (changed) { save(); }
   }
   function normalizeExpenseData() {
     let changed = false;
@@ -2244,9 +2334,7 @@ function applyRecurring() {
         }
       });
     });
-    if (changed) {
-      save();
-    }
+    // Removed: if (changed) { save(); }
   }
 
 async function initApp() {
