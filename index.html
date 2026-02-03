@@ -2413,7 +2413,9 @@ async function initApp() {
 }
 
   document.addEventListener('DOMContentLoaded', initApp);
-
+console.error("markMonthAsSettled: Error getting session:", sessionError);
+console.error("markMonthAsSettled: No active session or access token found...");
+console.log("markMonthAsSettled: Active session found, access_token length:", session.access_token.length);
 </script>
 </body>
 </html>
