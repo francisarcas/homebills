@@ -38,7 +38,7 @@
 }
 * {
   box-sizing: border-box;
-  font-family: -apple-system, BlinkMacMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 body {
   margin: 0;
@@ -221,15 +221,30 @@ canvas {
   }
   /* NEW: Mobile adjustments for the form */
   .note-input-and-comment-btn-wrapper {
-    flex-direction: row; /* Keep row for mobile, looks better than stacking */
-    width: 100%; /* Ensure it takes full width when stacked */
+    flex-direction: row;
+    width: 100%;
+    order: 2; /* Order for mobile stacking */
   }
   .note-input-and-comment-btn-wrapper .note-input-wrapper {
-    width: 100%; /* Ensure note input takes full width */
+    width: 100%;
   }
-  .full-width-form-input {
-    width: 100%; /* Ensure it takes full width */
+  .full-width-form-input { /* This is #commentInput */
+    width: 100%;
+    order: 3; /* Move commentInput up in stacking order on mobile */
   }
+  #amountInput {
+    order: 1; /* First element on mobile */
+  }
+  #recurringInput {
+    order: 4; /* After commentInput on mobile */
+  }
+  #sharedStatusInput {
+    order: 5; /* After recurringInput on mobile */
+  }
+  .form button:last-of-type { /* The addExpense button */
+    order: 6; /* Last element on mobile */
+  }
+  /* ... other mobile styles ... */
 }
 input, select {
   background: #2a2a31;
@@ -786,6 +801,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
 
 
 
+
 </head>
 <body>
 <div id="appContentWrapper" class="container" style="display: none;">
@@ -834,13 +850,11 @@ input[type="checkbox"].expense-select-checkbox:focus {
   <div class="card">
   <div class="form">
     <input id="amountInput" type="number" step="0.01" placeholder="£ amount">
-    <!-- NEW WRAPPER for note input and comment toggle button -->
     <div class="note-input-and-comment-btn-wrapper">
       <div class="note-input-wrapper">
         <input id="noteInput" type="text" placeholder="Description or brand">
         <div id="suggestions" class="suggestions-dropdown"></div>
       </div>
-      <!-- NEW BUTTON to toggle the comment input field -->
       <button id="toggleCommentBtn" type="button" class="small-icon-button" title="Add/Remove Comment Field">
         <i class="fa-solid fa-comment-slash"></i> <!-- Initial icon: comment-slash -->
       </button>
@@ -854,10 +868,12 @@ input[type="checkbox"].expense-select-checkbox:focus {
       <option value="personal">Personal</option>
     </select>
     <button onclick="addExpense()"><i class="fa-solid fa-circle-plus"></i> <span class="add-button-text">Add</span></button>
-    <!-- NEW INPUT FIELD for comments, initially hidden -->
+    <!-- This is the correct HTML position for commentInput for this approach -->
     <input id="commentInput" type="text" placeholder="Add a comment (optional)" class="full-width-form-input" style="display: none;">
   </div>
 </div>
+
+
 
   <div class="card">
     <div id="expenseHeader"></div>
@@ -903,8 +919,8 @@ input[type="checkbox"].expense-select-checkbox:focus {
   // NEW User Menu elements
   let userMenu, userMenuToggle, userMenuAvatar, userMenuGreeting, userMenuUsername;
 
-  // NEW: Keep track of which comment section is currently open
-  let activeCommentUUID = null; // This was missing globally
+  // Keep track of which chart/comment section is currently open for single-open behavior
+  let activeExpandedUUID = null;
 
   const SUPABASE_URL = "https://qkbzkswjzzhrvqtssfxt.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFrYnprc3dqenpocnZxdHNzZnh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MTIzNzAsImV4cCI6MjA4NTI4ODM3MH0.BiDcAO2TDdIMIi888Uq7NQE7Bj-ZnjwI7sDMu6Erk6g";
@@ -972,7 +988,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
   const data = {
     user01: [],
     user02: [],
-    settlements: {} // Will be populated from Supabase
+    settlements: {}
   };
 
   let editMode = false;
@@ -996,7 +1012,7 @@ function getGreeting(userName) {
     } else {
         greetingPhrase = "Good night";
     }
-    return `${greetingPhrase},`; // Adjusted to fit into the two lines
+    return `${greetingPhrase},`;
 }
 
 async function handleAuth(type) {
@@ -1080,7 +1096,6 @@ function updateAuthUI() {
         profilesDiv.style.display = 'flex';
         userMenu.style.display = 'block'; // Show the new user menu
 
-        // FIX: Corrected syntax error here
         const personName = loggedInUserProfile.display_name || currentUser.email.split('@')[0]; // Fallback to email prefix
         const personKey = loggedInUserProfile.role;
         const avatarSrc = loggedInUserProfile.avatar_url || (personKey === 'user01' ? "assets/person001.png" : "assets/person002.png"); // Fallback avatar
@@ -1327,12 +1342,12 @@ function toggleAddCommentField() {
   if (isCommentInputVisible) {
     commentInput.style.display = 'block';
     toggleCommentBtn.innerHTML = '<i class="fa-solid fa-comment"></i>'; // Change icon to solid comment
-    toggleCommentBtn.classList.add('active-comment'); // NEW: Add active class
+    toggleCommentBtn.classList.add('active-comment'); // Add active class
     commentInput.focus();
   } else {
     commentInput.style.display = 'none';
     toggleCommentBtn.innerHTML = '<i class="fa-solid fa-comment-slash"></i>'; // Change icon back to slash
-    toggleCommentBtn.classList.remove('active-comment'); // NEW: Remove active class
+    toggleCommentBtn.classList.remove('active-comment'); // Remove active class
     commentInput.value = ''; // Clear comment when hiding
   }
 }
@@ -1505,7 +1520,7 @@ function toggleAddCommentField() {
       actionButtonsHtml = `<button class="action-button" onclick="toggleEditMode()"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`;
     } else {
       const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
-      const allSelected = expensesForMonth.length > 0 && expensesForMonth.every(e => selectedExpenses.includes(e.uuid));
+      const allSelected = expensesForMonth.length > 0 && expensesForMonth.every(e => selectedExpenses.includes(e.id));
       const deleteButtonDisabled = selectedExpenses.length === 0 ? 'disabled' : '';
       actionButtonsHtml = `
         <button class="action-button" onclick="cancelEditMode()" title="Cancel Edit"><i class="fa-solid fa-xmark"></i></button>
@@ -1534,13 +1549,12 @@ function toggleAddCommentField() {
     `;
   }
   function getExpenseByUUID(uuid) {
-    return data[activePerson].find(e => e.id === uuid); // Use e.id here, not e.uuid
+    return data[activePerson].find(e => e.id === uuid);
   }
   function getExpenseIndexByUUID(uuid) {
-    return data[activePerson].findIndex(e => e.id === uuid); // Use e.id here, not e.uuid
+    return data[activePerson].findIndex(e => e.id === uuid);
   }
 
-  // --- CORRECTED renderExpenses function ---
   function renderExpenses() {
     if (!expenseListDiv) return;
 
@@ -1578,17 +1592,16 @@ function toggleAddCommentField() {
       let actionsHtml = '';
       let checkboxHtml = '';
 
-      // Conditional comment icon HTML
-      // The comment icon should only appear if there is an actual comment string
+      // Conditional comment icon HTML (indicator only, no onclick)
       const commentIconHtml = e.comment && e.comment.trim() !== '' ?
-          `<span class="action comment-indicator" onclick="toggleExpenseComment('${expenseUuid}')"><i class="fa-solid fa-comment"></i></span>` : '';
+          `<span class="action comment-indicator" title="${e.comment.trim()}"><i class="fa-solid fa-comment"></i></span>` : '';
 
       if (editMode) {
         const isChecked = selectedExpenses.includes(expenseUuid) ? 'checked' : '';
         checkboxHtml = `<input type="checkbox" class="expense-select-checkbox" ${isChecked} onchange="toggleExpenseSelection(this, '${expenseUuid}')">`;
       } else {
         actionsHtml = `
-          ${commentIconHtml}
+          ${commentIconHtml} <!-- Display comment icon conditionally as an indicator -->
           ${personalIndicator}
           ${projectedIndicator}
           <span class="action expand-chart-toggle" data-uuid="${expenseUuid}" onclick="toggleExpenseChart(this, '${expenseUuid}')"><i class="fa-solid fa-chevron-down"></i></span>
@@ -1609,11 +1622,11 @@ function toggleAddCommentField() {
           ${checkboxHtml}
           ${actionsHtml}
         </div>
-        <!-- Comment display container, initially hidden -->
+        <!-- Comment display container -->
         <div id="expenseCommentWrapper_${expenseUuid}" class="expense-comment-container" style="display:none;">
             <p>${e.comment ? e.comment.trim() : ''}</p>
         </div>
-        <!-- Divider between comment and chart, only if there's a comment -->
+        <!-- Divider between comment and chart -->
         <hr id="expenseCommentChartDivider_${expenseUuid}" class="expense-comment-divider" style="display:none;">
         <div id="expenseChartWrapper_${expenseUuid}" class="expense-chart-container" style="display:none;">
           <canvas id="expenseChartCanvas_${expenseUuid}"></canvas>
@@ -1622,81 +1635,64 @@ function toggleAddCommentField() {
       expenseListDiv.appendChild(row);
     });
   }
-  // --- END CORRECTED renderExpenses function ---
 
-  // NEW: Function to toggle the display of an expense's comment section
-  function toggleExpenseComment(uuid) {
-      const commentWrapper = document.getElementById(`expenseCommentWrapper_${uuid}`);
-      const chartWrapper = document.getElementById(`expenseChartWrapper_${uuid}`);
-      const divider = document.getElementById(`expenseCommentChartDivider_${uuid}`);
-      const expandChartToggle = document.querySelector(`.expand-chart-toggle[data-uuid='${uuid}']`);
-
-      if (!commentWrapper) return;
-
-      // Close any other open comment section
-      if (activeCommentUUID && activeCommentUUID !== uuid) {
-          const prevCommentWrapper = document.getElementById(`expenseCommentWrapper_${activeCommentUUID}`);
-          const prevChartWrapper = document.getElementById(`expenseChartWrapper_${activeCommentUUID}`);
-          const prevDivider = document.getElementById(`expenseCommentChartDivider_${activeCommentUUID}`);
-          const prevExpandChartToggle = document.querySelector(`.expand-chart-toggle[data-uuid='${activeCommentUUID}']`);
-
-          if (prevCommentWrapper) prevCommentWrapper.style.display = 'none';
-          if (prevDivider) prevDivider.style.display = 'none';
-          // If chart is also open, close it
-          if (prevChartWrapper && prevChartWrapper.style.display !== 'none') {
-              toggleExpenseChart(prevExpandChartToggle, activeCommentUUID);
-          }
-      }
-
-      // Toggle the current comment section
-      if (commentWrapper.style.display === 'none') {
-          commentWrapper.style.display = 'block';
-          activeCommentUUID = uuid;
-
-          // If chart is also open, show the divider
-          if (chartWrapper && chartWrapper.style.display !== 'none') {
-              if (divider) divider.style.display = 'block';
-          }
-      } else {
-          commentWrapper.style.display = 'none';
-          if (divider) divider.style.display = 'none';
-          activeCommentUUID = null;
-      }
-  }
-
-  // --- MODIFIED toggleExpenseChart function to handle the comment divider ---
+  // MODIFIED toggleExpenseChart function to handle comments and charts together
   function toggleExpenseChart(toggleButtonElement, uuid) {
     if (editMode) return;
     const chartWrapper = document.getElementById(`expenseChartWrapper_${uuid}`);
-    const divider = document.getElementById(`expenseCommentChartDivider_${uuid}`);
     const commentWrapper = document.getElementById(`expenseCommentWrapper_${uuid}`);
+    const divider = document.getElementById(`expenseCommentChartDivider_${uuid}`);
+    const expense = getExpenseByUUID(uuid); // Get expense to check for comment existence
     const chevronIcon = toggleButtonElement.querySelector('i');
 
+    // Close any other open expanded sections
+    if (activeExpandedUUID && activeExpandedUUID !== uuid) {
+        const prevChartWrapper = document.getElementById(`expenseChartWrapper_${activeExpandedUUID}`);
+        const prevCommentWrapper = document.getElementById(`expenseCommentWrapper_${activeExpandedUUID}`);
+        const prevDivider = document.getElementById(`expenseCommentChartDivider_${activeExpandedUUID}`);
+        const prevToggleButton = document.querySelector(`.expand-chart-toggle[data-uuid='${activeExpandedUUID}']`);
+
+        if (prevChartWrapper) prevChartWrapper.style.display = 'none';
+        if (prevCommentWrapper) prevCommentWrapper.style.display = 'none';
+        if (prevDivider) prevDivider.style.display = 'none';
+        if (prevToggleButton) prevToggleButton.classList.remove('expanded');
+    }
+
+    // Toggle the current section
     if (chartWrapper.style.display === 'none') {
+        // Open the section
         chartWrapper.style.display = 'block';
         toggleButtonElement.classList.add('expanded');
-        const expense = getExpenseByUUID(uuid);
+        activeExpandedUUID = uuid;
+
+        // If there's a comment, display it and the divider
+        if (expense && expense.comment && expense.comment.trim() !== '') {
+            if (commentWrapper) commentWrapper.style.display = 'block';
+            if (divider) divider.style.display = 'block';
+        }
+
         if (expense) {
             drawExpenseHistoryChart(expense, `expenseChartCanvas_${uuid}`, uuid);
         } else {
             console.error("Expense not found for chart with UUID:", uuid);
         }
-        // Show divider if comment is also visible
-        if (commentWrapper && commentWrapper.style.display !== 'none' && divider) {
-            divider.style.display = 'block';
-        }
     } else {
+        // Close the section
         chartWrapper.style.display = 'none';
         toggleButtonElement.classList.remove('expanded');
+        activeExpandedUUID = null;
+
+        // Hide comment and divider as well
+        if (commentWrapper) commentWrapper.style.display = 'none';
+        if (divider) divider.style.display = 'none';
+
         if (expenseChartInstances[uuid]) {
             expenseChartInstances[uuid].destroy();
             delete expenseChartInstances[uuid];
         }
-        // Hide divider when chart is closed
-        if (divider) divider.style.display = 'none';
     }
   }
-  // --- END MODIFIED toggleExpenseChart function ---
+  // Removed toggleExpenseComment function as its logic is now merged into toggleExpenseChart
 
   async function addExpense() {
     if (!amountInput || !noteInput || !recurringInput || !sharedStatusInput) {
@@ -1780,7 +1776,7 @@ function toggleAddCommentField() {
   if (newNote === null) return;
   const newAmountStr = prompt("Amount", expense.amount);
   if (newAmountStr === null) return;
-  const newComment = prompt("Comment", expense.comment || ''); // NEW: Prompt for comment
+  const newComment = prompt("Comment", expense.comment || ''); // Prompt for comment
 
   if (!newNote.trim() || !newAmountStr.trim()) {
     alert("Description and Amount cannot be empty.");
@@ -1798,20 +1794,19 @@ function toggleAddCommentField() {
 
   const originalAmount = expense.amount;
   const originalNote = expense.note;
-  // let dataChanged = false; // Not strictly needed if we just update and re-fetch
 
   const updatedFields = {
     note: newNote.trim(),
     amount: newAmount,
     logo: detectLogo(newNote.trim()),
-    comment: newComment.trim() !== '' ? newComment.trim() : null // NEW: Add updated comment
+    comment: newComment.trim() !== '' ? newComment.trim() : null
   };
 
   if (expense.recurring && newNote.trim().toLowerCase() !== originalNote.toLowerCase()) {
     if (confirm("You changed the description for a recurring expense. Do you want to update the description for all occurrences of this series?")) {
       const { error: updateSeriesError } = await mySupabaseClient
         .from('expenses')
-        .update({ note: newNote.trim(), logo: detectLogo(newNote.trim()), comment: newComment.trim() !== '' ? newComment.trim() : null }) // NEW: Update comment for series
+        .update({ note: newNote.trim(), logo: detectLogo(newNote.trim()), comment: newComment.trim() !== '' ? newComment.trim() : null })
         .eq('note', originalNote)
         .eq('isPersonal', expense.isPersonal)
         .eq('recurring', true)
@@ -1822,7 +1817,6 @@ function toggleAddCommentField() {
         alert("Error updating recurring series description. Please check console.");
         return;
       }
-      // dataChanged = true;
     }
   }
 
@@ -1842,7 +1836,6 @@ function toggleAddCommentField() {
         alert("Error updating future recurring amounts. Please check console.");
         return;
       }
-      // dataChanged = true;
     }
   }
 
@@ -2102,14 +2095,14 @@ function applyRecurring() {
       if (!data[p]) return;
       const recurringSeriesInfo = new Map();
       data[p].filter(e => e.recurring && !e.isProjected).forEach(e => {
-        const seriesKey = `${e.note.toLowerCase()}_${e.isPersonal}`;
-        let series = recurringSeriesInfo.get(seriesKey);
+        const key = `${e.note.toLowerCase()}_${e.isPersonal}`;
+        let series = recurringSeriesInfo.get(key);
         if (!series) {
           series = {
             latestActualEntry: { ...e },
             firstActualMonth: e.month
           };
-          recurringSeriesInfo.set(seriesKey, series);
+          recurringSeriesInfo.set(key, series);
         } else {
           if (getMonthNum(e.month) > getMonthNum(series.latestActualEntry.month)) {
             series.latestActualEntry = { ...e };
@@ -2148,7 +2141,7 @@ function applyRecurring() {
               ).sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month)).pop();
               if (templateEntry) {
                 data[p].push({
-                  id: generateUUID(), // Use id here for consistency
+                  id: generateUUID(),
                   month: targetMonthKey,
                   amount: templateEntry.amount,
                   note: templateEntry.note,
@@ -2156,7 +2149,7 @@ function applyRecurring() {
                   recurring: true,
                   isPersonal: templateEntry.isPersonal,
                   isProjected: true,
-                  comment: templateEntry.comment // Include comment for projected
+                  comment: templateEntry.comment
                 });
                 changed = true;
               }
@@ -2166,9 +2159,9 @@ function applyRecurring() {
       });
     });
     if (changed) {
-        data.user01.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.id.localeCompare(b.id)); // Use id for sorting
+        data.user01.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.id.localeCompare(b.id));
         if (data.user02) {
-            data.user02.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.id.localeCompare(b.id)); // Use id for sorting
+            data.user02.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.id.localeCompare(b.id));
         }
     }
 }
@@ -2201,7 +2194,7 @@ function applyRecurring() {
         }
       }
     } else {
-      matcher = e => e.id === currentExpense.id; // Use e.id
+      matcher = e => e.id === currentExpense.id;
       const [currentExpenseYear, currentExpenseMonthAbbr] = currentExpense.month.split('-');
       if (parseInt(currentExpenseYear) === year) {
         chartSeriesStartMonthIndex = MONTHS.indexOf(currentExpenseMonthAbbr);
@@ -2327,7 +2320,7 @@ function applyRecurring() {
   }
   function toggleSelectAll() {
     const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
-    const allUUIDsForMonth = expensesForMonth.map(e => e.id); // Use e.id
+    const allUUIDsForMonth = expensesForMonth.map(e => e.id);
     const allCurrentlySelected = allUUIDsForMonth.length > 0 && allUUIDsForMonth.every(uuid => selectedExpenses.includes(uuid));
     if (allCurrentlySelected) {
       selectedExpenses = selectedExpenses.filter(id => !allUUIDsForMonth.includes(id));
@@ -2386,7 +2379,7 @@ function applyRecurring() {
       return;
     }
 
-    data[activePerson] = data[activePerson].filter(e => !actualSelected.includes(e.id)); // Use e.id
+    data[activePerson] = data[activePerson].filter(e => !actualSelected.includes(e.id));
     cancelEditMode();
   }
 
@@ -2532,12 +2525,11 @@ function applyRecurring() {
     let changed = false;
     ["user01", "user02"].forEach(p => {
       data[p].forEach(e => {
-        // Ensure 'id' is always the primary identifier, 'uuid' is a legacy/local copy
         if (!e.id) {
-          e.id = generateUUID(); // Generate if missing (should come from Supabase now)
+          e.id = generateUUID();
           changed = true;
         }
-        if (!e.uuid) { // Keep uuid for backward compatibility in some local operations
+        if (!e.uuid) {
           e.uuid = e.id;
         }
         const wasRecurringString = e.recurring === "yes";
@@ -2555,7 +2547,7 @@ function applyRecurring() {
           e.isProjected = false;
           changed = true;
         }
-        if (e.comment === undefined) { // NEW: Initialize comment if undefined
+        if (e.comment === undefined) {
             e.comment = null;
             changed = true;
         }
@@ -2613,10 +2605,9 @@ async function initApp() {
 }
 
   document.addEventListener('DOMContentLoaded', initApp);
-console.error("markMonthAsSettled: Error getting session:", sessionError); // These console.errors are outside a function, they should be removed or placed inside a function
-console.error("markMonthAsSettled: No active session or access token found..."); // These console.errors are outside a function, they should be removed or placed inside a function
-console.log("markMonthAsSettled: Active session found, access_token length:", session.access_token.length); // These console.logs are outside a function, they should be removed or placed inside a function
+// Removed trailing console.error/log as they cause issues if not within a function
 </script>
+
 
 </body>
 </html>
