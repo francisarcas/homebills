@@ -1223,6 +1223,25 @@ function updateAuthUI() {
 
     const householdId = loggedInUserProfile.household_id;
 
+    // --- NEW DEBUGGING CODE ---
+    const { data: { session }, error: sessionError } = await mySupabaseClient.auth.getSession();
+
+    if (sessionError) {
+        console.error("markMonthAsSettled: Error getting session:", sessionError);
+        alert("Error getting user session. Please try logging in again.");
+        return;
+    }
+
+    if (!session || !session.access_token) {
+        console.error("markMonthAsSettled: No active session or access token found. User might be logged out or session expired.");
+        alert("Your session has expired or you are not logged in. Please log in again.");
+        // Optionally, force a logout to clear state if the session is truly gone
+        await handleLogout();
+        return;
+    }
+    console.log("markMonthAsSettled: Active session found, access_token length:", session.access_token.length);
+    // --- END NEW DEBUGGING CODE ---
+
     try {
         // Invoke the Edge Function
         const { data: functionResponse, error: functionInvokeError } = await mySupabaseClient.functions.invoke('mark-month-settled', {
@@ -1230,12 +1249,15 @@ function updateAuthUI() {
                 household_id: householdId,
                 month_key: activeMonth,
                 is_settled: status
-            }
+            },
+            // The invoke method typically automatically includes the JWT from the current session.
+            // But if there's an issue, sometimes explicitly passing it can help, though it shouldn't be necessary here.
+            // headers: { 'Authorization': `Bearer ${session.access_token}` }
         });
 
         if (functionInvokeError) {
             console.error("Error invoking Edge Function 'mark-month-settled':", functionInvokeError);
-            alert("Error communicating with settlement service. Please check console.");
+            alert("Error communicating with settlement service: " + functionInvokeError.message + ". Please check console.");
             return;
         }
 
