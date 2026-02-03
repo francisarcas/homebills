@@ -38,7 +38,7 @@
 }
 * {
   box-sizing: border-box;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 body {
   margin: 0;
@@ -202,6 +202,12 @@ canvas {
   font-size: 1.2em; /* Ensure icon is visible */
 }
 
+/* NEW: Style for the active comment toggle button in the form */
+.small-icon-button.active-comment {
+  background: var(--accent1); /* Blue when active */
+  color: var(--white); /* White icon when active */
+}
+
 /* NEW: Full width input for comments */
 .full-width-form-input {
   grid-column: 1 / -1; /* Span all columns in the grid */
@@ -294,6 +300,13 @@ button i, .action-button i {
 .action.delete {
   color: var(--danger);
 }
+/* NEW: Comment indicator style */
+.comment-indicator {
+  color: var(--muted); /* Same color as personal-indicator */
+  margin-left: 5px; /* Adjust spacing as needed */
+  font-size: 0.85rem; /* Consistent with personal-indicator */
+}
+
 .expand-chart-toggle i {
   transition: transform 0.2s ease-in-out;
 }
@@ -312,6 +325,22 @@ button i, .action-button i {
   width: 100% !important;
   height: auto !important;
 }
+/* NEW: Comment section within an expense item */
+.expense-comment-container {
+  width: 100%;
+  padding-top: 10px;
+  padding-bottom: 5px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  word-wrap: break-word; /* Ensure long comments wrap */
+}
+.expense-comment-divider {
+  border: none;
+  border-top: 1px dashed #2a2a31;
+  margin: 10px 0;
+}
+
 .recurring-indicator {
   color: var(--accent1);
   margin-left: 5px;
@@ -756,6 +785,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
 </style>
 
 
+
 </head>
 <body>
 <div id="appContentWrapper" class="container" style="display: none;">
@@ -860,18 +890,21 @@ input[type="checkbox"].expense-select-checkbox:focus {
 </div>
 
 <script>
-  let toggleCommentBtn; // NEW
-  let commentInput;     // NEW
-  let isCommentInputVisible = false; // NEW
+  let toggleCommentBtn;
+  let commentInput;
+  let isCommentInputVisible = false;
   let mySupabaseClient;
   let currentUser = null;
   let loggedInUserProfile = null;
-  let householdProfilesMap = new Map(); // NEW: Store all household profiles
+  let householdProfilesMap = new Map();
   let authContainer, authEmail, authPassword, authMessage;
   let appContentWrapper;
 
   // NEW User Menu elements
   let userMenu, userMenuToggle, userMenuAvatar, userMenuGreeting, userMenuUsername;
+
+  // NEW: Keep track of which comment section is currently open
+  let activeCommentUUID = null; // This was missing globally
 
   const SUPABASE_URL = "https://qkbzkswjzzhrvqtssfxt.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFrYnprc3dqenpocnZxdHNzZnh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MTIzNzAsImV4cCI6MjA4NTI4ODM3MH0.BiDcAO2TDdIMIi888Uq7NQE7Bj-ZnjwI7sDMu6Erk6g";
@@ -941,7 +974,6 @@ input[type="checkbox"].expense-select-checkbox:focus {
     user02: [],
     settlements: {} // Will be populated from Supabase
   };
-  // Removed: if (!data.settlements) { data.settlements = {}; }
 
   let editMode = false;
   let selectedExpenses = [];
@@ -950,7 +982,6 @@ input[type="checkbox"].expense-select-checkbox:focus {
   let noteInput, suggestionsDiv, yearTabsDiv, expenseHeaderDiv, balanceTextDiv,
     currentViewTextSpan, sharedStatusInput, amountInput, recurringInput, expenseListDiv,
     user01Btn, user02Btn;
-    // Removed old logoutButton, greetingText, userAvatar from global scope as they are replaced
 
 function getGreeting(userName) {
     const hour = new Date().getHours();
@@ -1034,7 +1065,6 @@ async function handleLogout() {
         data.user01 = [];
         data.user02 = [];
         data.settlements = {};
-        // Removed: localStorage.removeItem("billSettlements");
         updateAuthUI();
         updateAll();
         alert("Logged out successfully!");
@@ -1098,7 +1128,7 @@ function updateAuthUI() {
     userMenuAvatar = document.getElementById('userMenuAvatar');
     userMenuGreeting = document.getElementById('userMenuGreeting');
     userMenuUsername = document.getElementById('userMenuUsername');
-    toggleCommentBtn = document.getElementById('toggleCommentBtn'); // NEW
+    toggleCommentBtn = document.getElementById('toggleCommentBtn');
     commentInput = document.getElementById('commentInput');
   }
 
@@ -1135,7 +1165,6 @@ function updateAuthUI() {
       matchingBrands.forEach(brandItem => {
         const suggestionItem = document.createElement('div');
         let displayText = brandItem.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-        // FIX: Corrected `brandName` to `brandItem` for special capitalization
         if (brandItem === "m&s") displayText = "M&S";
         if (brandItem === "b&q") displayText = "B&Q";
         if (brandItem === "hsbc") displayText = "HSBC";
@@ -1186,7 +1215,7 @@ function updateAuthUI() {
       }
     }
     return monthKey;
-  }
+    }
 
 
   function capitalise(name) {
@@ -1214,7 +1243,6 @@ function updateAuthUI() {
         }
       });
     });
-    // Removed: if (changed) { save(); }
   }
   function getYears() {
     const years = new Set();
@@ -1293,16 +1321,18 @@ function updateAuthUI() {
   }
 }
 
-// NEW: Function to toggle the comment input field
+// Function to toggle the comment input field (Corrected to apply active class)
 function toggleAddCommentField() {
   isCommentInputVisible = !isCommentInputVisible;
   if (isCommentInputVisible) {
     commentInput.style.display = 'block';
     toggleCommentBtn.innerHTML = '<i class="fa-solid fa-comment"></i>'; // Change icon to solid comment
+    toggleCommentBtn.classList.add('active-comment'); // NEW: Add active class
     commentInput.focus();
   } else {
     commentInput.style.display = 'none';
     toggleCommentBtn.innerHTML = '<i class="fa-solid fa-comment-slash"></i>'; // Change icon back to slash
+    toggleCommentBtn.classList.remove('active-comment'); // NEW: Remove active class
     commentInput.value = ''; // Clear comment when hiding
   }
 }
@@ -1316,7 +1346,6 @@ function toggleAddCommentField() {
 
     const householdId = loggedInUserProfile.household_id;
 
-    // --- NEW DEBUGGING CODE ---
     const { data: { session }, error: sessionError } = await mySupabaseClient.auth.getSession();
 
     if (sessionError) {
@@ -1328,24 +1357,18 @@ function toggleAddCommentField() {
     if (!session || !session.access_token) {
         console.error("markMonthAsSettled: No active session or access token found. User might be logged out or session expired.");
         alert("Your session has expired or you are not logged in. Please log in again.");
-        // Optionally, force a logout to clear state if the session is truly gone
         await handleLogout();
         return;
     }
     console.log("markMonthAsSettled: Active session found, access_token length:", session.access_token.length);
-    // --- END NEW DEBUGGING CODE ---
 
     try {
-        // Invoke the Edge Function
         const { data: functionResponse, error: functionInvokeError } = await mySupabaseClient.functions.invoke('mark-month-settled', {
             body: {
                 household_id: householdId,
                 month_key: activeMonth,
                 is_settled: status
             },
-            // The invoke method typically automatically includes the JWT from the current session.
-            // But if there's an issue, sometimes explicitly passing it can help, though it shouldn't be necessary here.
-            // headers: { 'Authorization': `Bearer ${session.access_token}` }
         });
 
         if (functionInvokeError) {
@@ -1354,7 +1377,6 @@ function toggleAddCommentField() {
             return;
         }
 
-        // The Edge Function itself returns a JSON object with 'success' or 'error'
         if (functionResponse && functionResponse.error) {
             console.error("Edge Function reported an error:", functionResponse.error);
             alert("Edge Function reported an error: " + functionResponse.error + ". Please check console.");
@@ -1363,9 +1385,8 @@ function toggleAddCommentField() {
 
         if (functionResponse && functionResponse.success) {
             console.log("Settlement status updated successfully via Edge Function.");
-            // Update local data and re-render
-            data.settlements[activeMonth] = status; // Update in-memory cache
-            await updateAll(); // Re-fetch and re-render everything to ensure consistency
+            data.settlements[activeMonth] = status;
+            await updateAll();
         } else {
              console.error("Edge Function invocation failed with unexpected response:", functionResponse);
              alert("Failed to update settlement status: Unexpected response from service.");
@@ -1376,9 +1397,8 @@ function toggleAddCommentField() {
         alert("An unexpected error occurred while updating settlement status.");
     }
 
-    // Update local data and re-render
-    data.settlements[activeMonth] = status; // Update in-memory cache
-    await updateAll(); // Re-fetch and re-render everything to ensure consistency
+    data.settlements[activeMonth] = status;
+    await updateAll();
 }
 
   function getMonthlyExpenses(personKey, monthKey) {
@@ -1514,46 +1534,61 @@ function toggleAddCommentField() {
     `;
   }
   function getExpenseByUUID(uuid) {
-    return data[activePerson].find(e => e.uuid === uuid);
+    return data[activePerson].find(e => e.id === uuid); // Use e.id here, not e.uuid
   }
   function getExpenseIndexByUUID(uuid) {
-    return data[activePerson].findIndex(e => e.uuid === uuid);
+    return data[activePerson].findIndex(e => e.id === uuid); // Use e.id here, not e.uuid
   }
+
+  // --- CORRECTED renderExpenses function ---
   function renderExpenses() {
     if (!expenseListDiv) return;
+
+    // Destroy existing chart instances before clearing the list
     for (const uuid in expenseChartInstances) {
       if (expenseChartInstances.hasOwnProperty(uuid)) {
         expenseChartInstances[uuid].destroy();
       }
     }
+    // Clear the object of chart instances
     Object.keys(expenseChartInstances).forEach(key => delete expenseChartInstances[key]);
-    expenseListDiv.innerHTML = "";
+
+    expenseListDiv.innerHTML = ""; // Clear the expense list
+
     const expensesForMonth = data[activePerson]
       .filter(e => normalizeMonthKey(e.month) === activeMonth)
       .sort((a, b) => {
-        if (a.isProjected && !b.isProjected) return 1;
+        if (a.isProjected && !b.isProjected) return 1; // Projected at the bottom
         if (!a.isProjected && b.isProjected) return -1;
-        if (a.amount < b.amount) return 1;
+        if (a.amount < b.amount) return 1; // Sort by amount descending
         if (a.amount > b.amount) return -1;
-        return a.note.localeCompare(b.note);
+        return a.note.localeCompare(b.note); // Then by note alphabetically
       });
+
     expensesForMonth.forEach((e) => {
-      const expenseUuid = e.uuid;
+      const expenseUuid = e.id; // Use e.id as the unique identifier
       const row = document.createElement("div");
       row.className = "expense";
+
       const iconContent = e.logo ? `<img class="logo" src="${e.logo}" onerror="this.remove()">` : `<i class="fa-solid fa-receipt"></i>`;
       const recurringIndicator = e.recurring ? `<i class="fa-solid fa-repeat recurring-indicator" title="Recurring expense"></i>` : '';
       const personalIndicator = e.isPersonal ? `<i class="fa-solid fa-user personal-indicator" title="Personal expense (not shared)"></i>` : '';
       const projectedIndicator = e.isProjected ? `<i class="fa-solid fa-clock recurring-indicator" title="This is a forecast based on your recurring bill – not yet paid"></i>` : '';
+
       let actionsHtml = '';
       let checkboxHtml = '';
+
+      // Conditional comment icon HTML
+      // The comment icon should only appear if there is an actual comment string
+      const commentIconHtml = e.comment && e.comment.trim() !== '' ?
+          `<span class="action comment-indicator" onclick="toggleExpenseComment('${expenseUuid}')"><i class="fa-solid fa-comment"></i></span>` : '';
+
       if (editMode) {
         const isChecked = selectedExpenses.includes(expenseUuid) ? 'checked' : '';
         checkboxHtml = `<input type="checkbox" class="expense-select-checkbox" ${isChecked} onchange="toggleExpenseSelection(this, '${expenseUuid}')">`;
       } else {
-        // --- START CHANGES ---
         actionsHtml = `
-          <span class="action" onclick="toggleCommentSection('${expenseUuid}')"><i class="fa-solid fa-comment"></i></span>
+          ${commentIconHtml}
           ${personalIndicator}
           ${projectedIndicator}
           <span class="action expand-chart-toggle" data-uuid="${expenseUuid}" onclick="toggleExpenseChart(this, '${expenseUuid}')"><i class="fa-solid fa-chevron-down"></i></span>
@@ -1563,8 +1598,8 @@ function toggleAddCommentField() {
             <i class="fa-solid fa-trash"></i>
           </span>
         `;
-        // --- END CHANGES ---
       }
+
       row.innerHTML = `
         <div class="expense-left">
           ${iconContent}
@@ -1574,6 +1609,12 @@ function toggleAddCommentField() {
           ${checkboxHtml}
           ${actionsHtml}
         </div>
+        <!-- Comment display container, initially hidden -->
+        <div id="expenseCommentWrapper_${expenseUuid}" class="expense-comment-container" style="display:none;">
+            <p>${e.comment ? e.comment.trim() : ''}</p>
+        </div>
+        <!-- Divider between comment and chart, only if there's a comment -->
+        <hr id="expenseCommentChartDivider_${expenseUuid}" class="expense-comment-divider" style="display:none;">
         <div id="expenseChartWrapper_${expenseUuid}" class="expense-chart-container" style="display:none;">
           <canvas id="expenseChartCanvas_${expenseUuid}"></canvas>
         </div>
@@ -1581,74 +1622,142 @@ function toggleAddCommentField() {
       expenseListDiv.appendChild(row);
     });
   }
+  // --- END CORRECTED renderExpenses function ---
 
-  // Placeholder function for now
-  function toggleCommentSection(uuid) {
-      console.log("Toggle comment section for UUID:", uuid);
-      // We will implement this in a later step
+  // NEW: Function to toggle the display of an expense's comment section
+  function toggleExpenseComment(uuid) {
+      const commentWrapper = document.getElementById(`expenseCommentWrapper_${uuid}`);
+      const chartWrapper = document.getElementById(`expenseChartWrapper_${uuid}`);
+      const divider = document.getElementById(`expenseCommentChartDivider_${uuid}`);
+      const expandChartToggle = document.querySelector(`.expand-chart-toggle[data-uuid='${uuid}']`);
+
+      if (!commentWrapper) return;
+
+      // Close any other open comment section
+      if (activeCommentUUID && activeCommentUUID !== uuid) {
+          const prevCommentWrapper = document.getElementById(`expenseCommentWrapper_${activeCommentUUID}`);
+          const prevChartWrapper = document.getElementById(`expenseChartWrapper_${activeCommentUUID}`);
+          const prevDivider = document.getElementById(`expenseCommentChartDivider_${activeCommentUUID}`);
+          const prevExpandChartToggle = document.querySelector(`.expand-chart-toggle[data-uuid='${activeCommentUUID}']`);
+
+          if (prevCommentWrapper) prevCommentWrapper.style.display = 'none';
+          if (prevDivider) prevDivider.style.display = 'none';
+          // If chart is also open, close it
+          if (prevChartWrapper && prevChartWrapper.style.display !== 'none') {
+              toggleExpenseChart(prevExpandChartToggle, activeCommentUUID);
+          }
+      }
+
+      // Toggle the current comment section
+      if (commentWrapper.style.display === 'none') {
+          commentWrapper.style.display = 'block';
+          activeCommentUUID = uuid;
+
+          // If chart is also open, show the divider
+          if (chartWrapper && chartWrapper.style.display !== 'none') {
+              if (divider) divider.style.display = 'block';
+          }
+      } else {
+          commentWrapper.style.display = 'none';
+          if (divider) divider.style.display = 'none';
+          activeCommentUUID = null;
+      }
   }
+
+  // --- MODIFIED toggleExpenseChart function to handle the comment divider ---
+  function toggleExpenseChart(toggleButtonElement, uuid) {
+    if (editMode) return;
+    const chartWrapper = document.getElementById(`expenseChartWrapper_${uuid}`);
+    const divider = document.getElementById(`expenseCommentChartDivider_${uuid}`);
+    const commentWrapper = document.getElementById(`expenseCommentWrapper_${uuid}`);
+    const chevronIcon = toggleButtonElement.querySelector('i');
+
+    if (chartWrapper.style.display === 'none') {
+        chartWrapper.style.display = 'block';
+        toggleButtonElement.classList.add('expanded');
+        const expense = getExpenseByUUID(uuid);
+        if (expense) {
+            drawExpenseHistoryChart(expense, `expenseChartCanvas_${uuid}`, uuid);
+        } else {
+            console.error("Expense not found for chart with UUID:", uuid);
+        }
+        // Show divider if comment is also visible
+        if (commentWrapper && commentWrapper.style.display !== 'none' && divider) {
+            divider.style.display = 'block';
+        }
+    } else {
+        chartWrapper.style.display = 'none';
+        toggleButtonElement.classList.remove('expanded');
+        if (expenseChartInstances[uuid]) {
+            expenseChartInstances[uuid].destroy();
+            delete expenseChartInstances[uuid];
+        }
+        // Hide divider when chart is closed
+        if (divider) divider.style.display = 'none';
+    }
+  }
+  // --- END MODIFIED toggleExpenseChart function ---
+
   async function addExpense() {
-  if (!amountInput || !noteInput || !recurringInput || !sharedStatusInput) {
-    console.error("DOM elements not initialized for addExpense. This should not happen if initApp() ran correctly.");
-    alert("Application not fully loaded. Please refresh the page.");
-    return;
+    if (!amountInput || !noteInput || !recurringInput || !sharedStatusInput) {
+      console.error("DOM elements not initialized for addExpense. This should not happen if initApp() ran correctly.");
+      alert("Application not fully loaded. Please refresh the page.");
+      return;
+    }
+
+    const amount = parseFloat(amountInput.value);
+    const note = noteInput.value.trim();
+    const isRecurring = recurringInput.value === "yes";
+    const isPersonal = sharedStatusInput.value === "personal";
+
+    if (!amount || !note) {
+      alert("Please enter both amount and description.");
+      return;
+    }
+    if (amount <= 0) {
+      alert("Amount must be greater than zero.");
+      return;
+    }
+    if (amount > 999999) {
+      alert("Amount seems too large. Please check.");
+      return;
+    }
+
+    const newExpenseForSupabase = {
+      month: activeMonth,
+      amount: amount,
+      note: note,
+      logo: detectLogo(note),
+      recurring: isRecurring,
+      isPersonal: isPersonal,
+      isProjected: false,
+      person: activePerson,
+      comment: isCommentInputVisible && commentInput.value.trim() !== '' ? commentInput.value.trim() : null,
+    };
+
+    const { data: insertedData, error } = await mySupabaseClient
+      .from('expenses')
+      .insert([newExpenseForSupabase])
+      .select();
+
+    if (error) {
+      console.error("Error adding expense to Supabase:", error);
+      alert("Error adding expense. Please check the console.");
+      return;
+    }
+
+    amountInput.value = "";
+    noteInput.value = "";
+    recurringInput.value = "no";
+    sharedStatusInput.value = "shared";
+    suggestionsDiv.style.display = 'none';
+
+    if (isCommentInputVisible) {
+      toggleAddCommentField();
+    }
+
+    updateAll();
   }
-
-  const amount = parseFloat(amountInput.value);
-  const note = noteInput.value.trim();
-  const isRecurring = recurringInput.value === "yes";
-  const isPersonal = sharedStatusInput.value === "personal";
-
-  if (!amount || !note) {
-    alert("Please enter both amount and description.");
-    return;
-  }
-  if (amount <= 0) {
-    alert("Amount must be greater than zero.");
-    return;
-  }
-  if (amount > 999999) {
-    alert("Amount seems too large. Please check.");
-    return;
-  }
-
-  const newExpenseForSupabase = {
-    month: activeMonth,
-    amount: amount,
-    note: note,
-    logo: detectLogo(note),
-    recurring: isRecurring,
-    isPersonal: isPersonal,
-    isProjected: false,
-    person: activePerson,
-    // NEW: Add comment if visible and has content
-    comment: isCommentInputVisible && commentInput.value.trim() !== '' ? commentInput.value.trim() : null,
-  };
-
-  const { data: insertedData, error } = await mySupabaseClient
-    .from('expenses')
-    .insert([newExpenseForSupabase])
-    .select();
-
-  if (error) {
-    console.error("Error adding expense to Supabase:", error);
-    alert("Error adding expense. Please check the console.");
-    return;
-  }
-
-  amountInput.value = "";
-  noteInput.value = "";
-  recurringInput.value = "no";
-  sharedStatusInput.value = "shared";
-  suggestionsDiv.style.display = 'none';
-
-  // NEW: Reset comment field if it was visible
-  if (isCommentInputVisible) {
-    toggleAddCommentField(); // This will hide and clear it
-  }
-
-  updateAll();
-}
 
 
   async function editExpenseByUUID(uuid) {
@@ -1671,6 +1780,7 @@ function toggleAddCommentField() {
   if (newNote === null) return;
   const newAmountStr = prompt("Amount", expense.amount);
   if (newAmountStr === null) return;
+  const newComment = prompt("Comment", expense.comment || ''); // NEW: Prompt for comment
 
   if (!newNote.trim() || !newAmountStr.trim()) {
     alert("Description and Amount cannot be empty.");
@@ -1688,19 +1798,20 @@ function toggleAddCommentField() {
 
   const originalAmount = expense.amount;
   const originalNote = expense.note;
-  let dataChanged = false;
+  // let dataChanged = false; // Not strictly needed if we just update and re-fetch
 
   const updatedFields = {
     note: newNote.trim(),
     amount: newAmount,
-    logo: detectLogo(newNote.trim())
+    logo: detectLogo(newNote.trim()),
+    comment: newComment.trim() !== '' ? newComment.trim() : null // NEW: Add updated comment
   };
 
   if (expense.recurring && newNote.trim().toLowerCase() !== originalNote.toLowerCase()) {
     if (confirm("You changed the description for a recurring expense. Do you want to update the description for all occurrences of this series?")) {
       const { error: updateSeriesError } = await mySupabaseClient
         .from('expenses')
-        .update({ note: newNote.trim(), logo: detectLogo(newNote.trim()) })
+        .update({ note: newNote.trim(), logo: detectLogo(newNote.trim()), comment: newComment.trim() !== '' ? newComment.trim() : null }) // NEW: Update comment for series
         .eq('note', originalNote)
         .eq('isPersonal', expense.isPersonal)
         .eq('recurring', true)
@@ -1711,7 +1822,7 @@ function toggleAddCommentField() {
         alert("Error updating recurring series description. Please check console.");
         return;
       }
-      dataChanged = true;
+      // dataChanged = true;
     }
   }
 
@@ -1731,7 +1842,7 @@ function toggleAddCommentField() {
         alert("Error updating future recurring amounts. Please check console.");
         return;
       }
-      dataChanged = true;
+      // dataChanged = true;
     }
   }
 
@@ -1913,7 +2024,7 @@ function toggleAddCommentField() {
       const user01Monthly = getMonthlyExpenses("user01", activeMonth);
       const user02Monthly = getMonthlyExpenses("user02", activeMonth);
       user01Shared = user01Monthly.shared;
-      user01Personal = user01Monthly.personal; // Corrected: this should be user01's personal expenses
+      user01Personal = user01Monthly.personal;
       user02Shared = user02Monthly.shared;
       user02Personal = user02Monthly.personal;
     } else {
@@ -1928,7 +2039,7 @@ function toggleAddCommentField() {
     const user02BarRoundingPersonal = (user02Shared === 0 && user02Personal > 0) ? 12 : { topLeft: 12, bottomLeft: 12, topRight: 0, bottomRight: 0 };
     const user02BarRoundingShared = (user02Personal === 0 && user02Shared > 0) ? 12 : { topLeft: 0, bottomLeft: 0, topRight: 12, bottomRight: 12 };
     
-    chart.data.labels = [user01DisplayName, user02DisplayName]; // Use display names here
+    chart.data.labels = [user01DisplayName, user02DisplayName];
     chart.data.datasets = [
       {
         label: 'Personal',
@@ -2037,14 +2148,15 @@ function applyRecurring() {
               ).sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month)).pop();
               if (templateEntry) {
                 data[p].push({
-                  uuid: generateUUID(),
+                  id: generateUUID(), // Use id here for consistency
                   month: targetMonthKey,
                   amount: templateEntry.amount,
                   note: templateEntry.note,
                   logo: templateEntry.logo,
                   recurring: true,
                   isPersonal: templateEntry.isPersonal,
-                  isProjected: true
+                  isProjected: true,
+                  comment: templateEntry.comment // Include comment for projected
                 });
                 changed = true;
               }
@@ -2053,38 +2165,14 @@ function applyRecurring() {
         }
       });
     });
-    // Removed: if (changed) { data.user01.sort(...); if (data.user02) { data.user02.sort(...); } save(); }
-    // The sorting logic should still be applied if 'changed' is true, but without 'save()'
     if (changed) {
-        data.user01.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.uuid.localeCompare(b.uuid));
+        data.user01.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.id.localeCompare(b.id)); // Use id for sorting
         if (data.user02) {
-            data.user02.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.uuid.localeCompare(b.uuid));
+            data.user02.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.id.localeCompare(b.id)); // Use id for sorting
         }
     }
 }
 
-  function toggleExpenseChart(toggleButtonElement, uuid) {
-    if (editMode) return;
-    const chartWrapper = document.getElementById(`expenseChartWrapper_${uuid}`);
-    const chevronIcon = toggleButtonElement.querySelector('i');
-    if (chartWrapper.style.display === 'none') {
-      chartWrapper.style.display = 'block';
-      toggleButtonElement.classList.add('expanded');
-      const expense = getExpenseByUUID(uuid);
-      if (expense) {
-        drawExpenseHistoryChart(expense, `expenseChartCanvas_${uuid}`, uuid);
-      } else {
-        console.error("Expense not found for chart with UUID:", uuid);
-      }
-    } else {
-      chartWrapper.style.display = 'none';
-      toggleButtonElement.classList.remove('expanded');
-      if (expenseChartInstances[uuid]) {
-        expenseChartInstances[uuid].destroy();
-        delete expenseChartInstances[uuid];
-      }
-    }
-  }
   function getExpenseHistoryData(currentExpense, personKey, year) {
     const amountsByMonth = new Array(12).fill(0);
     const yearPrefix = year.toString();
@@ -2113,7 +2201,7 @@ function applyRecurring() {
         }
       }
     } else {
-      matcher = e => e.uuid === currentExpense.uuid;
+      matcher = e => e.id === currentExpense.id; // Use e.id
       const [currentExpenseYear, currentExpenseMonthAbbr] = currentExpense.month.split('-');
       if (parseInt(currentExpenseYear) === year) {
         chartSeriesStartMonthIndex = MONTHS.indexOf(currentExpenseMonthAbbr);
@@ -2150,9 +2238,9 @@ function applyRecurring() {
           data: amounts,
           backgroundColor: (context) => {
             if (expense.isPersonal) {
-              return activePerson === 'user01' ? '#0a84ff80' : '#d14d2180'; // Changed to user02-color with opacity
+              return activePerson === 'user01' ? '#0a84ff80' : '#d14d2180';
             } else {
-              return activePerson === 'user01' ? '#0a84ff' : '#d14d21'; // Changed to user02-color
+              return activePerson === 'user01' ? '#0a84ff' : '#d14d21';
             }
           },
           borderColor: 'transparent',
@@ -2239,7 +2327,7 @@ function applyRecurring() {
   }
   function toggleSelectAll() {
     const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
-    const allUUIDsForMonth = expensesForMonth.map(e => e.uuid);
+    const allUUIDsForMonth = expensesForMonth.map(e => e.id); // Use e.id
     const allCurrentlySelected = allUUIDsForMonth.length > 0 && allUUIDsForMonth.every(uuid => selectedExpenses.includes(uuid));
     if (allCurrentlySelected) {
       selectedExpenses = selectedExpenses.filter(id => !allUUIDsForMonth.includes(id));
@@ -2298,8 +2386,7 @@ function applyRecurring() {
       return;
     }
 
-    data[activePerson] = data[activePerson].filter(e => !actualSelected.includes(e.uuid));
-    // Removed: save();
+    data[activePerson] = data[activePerson].filter(e => !actualSelected.includes(e.id)); // Use e.id
     cancelEditMode();
   }
 
@@ -2329,14 +2416,14 @@ function applyRecurring() {
 
     data.user01 = allHouseholdExpenses.filter(e => e.person === 'user01').map(e => ({
         ...e,
-        uuid: e.id,
+        uuid: e.id, // Keep uuid for consistency with old code, but use id for Supabase
         isPersonal: e.isPersonal,
         isProjected: e.isProjected,
         amount: parseFloat(e.amount)
     }));
     data.user02 = allHouseholdExpenses.filter(e => e.person === 'user02').map(e => ({
         ...e,
-        uuid: e.id,
+        uuid: e.id, // Keep uuid for consistency with old code, but use id for Supabase
         isPersonal: e.isPersonal,
         isProjected: e.isProjected,
         amount: parseFloat(e.amount)
@@ -2346,13 +2433,11 @@ function applyRecurring() {
 }
 
   async function updateAll() {
-    // Ensure user is logged in and household_id is available before fetching shared data
     if (!loggedInUserProfile || !loggedInUserProfile.household_id) {
         console.warn("updateAll: Not logged in or household_id is missing. Clearing local data and rendering defaults.");
         data.user01 = [];
         data.user02 = [];
-        data.settlements = {}; // Clear settlements
-        // Still render UI elements, but they will reflect empty/default states
+        data.settlements = {};
         renderYears();
         renderMonths();
         updateViewModeText();
@@ -2360,10 +2445,9 @@ function applyRecurring() {
         updateBalance();
         renderExpenseHeader();
         renderExpenses();
-        return; // Exit early if no authenticated household context
+        return;
     }
 
-    // --- CRITICAL DEBUGGING SECTION: Fetching Household Profiles ---
     const householdId = loggedInUserProfile.household_id;
     console.log(`updateAll: Attempting to fetch profiles for household_id: ${householdId}`);
 
@@ -2375,12 +2459,12 @@ function applyRecurring() {
     if (profilesError) {
         console.error("updateAll: Error fetching household profiles:", profilesError);
         alert("Error fetching household profiles: " + profilesError.message + ". Check console for details.");
-        householdProfilesMap.clear(); // Ensure it's clear if there's an error
+        householdProfilesMap.clear();
     } else {
-        householdProfilesMap.clear(); // Clear before repopulating
+        householdProfilesMap.clear();
         if (profiles && profiles.length > 0) {
             profiles.forEach(profile => {
-                if (profile.role) { // Only set if role exists
+                if (profile.role) {
                     householdProfilesMap.set(profile.role, profile);
                 } else {
                     console.warn("updateAll: Profile found without a 'role' property:", profile);
@@ -2392,9 +2476,7 @@ function applyRecurring() {
             console.warn("updateAll: No profiles found for household_id:", householdId, "or empty data returned.");
         }
     }
-    // --- END CRITICAL DEBUGGING SECTION ---
 
-    // --- NEW CODE FOR FETCHING SETTLEMENTS STARTS HERE ---
     console.log(`updateAll: Attempting to fetch settlements for household_id: ${householdId}`);
     const { data: settlementsData, error: settlementsError } = await mySupabaseClient
         .from('month_settlements')
@@ -2404,18 +2486,16 @@ function applyRecurring() {
     if (settlementsError) {
         console.error("updateAll: Error fetching month settlements:", settlementsError);
         alert("Error loading month settlements. Please try again. Check console for details.");
-        data.settlements = {}; // Proceed with empty settlements to avoid blocking the app
+        data.settlements = {};
     } else {
-        data.settlements = {}; // Clear previous settlements
+        data.settlements = {};
         settlementsData.forEach(s => {
             data.settlements[s.month_key] = s.is_settled;
         });
         console.log("updateAll: Successfully fetched month settlements:", data.settlements);
     }
-    // --- NEW CODE FOR FETCHING SETTLEMENTS ENDS HERE ---
 
-    // The rest of your existing updateAll function follows:
-    await fetchExpensesFromSupabase(); // This calls updateLogosForAllExpenses() - ensure it's awaited
+    await fetchExpensesFromSupabase();
 
     ["user01", "user02"].forEach(p => {
       if (data[p]) {
@@ -2447,15 +2527,18 @@ function applyRecurring() {
         }
       });
     });
-    // Removed: if (changed) { save(); }
   }
   function normalizeExpenseData() {
     let changed = false;
     ["user01", "user02"].forEach(p => {
       data[p].forEach(e => {
-        if (!e.uuid) {
-          e.uuid = generateUUID();
+        // Ensure 'id' is always the primary identifier, 'uuid' is a legacy/local copy
+        if (!e.id) {
+          e.id = generateUUID(); // Generate if missing (should come from Supabase now)
           changed = true;
+        }
+        if (!e.uuid) { // Keep uuid for backward compatibility in some local operations
+          e.uuid = e.id;
         }
         const wasRecurringString = e.recurring === "yes";
         e.recurring = (e.recurring === true || wasRecurringString);
@@ -2472,9 +2555,12 @@ function applyRecurring() {
           e.isProjected = false;
           changed = true;
         }
+        if (e.comment === undefined) { // NEW: Initialize comment if undefined
+            e.comment = null;
+            changed = true;
+        }
       });
     });
-    // Removed: if (changed) { save(); }
   }
 
 async function initApp() {
@@ -2489,9 +2575,9 @@ async function initApp() {
     noteInput.addEventListener('focus', showSuggestions);
     noteInput.addEventListener('blur', hideSuggestions);
 
-    if (toggleCommentBtn) { // Check if the element exists before adding listener
-    toggleCommentBtn.addEventListener('click', toggleAddCommentField);
-  }
+    if (toggleCommentBtn) {
+        toggleCommentBtn.addEventListener('click', toggleAddCommentField);
+    }
 
     if (!currentUser) {
         const { data: { session }, error } = await mySupabaseClient.auth.getSession();
@@ -2527,9 +2613,10 @@ async function initApp() {
 }
 
   document.addEventListener('DOMContentLoaded', initApp);
-console.error("markMonthAsSettled: Error getting session:", sessionError);
-console.error("markMonthAsSettled: No active session or access token found...");
-console.log("markMonthAsSettled: Active session found, access_token length:", session.access_token.length);
+console.error("markMonthAsSettled: Error getting session:", sessionError); // These console.errors are outside a function, they should be removed or placed inside a function
+console.error("markMonthAsSettled: No active session or access token found..."); // These console.errors are outside a function, they should be removed or placed inside a function
+console.log("markMonthAsSettled: Active session found, access_token length:", session.access_token.length); // These console.logs are outside a function, they should be removed or placed inside a function
 </script>
+
 </body>
 </html>
