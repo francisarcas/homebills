@@ -807,7 +807,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
 
   const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
   const SUGGESTION_BRANDS = [
-    "apple", "amex", "affinity water", "amazon", "b&q", "barclays", "british airways", "costco", "council tax", "eurostar",
+    "apple", "amex", "affinity water", "amazon", "b&q", "barclays", "british airways", "costco", "council tax", "eurostar", "google",
     "hotel", "hsbc", "hyperoptic", "iberia", "insite energy", "itsu", "john lewis", "klarna", "lidl", "lottery", "lner", "m&s", "morrisons", "mortgage", "netflix",
     "octopus energy", "play station", "prime", "renfe", "revolut", "rent", "ryanair", "sainsbury's", "sky", "strava", "tfl", "tk.max", "accommodation", "third space"
   ].sort();
@@ -820,6 +820,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
     { keywords: ["barclays"], logo: "assets/logos/barclays.png" },
     { keywords: ["british airways"], logo: "assets/logos/britishairways.png" },
     { keywords: ["costco"], logo: "assets/logos/costco.png" },
+    { keywords: ["google"], logo: "assets/logos/google.png" },
     { keywords: ["hyperoptic"], logo: "assets/logos/hyperoptic.png" },
     { keywords: ["hsbc"], logo: "assets/logos/hsbc.png" },
     { keywords: ["iberia"], logo: "assets/logos/iberia.png" },
@@ -1222,35 +1223,42 @@ function updateAuthUI() {
 
     const householdId = loggedInUserProfile.household_id;
 
-    // Attempt to update first, if it doesn't exist, insert
-    const { data: updatedData, error: updateError } = await mySupabaseClient
-        .from('month_settlements')
-        .update({ is_settled: status, updated_at: new Date().toISOString() }) // Explicitly set updated_at
-        .eq('household_id', householdId)
-        .eq('month_key', activeMonth)
-        .select(); // Select the updated row
-
-    if (updateError) {
-        // If the error is 'no rows found for update' (PGRST116), it means we need to insert
-        if (updateError.code === 'PGRST116' || updateError.message.includes('0 rows')) { // Check for '0 rows' in message for older Supabase versions
-            const { error: insertError } = await mySupabaseClient
-                .from('month_settlements')
-                .insert({
-                    household_id: householdId,
-                    month_key: activeMonth,
-                    is_settled: status
-                });
-
-            if (insertError) {
-                console.error("Error inserting new settlement status:", insertError);
-                alert("Error inserting settlement status. Please try again.");
-                return;
+    try {
+        // Invoke the Edge Function
+        const { data: functionResponse, error: functionInvokeError } = await mySupabaseClient.functions.invoke('mark-month-settled', {
+            body: {
+                household_id: householdId,
+                month_key: activeMonth,
+                is_settled: status
             }
-        } else {
-            console.error("Error updating settlement status:", updateError);
-            alert("Error updating settlement status. Please try again.");
+        });
+
+        if (functionInvokeError) {
+            console.error("Error invoking Edge Function 'mark-month-settled':", functionInvokeError);
+            alert("Error communicating with settlement service. Please check console.");
             return;
         }
+
+        // The Edge Function itself returns a JSON object with 'success' or 'error'
+        if (functionResponse && functionResponse.error) {
+            console.error("Edge Function reported an error:", functionResponse.error);
+            alert("Edge Function reported an error: " + functionResponse.error + ". Please check console.");
+            return;
+        }
+
+        if (functionResponse && functionResponse.success) {
+            console.log("Settlement status updated successfully via Edge Function.");
+            // Update local data and re-render
+            data.settlements[activeMonth] = status; // Update in-memory cache
+            await updateAll(); // Re-fetch and re-render everything to ensure consistency
+        } else {
+             console.error("Edge Function invocation failed with unexpected response:", functionResponse);
+             alert("Failed to update settlement status: Unexpected response from service.");
+        }
+
+    } catch (error) {
+        console.error("Unhandled error during Edge Function invocation:", error);
+        alert("An unexpected error occurred while updating settlement status.");
     }
 
     // Update local data and re-render
