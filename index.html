@@ -156,9 +156,73 @@ canvas {
   grid-template-columns: 0.6fr 1.5fr 0.6fr 0.6fr auto;
   gap: 8px;
 }
+/* NEW: Flex container for note input and comment toggle button */
+.note-input-and-comment-btn-wrapper {
+  display: flex;
+  gap: 8px; /* Space between note input and comment toggle button */
+  align-items: center;
+}
+
+.note-input-and-comment-btn-wrapper .note-input-wrapper {
+  flex-grow: 1; /* Make note input take available space */
+}
+
+/* NEW: Ensure suggestions dropdown aligns correctly within the new wrapper */
+.note-input-and-comment-btn-wrapper .note-input-wrapper .suggestions-dropdown {
+  left: 0; /* Align with the note input */
+  right: auto; /* Allow it to naturally expand */
+  width: 100%; /* Take full width of its parent (.note-input-wrapper) */
+}
+
+/* NEW: Small icon button styling */
+.small-icon-button {
+  background: #2a2a31; /* Same as input background */
+  color: var(--muted); /* Muted color for the icon */
+  padding: 12px; /* Consistent padding with inputs */
+  border-radius: 14px; /* Consistent border radius */
+  cursor: pointer;
+  width: auto; /* Auto width to fit icon */
+  flex-shrink: 0; /* Don't let it shrink */
+  display: flex; /* Center icon */
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px var(--shadow-light); /* Consistent shadow */
+  border: none; /* Ensure no default border */
+}
+
+.small-icon-button:hover {
+  background: #3a3a41;
+}
+
+.small-icon-button:active {
+  opacity: 0.85;
+}
+
+.small-icon-button i {
+  font-size: 1.2em; /* Ensure icon is visible */
+}
+
+/* NEW: Full width input for comments */
+.full-width-form-input {
+  grid-column: 1 / -1; /* Span all columns in the grid */
+  /* Inherits styles from input, select */
+}
+
+
 @media (max-width: 600px) {
   .form {
     grid-template-columns: 1fr;
+  }
+  /* NEW: Mobile adjustments for the form */
+  .note-input-and-comment-btn-wrapper {
+    flex-direction: row; /* Keep row for mobile, looks better than stacking */
+    width: 100%; /* Ensure it takes full width when stacked */
+  }
+  .note-input-and-comment-btn-wrapper .note-input-wrapper {
+    width: 100%; /* Ensure note input takes full width */
+  }
+  .full-width-form-input {
+    width: 100%; /* Ensure it takes full width */
   }
 }
 input, select {
@@ -308,8 +372,8 @@ button i, .action-button i {
   max-height: 120px;
   overflow-y: auto;
   z-index: 100;
+  width: 100%; /* Ensured it takes full width of its parent */
   display: none;
-  width: 100%;
 }
 .suggestions-dropdown div {
   padding: 8px 12px;
@@ -691,6 +755,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
 
 </style>
 
+
 </head>
 <body>
 <div id="appContentWrapper" class="container" style="display: none;">
@@ -737,23 +802,33 @@ input[type="checkbox"].expense-select-checkbox:focus {
     <div class="month-tabs" id="monthTabs"></div>
   </div>
   <div class="card">
-    <div class="form">
-      <input id="amountInput" type="number" step="0.01" placeholder="£ amount">
+  <div class="form">
+    <input id="amountInput" type="number" step="0.01" placeholder="£ amount">
+    <!-- NEW WRAPPER for note input and comment toggle button -->
+    <div class="note-input-and-comment-btn-wrapper">
       <div class="note-input-wrapper">
         <input id="noteInput" type="text" placeholder="Description or brand">
         <div id="suggestions" class="suggestions-dropdown"></div>
       </div>
-      <select id="recurringInput">
-        <option value="no">One-off</option>
-        <option value="yes">Recurring</option>
-      </select>
-      <select id="sharedStatusInput">
-        <option value="shared">Shared</option>
-        <option value="personal">Personal</option>
-      </select>
-      <button onclick="addExpense()"><i class="fa-solid fa-circle-plus"></i> <span class="add-button-text">Add</span></button>
+      <!-- NEW BUTTON to toggle the comment input field -->
+      <button id="toggleCommentBtn" type="button" class="small-icon-button" title="Add/Remove Comment Field">
+        <i class="fa-solid fa-comment-slash"></i> <!-- Initial icon: comment-slash -->
+      </button>
     </div>
+    <select id="recurringInput">
+      <option value="no">One-off</option>
+      <option value="yes">Recurring</option>
+    </select>
+    <select id="sharedStatusInput">
+      <option value="shared">Shared</option>
+      <option value="personal">Personal</option>
+    </select>
+    <button onclick="addExpense()"><i class="fa-solid fa-circle-plus"></i> <span class="add-button-text">Add</span></button>
+    <!-- NEW INPUT FIELD for comments, initially hidden -->
+    <input id="commentInput" type="text" placeholder="Add a comment (optional)" class="full-width-form-input" style="display: none;">
   </div>
+</div>
+
   <div class="card">
     <div id="expenseHeader"></div>
     <div id="expenseList"></div>
@@ -785,6 +860,9 @@ input[type="checkbox"].expense-select-checkbox:focus {
 </div>
 
 <script>
+  let toggleCommentBtn; // NEW
+  let commentInput;     // NEW
+  let isCommentInputVisible = false; // NEW
   let mySupabaseClient;
   let currentUser = null;
   let loggedInUserProfile = null;
@@ -1015,13 +1093,13 @@ function updateAuthUI() {
     user01Btn = document.getElementById('user01Btn');
     user02Btn = document.getElementById('user02Btn');
     appContentWrapper = document.getElementById('appContentWrapper');
-
-    // NEW User Menu elements
     userMenu = document.getElementById('user-menu');
     userMenuToggle = document.getElementById('userMenuToggle');
     userMenuAvatar = document.getElementById('userMenuAvatar');
     userMenuGreeting = document.getElementById('userMenuGreeting');
     userMenuUsername = document.getElementById('userMenuUsername');
+    toggleCommentBtn = document.getElementById('toggleCommentBtn'); // NEW
+    commentInput = document.getElementById('commentInput');
   }
 
   function generateUUID() {
@@ -1214,6 +1292,21 @@ function updateAuthUI() {
     });
   }
 }
+
+// NEW: Function to toggle the comment input field
+function toggleAddCommentField() {
+  isCommentInputVisible = !isCommentInputVisible;
+  if (isCommentInputVisible) {
+    commentInput.style.display = 'block';
+    toggleCommentBtn.innerHTML = '<i class="fa-solid fa-comment"></i>'; // Change icon to solid comment
+    commentInput.focus();
+  } else {
+    commentInput.style.display = 'none';
+    toggleCommentBtn.innerHTML = '<i class="fa-solid fa-comment-slash"></i>'; // Change icon back to slash
+    commentInput.value = ''; // Clear comment when hiding
+  }
+}
+
 
   async function markMonthAsSettled(status) {
     if (!loggedInUserProfile || !loggedInUserProfile.household_id) {
@@ -1458,7 +1551,9 @@ function updateAuthUI() {
         const isChecked = selectedExpenses.includes(expenseUuid) ? 'checked' : '';
         checkboxHtml = `<input type="checkbox" class="expense-select-checkbox" ${isChecked} onchange="toggleExpenseSelection(this, '${expenseUuid}')">`;
       } else {
+        // --- START CHANGES ---
         actionsHtml = `
+          <span class="action" onclick="toggleCommentSection('${expenseUuid}')"><i class="fa-solid fa-comment"></i></span>
           ${personalIndicator}
           ${projectedIndicator}
           <span class="action expand-chart-toggle" data-uuid="${expenseUuid}" onclick="toggleExpenseChart(this, '${expenseUuid}')"><i class="fa-solid fa-chevron-down"></i></span>
@@ -1468,6 +1563,7 @@ function updateAuthUI() {
             <i class="fa-solid fa-trash"></i>
           </span>
         `;
+        // --- END CHANGES ---
       }
       row.innerHTML = `
         <div class="expense-left">
@@ -1485,61 +1581,75 @@ function updateAuthUI() {
       expenseListDiv.appendChild(row);
     });
   }
-  async function addExpense() {
-    if (!amountInput || !noteInput || !recurringInput || !sharedStatusInput) {
-      console.error("DOM elements not initialized for addExpense. This should not happen if initApp() ran correctly.");
-      alert("Application not fully loaded. Please refresh the page.");
-      return;
-    }
 
-    const amount = parseFloat(amountInput.value);
-    const note = noteInput.value.trim();
-    const isRecurring = recurringInput.value === "yes";
-    const isPersonal = sharedStatusInput.value === "personal";
-
-    if (!amount || !note) {
-      alert("Please enter both amount and description");
-      return;
-    }
-    if (amount <= 0) {
-      alert("Amount must be greater than zero");
-      return;
-    }
-    if (amount > 999999) {
-      alert("Amount seems too large. Please check.");
-      return;
-    }
-
-    const newExpenseForSupabase = {
-      month: activeMonth,
-      amount: amount,
-      note: note,
-      logo: detectLogo(note),
-      recurring: isRecurring,
-      isPersonal: isPersonal,
-      isProjected: false,
-      person: activePerson,
-    };
-
-    const { data: insertedData, error } = await mySupabaseClient
-      .from('expenses')
-      .insert([newExpenseForSupabase])
-      .select();
-
-    if (error) {
-      console.error("Error adding expense to Supabase:", error);
-      alert("Error adding expense. Please check the console.");
-      return;
-    }
-
-    amountInput.value = "";
-    noteInput.value = "";
-    recurringInput.value = "no";
-    sharedStatusInput.value = "shared";
-    suggestionsDiv.style.display = 'none';
-
-    updateAll();
+  // Placeholder function for now
+  function toggleCommentSection(uuid) {
+      console.log("Toggle comment section for UUID:", uuid);
+      // We will implement this in a later step
   }
+  async function addExpense() {
+  if (!amountInput || !noteInput || !recurringInput || !sharedStatusInput) {
+    console.error("DOM elements not initialized for addExpense. This should not happen if initApp() ran correctly.");
+    alert("Application not fully loaded. Please refresh the page.");
+    return;
+  }
+
+  const amount = parseFloat(amountInput.value);
+  const note = noteInput.value.trim();
+  const isRecurring = recurringInput.value === "yes";
+  const isPersonal = sharedStatusInput.value === "personal";
+
+  if (!amount || !note) {
+    alert("Please enter both amount and description.");
+    return;
+  }
+  if (amount <= 0) {
+    alert("Amount must be greater than zero.");
+    return;
+  }
+  if (amount > 999999) {
+    alert("Amount seems too large. Please check.");
+    return;
+  }
+
+  const newExpenseForSupabase = {
+    month: activeMonth,
+    amount: amount,
+    note: note,
+    logo: detectLogo(note),
+    recurring: isRecurring,
+    isPersonal: isPersonal,
+    isProjected: false,
+    person: activePerson,
+    // NEW: Add comment if visible and has content
+    comment: isCommentInputVisible && commentInput.value.trim() !== '' ? commentInput.value.trim() : null,
+  };
+
+  const { data: insertedData, error } = await mySupabaseClient
+    .from('expenses')
+    .insert([newExpenseForSupabase])
+    .select();
+
+  if (error) {
+    console.error("Error adding expense to Supabase:", error);
+    alert("Error adding expense. Please check the console.");
+    return;
+  }
+
+  amountInput.value = "";
+  noteInput.value = "";
+  recurringInput.value = "no";
+  sharedStatusInput.value = "shared";
+  suggestionsDiv.style.display = 'none';
+
+  // NEW: Reset comment field if it was visible
+  if (isCommentInputVisible) {
+    toggleAddCommentField(); // This will hide and clear it
+  }
+
+  updateAll();
+}
+
 
   async function editExpenseByUUID(uuid) {
   if (editMode) {
@@ -2378,6 +2488,10 @@ async function initApp() {
     noteInput.addEventListener('input', showSuggestions);
     noteInput.addEventListener('focus', showSuggestions);
     noteInput.addEventListener('blur', hideSuggestions);
+
+    if (toggleCommentBtn) { // Check if the element exists before adding listener
+    toggleCommentBtn.addEventListener('click', toggleAddCommentField);
+  }
 
     if (!currentUser) {
         const { data: { session }, error } = await mySupabaseClient.auth.getSession();
