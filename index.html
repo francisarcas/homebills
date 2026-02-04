@@ -279,7 +279,7 @@ button i, .action-button i {
 
 .expense {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: wrap; /* Allow items to wrap on smaller screens */
   justify-content: space-between;
   align-items: center;
   padding: 10px 0;
@@ -289,6 +289,8 @@ button i, .action-button i {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-grow: 1; /* Allow it to grow */
+  min-width: 0; /* Important for flex items with overflow content */
 }
 .logo {
   width: 20px;
@@ -304,6 +306,7 @@ button i, .action-button i {
   display: flex;
   gap: 10px;
   align-items: center;
+  flex-shrink: 0; /* Prevent actions from shrinking */
 }
 .action {
   font-size: 0.8rem;
@@ -807,7 +810,40 @@ input[type="checkbox"].expense-select-checkbox:focus {
   #userMenuToggle {
     width: 150px; /* Adjust this value to match your desired closed menu width */
   }
-}
+
+  /* NEW: Mobile specific styles for expense list item content */
+  .expense-text-content {
+    flex-grow: 1;
+    min-width: 0; /* Important for flex items with nowrap content */
+  }
+  .expense-note-container {
+    max-width: 14ch; /* Constrain the visible width of the note to ~14 characters */
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: clip; /* Hide ellipsis when scrolling */
+    /* Use CSS variables for dynamic animation properties */
+    --marquee-offset: 0px;
+    --marquee-duration: 3s;
+  }
+
+  /* Keyframes for the bounce effect */
+  @keyframes marquee-bounce {
+    0% { transform: translateX(0); }
+    33% { transform: translateX(var(--marquee-offset)); } /* Move left */
+    66% { transform: translateX(0); }
+    100% { transform: translateX(0); }
+  }
+
+  .expense-note-marquee {
+    display: inline-block; /* Essential for transform */
+    white-space: nowrap; /* Prevent wrapping */
+  }
+
+  .expense-note-marquee.scroll-active {
+    animation: marquee-bounce var(--marquee-duration) ease-in-out infinite alternate;
+  }
+} /* End @media (max-width: 600px) */
+
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
@@ -1660,7 +1696,8 @@ function toggleAddCommentField() {
       row.className = "expense";
 
       const iconContent = e.logo ? `<img class="logo" src="${e.logo}" onerror="this.remove()">` : `<i class="fa-solid fa-receipt"></i>`;
-      const recurringIndicator = e.recurring ? `<i class="fa-solid fa-repeat recurring-indicator" title="Recurring expense"></i>` : '';
+      // We will now include the recurring indicator outside the marquee container
+      const recurringIndicatorHtml = e.recurring ? `<i class="fa-solid fa-repeat recurring-indicator" title="Recurring expense"></i>` : '';
       const personalIndicator = e.isPersonal ? `<i class="fa-solid fa-user personal-indicator" title="Personal expense (not shared)"></i>` : '';
       const projectedIndicator = e.isProjected ? `<i class="fa-solid fa-clock recurring-indicator" title="This is a forecast based on your recurring bill – not yet paid"></i>` : '';
 
@@ -1688,10 +1725,23 @@ function toggleAddCommentField() {
         `;
       }
 
+      // MODIFIED HTML STRUCTURE FOR SCROLLING NOTE
+      // The recurringIndicatorHtml is now placed directly in expense-text-content,
+      // as a sibling to expense-note-container and before the amount.
+      const expenseTextContentHtml = `
+        <div class="expense-text-content">
+          <div class="expense-note-container">
+            <span class="expense-note-marquee">${e.note}</span>
+          </div>
+          ${recurringIndicatorHtml} <!-- Moved out of marquee span -->
+          <small>£${e.amount.toFixed(2)}</small>
+        </div>
+      `;
+
       row.innerHTML = `
         <div class="expense-left">
           ${iconContent}
-          <div>${e.note} ${recurringIndicator}<br><small>£${e.amount.toFixed(2)}</small></div>
+          ${expenseTextContentHtml}
         </div>
         <div class="actions">
           ${checkboxHtml}
@@ -1708,8 +1758,35 @@ function toggleAddCommentField() {
         </div>
       `;
       expenseListDiv.appendChild(row);
+
+      // Apply scrolling logic for long notes on mobile
+      const expenseNoteContainer = row.querySelector('.expense-note-container');
+      const expenseNoteText = row.querySelector('.expense-note-marquee');
+
+      if (expenseNoteContainer && expenseNoteText && window.matchMedia("(max-width: 600px)").matches) {
+          // Temporarily set overflow to visible to get scrollWidth, then revert.
+          expenseNoteContainer.style.overflow = 'visible';
+          const textWidth = expenseNoteText.scrollWidth;
+          expenseNoteContainer.style.overflow = 'hidden'; // Revert to hidden for clipping
+
+          const containerWidth = expenseNoteContainer.clientWidth; // This will be the 14ch width from CSS
+
+          if (textWidth > containerWidth) {
+              expenseNoteText.classList.add('scroll-active');
+              const offset = -(textWidth - containerWidth + 2); // +2 for a small buffer
+              expenseNoteContainer.style.setProperty('--marquee-offset', `${offset}px`);
+
+              const duration = Math.max(3, textWidth / 15) + 's';
+              expenseNoteContainer.style.setProperty('--marquee-duration', duration);
+              expenseNoteContainer.style.textOverflow = 'clip';
+          } else {
+              expenseNoteText.classList.remove('scroll-active');
+              expenseNoteContainer.style.textOverflow = 'ellipsis';
+          }
+      }
     });
   }
+
 
   // MODIFIED toggleExpenseChart function to handle comments and charts together
   function toggleExpenseChart(toggleButtonElement, uuid) {
@@ -2213,10 +2290,12 @@ function applyRecurring() {
                 const expensesForThisSeriesInMonth = seriesInMonth[seriesKey];
 
                 const aggregatedAmount = expensesForThisSeriesInMonth.reduce((sum, exp) => sum + exp.amount, 0);
-                const aggregatedComments = expensesForThisSeriesInMonth
+                // For the *actual* aggregated state of a month, we still combine comments
+                // as it represents the full picture of that month's actual expenses for the series.
+                const aggregatedCommentsForMonth = expensesForThisSeriesInMonth
                                             .map(exp => exp.comment)
                                             .filter(c => c && c.trim() !== '')
-                                            .join(' | '); // Combine comments
+                                            .join(' | ');
 
                 // Use the first expense in the group to get base details like note, logo, isPersonal
                 const baseExpense = expensesForThisSeriesInMonth[0];
@@ -2226,7 +2305,7 @@ function applyRecurring() {
                     note: baseExpense.note, // Keep original casing for projection
                     logo: baseExpense.logo,
                     isPersonal: baseExpense.isPersonal,
-                    comment: aggregatedComments ,
+                    comment: aggregatedCommentsForMonth, // This comment is for the actual month's aggregation
                     month: monthKey // This is the month where this aggregation occurred
                 };
 
@@ -2267,7 +2346,6 @@ function applyRecurring() {
                     const targetMonthKey = `${year}-${MONTHS[monthIndex]}`;
 
                     // Check if an actual expense already exists for this series in this targetMonthKey
-                    // We need to check if there are *any* actual expenses for this particular series in this month
                     const actualExistingEntriesForSeriesInMonth = data[p].filter(e =>
                         e.month === targetMonthKey &&
                         e.recurring &&
@@ -2277,7 +2355,6 @@ function applyRecurring() {
                     );
 
                     // If there are actual entries, we don't project for this month.
-                    // The chart will pick up the sum of actuals.
                     if (actualExistingEntriesForSeriesInMonth.length === 0) {
                         // Only project if no actual entry exists for this month for this series
                         data[p].push({
@@ -2289,11 +2366,12 @@ function applyRecurring() {
                             recurring: true,
                             isPersonal: latestAggregated.isPersonal,
                             isProjected: true,
-                            comment: latestAggregated.comment,
-                            // Add person and user_id, household_id for consistency, though projected aren't saved to DB
+                            // FIX: For projected expenses, set comment to null.
+                            // Carrying forward an aggregated comment string can be misleading for forecasts.
+                            comment: null,
                             person: p,
-                            user_id: currentUser.id, // Assuming currentUser is available
-                            household_id: loggedInUserProfile.household_id // Assuming loggedInUserProfile is available
+                            user_id: currentUser.id,
+                            household_id: loggedInUserProfile.household_id
                         });
                         changed = true;
                     }
@@ -2310,6 +2388,7 @@ function applyRecurring() {
         }
     }
 }
+
 
   function getExpenseHistoryData(currentExpense, personKey, year) {
     const amountsByMonth = new Array(12).fill(0);
