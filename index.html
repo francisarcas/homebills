@@ -727,48 +727,81 @@ input[type="checkbox"].expense-select-checkbox:focus {
     flex-direction: column; /* Stack inputs vertically on mobile */
     gap: 8px; /* Adjust gap for stacked inputs */
   }
-
-  /* Mobile: Center the user menu */
   .top-bar-container {
-    justify-content: center; /* Center the menu horizontally */
-    margin-top: 0;       /* Reset top margin for mobile */
-    padding-top: 10px; /* Slightly less padding on mobile */
+    justify-content: center;
+    margin-top: 0;
+    padding-top: 10px;
     padding-left: 10px;
     padding-right: 10px;
   }
+
   #user-menu {
-    margin: 10px auto; /* Center itself within the flex container */
+    margin: 10px auto;
     height: 40px;
     border-radius: 20px;
+    overflow: hidden;           /* Important: clips the logout when closed */
   }
+
   .menu-content {
     height: 40px;
-    width: 200px;
-    min-width: 200px;
+    width: fit-content;         /* ← Key change: shrink to content */
+    min-width: 140px;           /* smallest comfortable size with name visible */
+    max-width: 140px;           /* closed state */
+    padding: 0 12px 0 0;        /* right padding only when expanded */
+    transition: max-width 0.4s ease, padding 0.4s ease;
+    overflow: hidden;
   }
+
   #userMenuToggle:checked ~ .menu-content {
-    width: 200px; /* Expanded width for mobile */
+    max-width: 190px;           /* enough for avatar + name + logout button */
+    padding-right: 0;
   }
+
   .avatar {
     width: 30px;
     height: 30px;
-    margin: 0 10px 0 6px;
+    margin: 0 8px 0 6px;
   }
+
   .greeting {
     font-size: 0.75rem;
   }
+
   .username {
     font-size: 0.9rem;
+    max-width: 90px;            /* prevent text overflow when closed */
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
+
   .logout-area {
-    width: 0;
+    width: 0;                   /* hidden when closed */
+    opacity: 0;
+    transition: width 0.4s ease, opacity 0.3s ease 0.1s;
+    pointer-events: none;
   }
+
   #userMenuToggle:checked ~ .menu-content .logout-area {
-    width: 40px; /* Logout area width for mobile */
+    width: 36px;
+    opacity: 1;
+    pointer-events: all;
   }
+
   .logout-btn {
     font-size: 1.1rem;
   }
+
+  /* Optional: slight hover/tap feedback on mobile too */
+  #user-menu:active .menu-content {
+    max-width: 190px;
+  }
+
+  #user-menu:active .logout-area {
+    width: 36px;
+    opacity: 1;
+    pointer-events: all;
+  }
+
   h1 {
     margin-top: 16px;
   }
