@@ -1719,6 +1719,15 @@ function toggleAddCommentField() {
       return;
     }
 
+    // --- IMPORTANT CHECK: Ensure user is logged in and profile data is available ---
+    if (!currentUser || !loggedInUserProfile || !loggedInUserProfile.household_id) {
+        alert("You must be logged in and part of a household to add an expense.");
+        // Consider forcing a re-authentication or showing a more prominent login prompt
+        await handleLogout(); // This will clear the session and prompt re-login
+        return;
+    }
+    // --- END IMPORTANT CHECK ---
+
     const newExpenseForSupabase = {
       month: activeMonth,
       amount: amount,
@@ -1729,6 +1738,10 @@ function toggleAddCommentField() {
       isProjected: false,
       person: activePerson,
       comment: isCommentInputVisible && commentInput.value.trim() !== '' ? commentInput.value.trim() : null,
+      // --- FIX: Explicitly set user_id and household_id ---
+      user_id: currentUser.id,                 // From the authenticated user session
+      household_id: loggedInUserProfile.household_id // From the user's profile
+      // --- END FIX ---
     };
 
     const { data: insertedData, error } = await mySupabaseClient
@@ -1753,7 +1766,7 @@ function toggleAddCommentField() {
     }
 
     updateAll();
-  }
+}
 
 
   async function editExpenseByUUID(uuid) {
