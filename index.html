@@ -23,6 +23,7 @@
   --user01-color: #0a84ff;
   --user02-color:   #e85a2a;
   --interactive-bg: #2a2a31;
+  --interactive-bg-current-month:#032950;
   --interactive-bg-hover: #3a3a41;
   --white: #ffffff;
   --shadow-light: rgba(0,0,0,0.2);
@@ -30,7 +31,7 @@
   --shadow-strong: rgba(0,0,0,0.25);
   --avatar-border: rgba(255,255,255,0.2);
   --disabled-bg: #555;  
-  --success: #00478f;
+  --success: #032950;
   --success-border: #0a84ff;
   --tooltip-bg: #1b1b20cc;
   --radius: 18px;
@@ -829,7 +830,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
 }
 
 .month-tab.current-real-month-not-selected {
-  background: var(--interactive-bg);                    /* explicitly same as normal unselected tabs */
+  background: var(--interactive-bg-current-month);                    /* explicitly same as normal unselected tabs */
   box-shadow: inset 0 0 0 1px var(--accent1); /* blue inset border */
   color: var(--text);
   transition: box-shadow 0.4s ease, background 0.3s ease;
@@ -846,7 +847,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
 }
 
 .month-tab.current-real-month-not-selected.pulse {
-  animation: gentle-border-pulse 7s ease-in-out infinite;
+  animation: gentle-border-pulse 2s ease-in-out infinite;
 }
 
 /* Ensure higher-priority states override the reminder style cleanly */
@@ -1156,7 +1157,7 @@ function updateAuthUI() {
         profilesDiv.style.display = 'flex';
         userMenu.style.display = 'block'; // Show the new user menu
 
-        const personName = loggedInUserProfile.display_name || currentUser.email.split('@')[0]; // Fallback to email prefix
+        const personName = loggedInUserProfile.display_name; // Fallback to email prefix
         const personKey = loggedInUserProfile.role;
         const avatarSrc = loggedInUserProfile.avatar_url || (personKey === 'user01' ? "assets/person001.png" : "assets/person002.png"); // Fallback avatar
 
@@ -1512,39 +1513,34 @@ function toggleAddCommentField() {
     const yearPrefix = activeYear.toString();
     ["user01", "user02"].forEach(personKey => {
       if (!data[personKey]) return;
-      const actualPersonExpenses = data[personKey].filter(e => !e.isProjected);
-      const latestRecurringSharedAmounts = {};
-      const latestRecurringPersonalAmounts = {};
-      const firstRecurringSharedMonth = {};
-      const firstRecurringPersonalMonth = {};
-      actualPersonExpenses.filter(e => e.recurring).forEach(e => {
-        const key = e.note.toLowerCase();
-        const currentFirstMonth = e.isPersonal ? firstRecurringPersonalMonth[key] : firstRecurringSharedMonth[key];
-        if (!currentFirstMonth || getMonthNum(e.month) < getMonthNum(currentFirstMonth)) {
-          if (e.isPersonal) firstRecurringPersonalMonth[key] = e.month;
-          else firstRecurringSharedMonth[key] = e.month;
-        }
-        const currentLatestAmount = e.isPersonal ? latestRecurringPersonalAmounts[key] : latestRecurringSharedAmounts[key];
-        if (!currentLatestAmount || getMonthNum(e.month) > getMonthNum(currentLatestAmount.month)) {
-          if (e.isPersonal) latestRecurringPersonalAmounts[key] = { amount: e.amount, month: e.month };
-          else latestRecurringSharedAmounts[key] = { amount: e.amount, month: e.month };
-        }
-      });
-      for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
-        const monthOfYear = MONTHS[monthIndex];
-        const currentYearMonthKey = `${yearPrefix}-${monthOfYear}`;
-        let monthlySharedTotal = 0;
-        let monthlyPersonalTotal = 0;
-        const expensesForThisMonth = data[personKey].filter(e => e.month === currentYearMonthKey);
-        expensesForThisMonth.forEach(e => {
-          if (e.isPersonal) {
-            monthlyPersonalTotal += e.amount;
-          } else {
-            monthlySharedTotal += e.amount;
+      // We need to re-aggregate here for annual totals, similar to applyRecurring logic
+      const expensesForYear = data[personKey].filter(e => e.month.startsWith(yearPrefix));
+
+      const aggregatedMonthlyExpenses = {}; // { 'YYYY-MMM': { 'note_isPersonal': { amount: N, comment: S } } }
+
+      expensesForYear.forEach(e => {
+          const seriesKey = `${e.note.toLowerCase()}_${e.isPersonal}`;
+          if (!aggregatedMonthlyExpenses[e.month]) {
+              aggregatedMonthlyExpenses[e.month] = {};
           }
-        });
-        annualTotals[personKey].shared += monthlySharedTotal;
-        annualTotals[personKey].personal += monthlyPersonalTotal;
+          if (!aggregatedMonthlyExpenses[e.month][seriesKey]) {
+              aggregatedMonthlyExpenses[e.month][seriesKey] = { amount: 0, comments: [] };
+          }
+          aggregatedMonthlyExpenses[e.month][seriesKey].amount += e.amount;
+          if (e.comment && e.comment.trim() !== '') {
+              aggregatedMonthlyExpenses[e.month][seriesKey].comments.push(e.comment.trim());
+          }
+      });
+
+      for (const monthKey in aggregatedMonthlyExpenses) {
+          for (const seriesKey in aggregatedMonthlyExpenses[monthKey]) {
+              const aggregated = aggregatedMonthlyExpenses[monthKey][seriesKey];
+              if (seriesKey.endsWith('_false')) { // Shared
+                  annualTotals[personKey].shared += aggregated.amount;
+              } else { // Personal
+                  annualTotals[personKey].personal += aggregated.amount;
+              }
+          }
       }
     });
     return annualTotals;
@@ -2000,7 +1996,9 @@ function toggleAddCommentField() {
       return;
     }
 
-    if (!confirm(confirmMessage)) return;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
 
     const { error: singleDeleteError } = await mySupabaseClient
       .from('expenses')
@@ -2174,83 +2172,138 @@ function toggleAddCommentField() {
 
 function applyRecurring() {
     let changed = false;
+    // 1. Clear existing projected expenses
     ["user01", "user02"].forEach(p => {
-      if (data[p]) {
-        const initialLength = data[p].length;
-        data[p] = data[p].filter(e => !e.isProjected);
-        if (data[p].length !== initialLength) {
-          changed = true;
-        }
-      }
-    });
-    ["user01", "user02"].forEach(p => {
-      if (!data[p]) return;
-      const recurringSeriesInfo = new Map();
-      data[p].filter(e => e.recurring && !e.isProjected).forEach(e => {
-        const key = `${e.note.toLowerCase()}_${e.isPersonal}`;
-        let series = recurringSeriesInfo.get(key);
-        if (!series) {
-          series = {
-            latestActualEntry: { ...e },
-            firstActualMonth: e.month
-          };
-          recurringSeriesInfo.set(key, series);
-        } else {
-          if (getMonthNum(e.month) > getMonthNum(series.latestActualEntry.month)) {
-            series.latestActualEntry = { ...e };
-          }
-          if (getMonthNum(e.month) < getMonthNum(series.firstActualMonth)) {
-            series.firstActualMonth = e.month;
-          }
-        }
-      });
-      recurringSeriesInfo.forEach(series => {
-        const { latestActualEntry, firstActualMonth } = series;
-        const [firstYear, firstMonthAbbr] = firstActualMonth.split('-');
-        const firstMonthIndex = MONTHS.indexOf(firstMonthAbbr);
-        const startYear = parseInt(firstYear);
-        const currentYear = new Date().getFullYear();
-        const endYear = currentYear + 3;
-        for (let year = startYear; year <= endYear; year++) {
-          const startMonth = (year === startYear) ? firstMonthIndex : 0;
-          const endMonth = 11;
-          for (let monthIndex = startMonth; monthIndex <= endMonth; monthIndex++) {
-            const targetMonthKey = `${year}-${MONTHS[monthIndex]}`;
-            const actualExistingEntry = data[p].find(e =>
-              e.month === targetMonthKey &&
-              e.recurring &&
-              e.note.toLowerCase() === latestActualEntry.note.toLowerCase() &&
-              e.isPersonal === latestActualEntry.isPersonal &&
-              !e.isProjected
-            );
-            if (!actualExistingEntry) {
-              const templateEntry = data[p].filter(e =>
-                e.recurring &&
-                e.note.toLowerCase() === latestActualEntry.note.toLowerCase() &&
-                e.isPersonal === latestActualEntry.isPersonal &&
-                getMonthNum(e.month) <= getMonthNum(targetMonthKey) &&
-                !e.isProjected
-              ).sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month)).pop();
-              if (templateEntry) {
-                data[p].push({
-                  id: generateUUID(),
-                  month: targetMonthKey,
-                  amount: templateEntry.amount,
-                  note: templateEntry.note,
-                  logo: templateEntry.logo,
-                  recurring: true,
-                  isPersonal: templateEntry.isPersonal,
-                  isProjected: true,
-                  comment: templateEntry.comment
-                });
+        if (data[p]) {
+            const initialLength = data[p].length;
+            data[p] = data[p].filter(e => !e.isProjected);
+            if (data[p].length !== initialLength) {
                 changed = true;
-              }
             }
-          }
         }
-      });
     });
+
+    ["user01", "user02"].forEach(p => {
+        if (!data[p]) return;
+
+        // Map to store aggregated recurring info for each unique series (note + isPersonal)
+        // Key: `${note.toLowerCase()}_${isPersonal}`
+        // Value: { latestAggregated: { amount: number, comment: string, month: string, note: string, logo: string, isPersonal: boolean }, firstActualMonth: string }
+        const recurringSeriesAggregatedInfo = new Map();
+
+        // Group actual recurring expenses by month and then by series key
+        const actualRecurringExpensesByMonth = {}; // { 'YYYY-MMM': { 'note_isPersonal': [expense1, expense2] } }
+        data[p].filter(e => e.recurring && !e.isProjected).forEach(e => {
+            const seriesKey = `${e.note.toLowerCase()}_${e.isPersonal}`;
+            if (!actualRecurringExpensesByMonth[e.month]) {
+                actualRecurringExpensesByMonth[e.month] = {};
+            }
+            if (!actualRecurringExpensesByMonth[e.month][seriesKey]) {
+                actualRecurringExpensesByMonth[e.month][seriesKey] = [];
+            }
+            actualRecurringExpensesByMonth[e.month][seriesKey].push(e);
+        });
+
+        // Iterate through months to find the latest aggregated state for each series
+        const sortedMonths = Object.keys(actualRecurringExpensesByMonth).sort((a, b) => getMonthNum(a) - getMonthNum(b));
+
+        for (const monthKey of sortedMonths) {
+            const seriesInMonth = actualRecurringExpensesByMonth[monthKey];
+            for (const seriesKey in seriesInMonth) {
+                const expensesForThisSeriesInMonth = seriesInMonth[seriesKey];
+
+                const aggregatedAmount = expensesForThisSeriesInMonth.reduce((sum, exp) => sum + exp.amount, 0);
+                const aggregatedComments = expensesForThisSeriesInMonth
+                                            .map(exp => exp.comment)
+                                            .filter(c => c && c.trim() !== '')
+                                            .join(' | '); // Combine comments
+
+                // Use the first expense in the group to get base details like note, logo, isPersonal
+                const baseExpense = expensesForThisSeriesInMonth[0];
+
+                const currentAggregatedState = {
+                    amount: aggregatedAmount,
+                    note: baseExpense.note, // Keep original casing for projection
+                    logo: baseExpense.logo,
+                    isPersonal: baseExpense.isPersonal,
+                    comment: aggregatedComments ,
+                    month: monthKey // This is the month where this aggregation occurred
+                };
+
+                let seriesInfo = recurringSeriesAggregatedInfo.get(seriesKey);
+                if (!seriesInfo) {
+                    seriesInfo = {
+                        latestAggregated: currentAggregatedState,
+                        firstActualMonth: monthKey
+                    };
+                    recurringSeriesAggregatedInfo.set(seriesKey, seriesInfo);
+                } else {
+                    // Update latestAggregated if this month is newer
+                    if (getMonthNum(monthKey) > getMonthNum(seriesInfo.latestAggregated.month)) {
+                        seriesInfo.latestAggregated = currentAggregatedState;
+                    }
+                    // Ensure firstActualMonth is truly the earliest
+                    if (getMonthNum(monthKey) < getMonthNum(seriesInfo.firstActualMonth)) {
+                        seriesInfo.firstActualMonth = monthKey;
+                    }
+                }
+            }
+        }
+
+        // Now, project based on the latest aggregated state for each series
+        recurringSeriesAggregatedInfo.forEach(series => {
+            const { latestAggregated, firstActualMonth } = series;
+            const [firstYear, firstMonthAbbr] = firstActualMonth.split('-');
+            const firstMonthIndex = MONTHS.indexOf(firstMonthAbbr);
+            const startYear = parseInt(firstYear);
+            const currentYear = new Date().getFullYear();
+            const endYear = currentYear + 3; // Project up to 3 years in advance
+
+            for (let year = startYear; year <= endYear; year++) {
+                const startMonth = (year === startYear) ? firstMonthIndex : 0;
+                const endMonth = 11;
+
+                for (let monthIndex = startMonth; monthIndex <= endMonth; monthIndex++) {
+                    const targetMonthKey = `${year}-${MONTHS[monthIndex]}`;
+
+                    // Check if an actual expense already exists for this series in this targetMonthKey
+                    // We need to check if there are *any* actual expenses for this particular series in this month
+                    const actualExistingEntriesForSeriesInMonth = data[p].filter(e =>
+                        e.month === targetMonthKey &&
+                        e.recurring &&
+                        e.note.toLowerCase() === latestAggregated.note.toLowerCase() &&
+                        e.isPersonal === latestAggregated.isPersonal &&
+                        !e.isProjected
+                    );
+
+                    // If there are actual entries, we don't project for this month.
+                    // The chart will pick up the sum of actuals.
+                    if (actualExistingEntriesForSeriesInMonth.length === 0) {
+                        // Only project if no actual entry exists for this month for this series
+                        data[p].push({
+                            id: generateUUID(), // Generate a new UUID for the projected entry
+                            month: targetMonthKey,
+                            amount: latestAggregated.amount,
+                            note: latestAggregated.note,
+                            logo: latestAggregated.logo,
+                            recurring: true,
+                            isPersonal: latestAggregated.isPersonal,
+                            isProjected: true,
+                            comment: latestAggregated.comment,
+                            // Add person and user_id, household_id for consistency, though projected aren't saved to DB
+                            person: p,
+                            user_id: currentUser.id, // Assuming currentUser is available
+                            household_id: loggedInUserProfile.household_id // Assuming loggedInUserProfile is available
+                        });
+                        changed = true;
+                    }
+                }
+            }
+        });
+    });
+
     if (changed) {
+        // Sort the data after adding projected expenses
         data.user01.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.id.localeCompare(b.id));
         if (data.user02) {
             data.user02.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.id.localeCompare(b.id));
@@ -2262,53 +2315,86 @@ function applyRecurring() {
     const amountsByMonth = new Array(12).fill(0);
     const yearPrefix = year.toString();
     const expenseIsPersonal = currentExpense.isPersonal;
-    let chartSeriesStartMonthIndex = 0;
+
+    // Determine the matcher for the series
     let matcher;
     if (currentExpense.recurring) {
-      matcher = e => e.recurring && e.note.toLowerCase() === currentExpense.note.toLowerCase() && e.isPersonal === expenseIsPersonal;
-      const allActualSeriesExpenses = data[personKey].filter(e =>
-        matcher(e) && !e.isProjected
-      ).sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month));
-      if (allActualSeriesExpenses.length > 0) {
-        const seriesFirstActualMonthKey = allActualSeriesExpenses[0].month;
-        const [firstActualYear, firstActualMonthAbbr] = seriesFirstActualMonthKey.split('-');
-        if (parseInt(firstActualYear) === year) {
-          chartSeriesStartMonthIndex = MONTHS.indexOf(firstActualMonthAbbr);
-        } else if (parseInt(firstActualYear) > year) {
-          chartSeriesStartMonthIndex = 12;
+        matcher = e => e.recurring && e.note.toLowerCase() === currentExpense.note.toLowerCase() && e.isPersonal === expenseIsPersonal;
+    } else {
+        // For non-recurring, it's just the specific expense
+        matcher = e => e.id === currentExpense.id;
+    }
+
+    // Filter all expenses (actual and projected) that belong to this series and year
+    const entriesForChartYearAndSeries = data[personKey].filter(e => {
+        const expenseYear = e.month.substring(0, 4);
+        return expenseYear === yearPrefix && matcher(e);
+    });
+
+    // Aggregate amounts for each month
+    const monthlyAggregates = {}; // { monthIndex: totalAmount }
+    entriesForChartYearAndSeries.forEach(e => {
+        const monthIndex = MONTHS.indexOf(e.month.substring(5, 8));
+        if (monthIndex !== -1) {
+            if (!monthlyAggregates[monthIndex]) {
+                monthlyAggregates[monthIndex] = 0;
+            }
+            monthlyAggregates[monthIndex] += e.amount;
         }
-      } else {
+    });
+
+    // Populate amountsByMonth array
+    for (let i = 0; i < 12; i++) {
+        amountsByMonth[i] = monthlyAggregates[i] || 0;
+    }
+
+    // --- START OF MODIFIED LOGIC FOR chartSeriesStartMonthIndex ---
+    let chartSeriesStartMonthIndex = 0; // Default to January
+
+    if (currentExpense.recurring) {
+        // Find the earliest month (actual or projected) for this recurring series in the entire dataset
+        const allSeriesExpenses = data[personKey].filter(matcher).sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month));
+
+        if (allSeriesExpenses.length > 0) {
+            const seriesFirstMonthKey = allSeriesExpenses[0].month;
+            const [firstSeriesYear, firstSeriesMonthAbbr] = seriesFirstMonthKey.split('-');
+            const firstSeriesYearInt = parseInt(firstSeriesYear);
+
+            if (firstSeriesYearInt === year) {
+                chartSeriesStartMonthIndex = MONTHS.indexOf(firstSeriesMonthAbbr);
+            } else if (firstSeriesYearInt > year) {
+                chartSeriesStartMonthIndex = 12; // Series starts completely after this chart year, so nothing in this year
+            }
+            // If firstSeriesYearInt < year, chartSeriesStartMonthIndex remains 0 (series started before this year, so it's active from Jan)
+        } else {
+            // This case should ideally not happen if a 'currentExpense' exists for a recurring series
+            // but if it does, it means the currentExpense is the *only* entry for this series
+            // and maybe it's a projected one far in the future.
+            const [currentExpenseYear, currentExpenseMonthAbbr] = currentExpense.month.split('-');
+            if (parseInt(currentExpenseYear) === year) {
+                chartSeriesStartMonthIndex = MONTHS.indexOf(currentExpenseMonthAbbr);
+            } else if (parseInt(currentExpenseYear) > year) {
+                chartSeriesStartMonthIndex = 12;
+            }
+        }
+    } else {
+        // For non-recurring, only the month of the expense itself is relevant
         const [currentExpenseYear, currentExpenseMonthAbbr] = currentExpense.month.split('-');
         if (parseInt(currentExpenseYear) === year) {
-          chartSeriesStartMonthIndex = MONTHS.indexOf(currentExpenseMonthAbbr);
-        } else if (parseInt(currentExpenseYear) > year) {
-          chartSeriesStartMonthIndex = 12;
+            chartSeriesStartMonthIndex = MONTHS.indexOf(currentExpenseMonthAbbr);
+        } else {
+            chartSeriesStartMonthIndex = 12; // Non-recurring expense is not in this year
         }
-      }
-    } else {
-      matcher = e => e.id === currentExpense.id;
-      const [currentExpenseYear, currentExpenseMonthAbbr] = currentExpense.month.split('-');
-      if (parseInt(currentExpenseYear) === year) {
-        chartSeriesStartMonthIndex = MONTHS.indexOf(currentExpenseMonthAbbr);
-      } else {
-        chartSeriesStartMonthIndex = 12;
-      }
     }
-    const entriesForChartYearAndSeries = data[personKey].filter(e => {
-      const expenseYear = e.month.substring(0, 4);
-      return expenseYear === yearPrefix && matcher(e);
-    });
-    entriesForChartYearAndSeries.forEach(e => {
-      const monthIndex = MONTHS.indexOf(e.month.substring(5, 8));
-      if (monthIndex !== -1) {
-        amountsByMonth[monthIndex] += e.amount;
-      }
-    });
+    // --- END OF MODIFIED LOGIC ---
+
+    // Zero out amounts before the series start month
     for (let i = 0; i < chartSeriesStartMonthIndex; i++) {
-      amountsByMonth[i] = 0;
+        amountsByMonth[i] = 0;
     }
+
     return amountsByMonth;
-  }
+}
   function drawExpenseHistoryChart(expense, canvasId, uuid) {
     const ctx = document.getElementById(canvasId);
     if (expenseChartInstances[uuid]) {
@@ -2582,12 +2668,8 @@ function applyRecurring() {
 
     await fetchExpensesFromSupabase();
 
-    ["user01", "user02"].forEach(p => {
-      if (data[p]) {
-        data[p] = data[p].filter(e => !e.isProjected);
-      }
-    });
-
+    // The logic to filter out projected expenses before applying recurring is now handled
+    // at the beginning of applyRecurring to ensure a clean slate for projection.
     applyRecurring();
 
     renderYears();
@@ -2697,7 +2779,6 @@ async function initApp() {
 }
 
   document.addEventListener('DOMContentLoaded', initApp);
-// Removed trailing console.error/log as they cause issues if not within a function
 </script>
 
 
