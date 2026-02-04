@@ -30,7 +30,6 @@
   --shadow-strong: rgba(0,0,0,0.25);
   --avatar-border: rgba(255,255,255,0.2);
   --disabled-bg: #555;  
-  --testin:#0a84ff #c13e13;
   --success: #00478f;
   --success-border: #0a84ff;
   --tooltip-bg: #1b1b20cc;
@@ -830,6 +829,35 @@ input[type="checkbox"].expense-select-checkbox:focus {
   animation: blink 1.5s infinite ease-in-out;
 }
 
+.month-tab.current-real-month-not-selected {
+  background: var(--interactive-bg);                    /* explicitly same as normal unselected tabs */
+  box-shadow: inset 0 0 0 1px var(--accent1); /* blue inset border */
+  color: var(--text);
+  transition: box-shadow 0.4s ease, background 0.3s ease;
+}
+
+/* Very slow, subtle pulse — only affects the border glow */
+@keyframes gentle-border-pulse {
+  0%, 100% {
+    box-shadow: inset 0 0 0 1px var(--accent1);
+  }
+  50% {
+    box-shadow: inset 0 0 0 1px rgba(10, 132, 255, 0.35); /* softer blue at mid-point */
+  }
+}
+
+.month-tab.current-real-month-not-selected.pulse {
+  animation: gentle-border-pulse 7s ease-in-out infinite;
+}
+
+/* Ensure higher-priority states override the reminder style cleanly */
+.month-tab.settled.current-real-month-not-selected,
+.month-tab.unsettled-past-month.current-real-month-not-selected,
+.month-tab.active.current-real-month-not-selected {
+  box-shadow: none !important;
+  animation: none !important;
+}
+
 </style>
 
 
@@ -1320,51 +1348,70 @@ function updateAuthUI() {
       yearTabsDiv.appendChild(tab);
     });
   }
- function renderMonths() {
+function renderMonths() {
   const monthTabsElement = document.getElementById('monthTabs');
   if (!monthTabsElement) return;
-
   monthTabsElement.innerHTML = "";
 
-  const currentYear = new Date().getFullYear();
-  const currentMonthIndex = new Date().getMonth();
+  const now = new Date();
+  const currentRealYear  = now.getFullYear();
+  const currentRealMonthIndex = now.getMonth();
+  const currentRealMonthAbbr = MONTHS[currentRealMonthIndex];
 
   MONTHS.forEach((m, index) => {
     const tab = document.createElement("div");
     const monthKey = `${activeYear}-${m}`;
 
     tab.className = "month-tab";
+    
     if (monthKey === activeMonth) {
       tab.classList.add("active");
     }
 
-    const isSettled = data.settlements[monthKey] === true;
+    // ────────────────────────────────────────────────────────────────
+    //   Reminder: real current month, but NOT currently selected
+    // ────────────────────────────────────────────────────────────────
+    const isRealCurrentMonth = 
+      activeYear === currentRealYear &&
+      m === currentRealMonthAbbr;
 
-    const isPastMonth = (activeYear < currentYear) ||
-                        (activeYear === currentYear && index < currentMonthIndex);
+    const isSelected = (monthKey === activeMonth);
+
+    if (isRealCurrentMonth && !isSelected) {
+      tab.classList.add("current-real-month-not-selected");
+      tab.classList.add("pulse");           // slow breathing border
+    }
+    // ────────────────────────────────────────────────────────────────
+
+    const isSettled    = data.settlements[monthKey] === true;
+    const isPastMonth  = (activeYear < currentRealYear) ||
+                         (activeYear === currentRealYear && index < currentRealMonthIndex);
 
     if (isSettled) {
       tab.classList.add("settled");
-    } else if (isPastMonth) {
+      tab.classList.remove("current-real-month-not-selected", "pulse");
+    } 
+    else if (isPastMonth) {
       tab.classList.add("unsettled-past-month");
+      // Optional: decide whether past unsettled should hide the reminder
+      // tab.classList.remove("current-real-month-not-selected", "pulse");
     }
 
     tab.textContent = m;
+
     tab.onclick = () => {
       activeMonth = monthKey;
       updateAll();
     };
+
     monthTabsElement.appendChild(tab);
   });
 
-  const activeMonthTab = monthTabsElement.querySelector('.month-tab.active');
-  if (activeMonthTab) {
+  // Scroll to active tab
+  const activeTab = monthTabsElement.querySelector('.month-tab.active');
+  if (activeTab) {
     requestAnimationFrame(() => {
-      activeMonthTab.scrollIntoView({
-        behavior: 'smooth',
-        inline: 'center',
-        block: 'nearest'
-      });
+      activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center' });
     });
   }
 }
