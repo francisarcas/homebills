@@ -1724,19 +1724,16 @@ function toggleAddCommentField() {
           </span>
         `;
       }
-
-      // MODIFIED HTML STRUCTURE FOR SCROLLING NOTE
-      // The recurringIndicatorHtml is now placed directly in expense-text-content,
-      // as a sibling to expense-note-container and before the amount.
-      const expenseTextContentHtml = `
+            const expenseTextContentHtml = `
         <div class="expense-text-content">
           <div class="expense-note-container">
             <span class="expense-note-marquee">${e.note}</span>
           </div>
-          ${recurringIndicatorHtml} <!-- Moved out of marquee span -->
           <small>£${e.amount.toFixed(2)}</small>
+          ${recurringIndicatorHtml} <!-- Moved after the small tag -->
         </div>
       `;
+
 
       row.innerHTML = `
         <div class="expense-left">
