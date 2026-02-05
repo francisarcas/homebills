@@ -2365,7 +2365,7 @@ function applyRecurring() {
                             isProjected: true,
                             // FIX: For projected expenses, set comment to null.
                             // Carrying forward an aggregated comment string can be misleading for forecasts.
-                            comment: null,
+                            comment: latestAggregated.comment,
                             person: p,
                             user_id: currentUser.id,
                             household_id: loggedInUserProfile.household_id
