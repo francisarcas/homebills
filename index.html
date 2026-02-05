@@ -849,8 +849,15 @@ input[type="checkbox"].expense-select-checkbox:focus {
   50% { opacity: 0.5; }
 }
 
+.month-tab.real-current,
+.year-tab.real-current {
+  background: var(--accent1);
+  color: var(--white);
+  font-weight: 600;
+}
+
 .month-tab.settled {
-  background: var(--success);
+  background: var(--card);
   color: #0a84ff;
   font-weight: 600;
   box-shadow: inset 0 0 0 1px var(--success-border);
@@ -865,8 +872,9 @@ input[type="checkbox"].expense-select-checkbox:focus {
   animation: blink 1.5s infinite ease-in-out;
 }
 
-.month-tab.current-real-month-not-selected {
-  background: var(--interactive-bg-current-month);                    /* explicitly same as normal unselected tabs */
+.month-tab.current-real-month-not-selected,
+.year-tab.current-real-month-not-selected {
+  background: var(--interactive-bg-current-month);  /* explicitly same as normal unselected tabs */
   box-shadow: inset 0 0 0 1px var(--accent1); /* blue inset border */
   color: var(--text);
   transition: box-shadow 0.4s ease, background 0.3s ease;
@@ -882,17 +890,17 @@ input[type="checkbox"].expense-select-checkbox:focus {
   }
 }
 
-.month-tab.current-real-month-not-selected.pulse {
+.month-tab.current-real-month-not-selected.pulse,
+.year-tab.current-real-month-not-selected.pulse {
   animation: gentle-border-pulse 2s ease-in-out infinite;
 }
 
-/* Ensure higher-priority states override the reminder style cleanly */
 .month-tab.settled.current-real-month-not-selected,
-.month-tab.unsettled-past-month.current-real-month-not-selected,
-.month-tab.active.current-real-month-not-selected {
+.month-tab.unsettled-past-month.current-real-month-not-selected {
   box-shadow: none !important;
   animation: none !important;
 }
+
 
 </style>
 
@@ -1369,21 +1377,56 @@ function updateAuthUI() {
     return [...years].sort((a, b) => parseInt(a) - parseInt(b));
   }
   function renderYears() {
-    if (!yearTabsDiv) return;
-    yearTabsDiv.innerHTML = "";
-    getYears().forEach(year => {
-      const tab = document.createElement("div");
-      tab.className = "year-tab" + (year === activeYear.toString() ? " active" : "");
-      tab.textContent = year;
-      tab.onclick = () => {
-        activeYear = parseInt(year);
-        const currentMonthAbbr = activeMonth.substring(5, 8);
-        activeMonth = `${activeYear}-${currentMonthAbbr}`;
-        updateAll();
-      };
-      yearTabsDiv.appendChild(tab);
+  if (!yearTabsDiv) return;
+  yearTabsDiv.innerHTML = "";
+
+  const now = new Date();
+  const currentRealYear = now.getFullYear();
+
+  getYears().forEach(year => {
+    const tab = document.createElement("div");
+    const yearInt = parseInt(year, 10);
+
+    tab.className = "year-tab";
+
+    const isSelectedYear = (yearInt === activeYear);
+    const isRealCurrentYear = (yearInt === currentRealYear);
+
+    // Selected tab (what you're viewing)
+    if (isSelectedYear) tab.classList.add("active");
+
+    // Real current year always blue
+    if (isRealCurrentYear) tab.classList.add("real-current");
+
+    // If you selected a year that's NOT the real current year, show the pulse/border
+    if (isSelectedYear && !isRealCurrentYear) {
+      tab.classList.add("current-real-month-not-selected", "pulse");
+    }
+
+    tab.textContent = year;
+
+    tab.onclick = () => {
+      activeYear = yearInt;
+
+      // keep the currently selected month abbreviation when switching year
+      const currentMonthAbbr = activeMonth.substring(5, 8);
+      activeMonth = `${activeYear}-${currentMonthAbbr}`;
+
+      updateAll();
+    };
+
+    yearTabsDiv.appendChild(tab);
+  });
+
+  // Optional: scroll active year into view
+  const activeYearTab = yearTabsDiv.querySelector('.year-tab.active');
+  if (activeYearTab) {
+    requestAnimationFrame(() => {
+      activeYearTab.scrollIntoView({ behavior: 'smooth', inline: 'center' });
     });
   }
+}
+
 function renderMonths() {
   const monthTabsElement = document.getElementById('monthTabs');
   if (!monthTabsElement) return;
@@ -1398,39 +1441,35 @@ function renderMonths() {
     const tab = document.createElement("div");
     const monthKey = `${activeYear}-${m}`;
 
-    tab.className = "month-tab";
-    
-    if (monthKey === activeMonth) {
+    tab.className = "month-tab"; // set base class FIRST
+
+    const isRealCurrentMonth = (activeYear === currentRealYear && m === currentRealMonthAbbr);
+    if (isRealCurrentMonth) {
+      tab.classList.add("real-current"); // now it won't be overwritten
+    }
+
+    const isSelected = (monthKey === activeMonth);
+    if (isSelected) {
       tab.classList.add("active");
     }
 
-    // ────────────────────────────────────────────────────────────────
-    //   Reminder: real current month, but NOT currently selected
-    // ────────────────────────────────────────────────────────────────
-    const isRealCurrentMonth = 
-      activeYear === currentRealYear &&
-      m === currentRealMonthAbbr;
+    const isViewingNonCurrentMonth =
+      activeYear !== currentRealYear || m !== currentRealMonthAbbr;
 
-    const isSelected = (monthKey === activeMonth);
-
-    if (isRealCurrentMonth && !isSelected) {
-      tab.classList.add("current-real-month-not-selected");
-      tab.classList.add("pulse");           // slow breathing border
+    if (isSelected && isViewingNonCurrentMonth) {
+      tab.classList.add("current-real-month-not-selected", "pulse");
     }
-    // ────────────────────────────────────────────────────────────────
 
-    const isSettled    = data.settlements[monthKey] === true;
-    const isPastMonth  = (activeYear < currentRealYear) ||
-                         (activeYear === currentRealYear && index < currentRealMonthIndex);
+    const isSettled = data.settlements[monthKey] === true;
+    const isPastMonth =
+      (activeYear < currentRealYear) ||
+      (activeYear === currentRealYear && index < currentRealMonthIndex);
 
     if (isSettled) {
       tab.classList.add("settled");
       tab.classList.remove("current-real-month-not-selected", "pulse");
-    } 
-    else if (isPastMonth) {
+    } else if (isPastMonth) {
       tab.classList.add("unsettled-past-month");
-      // Optional: decide whether past unsettled should hide the reminder
-      // tab.classList.remove("current-real-month-not-selected", "pulse");
     }
 
     tab.textContent = m;
@@ -1443,7 +1482,6 @@ function renderMonths() {
     monthTabsElement.appendChild(tab);
   });
 
-  // Scroll to active tab
   const activeTab = monthTabsElement.querySelector('.month-tab.active');
   if (activeTab) {
     requestAnimationFrame(() => {
