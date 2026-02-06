@@ -902,6 +902,74 @@ input[type="checkbox"].expense-select-checkbox:focus {
 }
 
 
+
+
+
+/* --- Settle button animation state --- */
+.action-button {
+  position: relative;
+  overflow: hidden;
+}
+
+/* prevent layout jump when swapping label */
+.action-button .btn-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.action-button.is-animating {
+  background: #2a2a31 !important;      /* stays neutral during "saving" */
+  color: var(--muted) !important;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.action-button.is-animating i {
+  animation: settle-spin 0.8s linear infinite;
+}
+
+@keyframes settle-spin {
+  to { transform: rotate(360deg); }
+}
+
+.action-button.is-success {
+  background: #78B348 !important; /* green */
+  color: white !important;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.action-button.is-success i {
+  animation: settle-check-pop 380ms ease-out both;
+}
+
+@keyframes settle-check-pop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* subtle sweep */
+.action-button.is-success::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.20) 45%,
+    rgba(255,255,255,0) 70%
+  );
+  transform: translateX(-120%);
+  animation: settle-sweep 650ms ease-out both;
+  pointer-events: none;
+}
+
+@keyframes settle-sweep {
+  to { transform: translateX(120%); }
+}
+
 </style>
 
 
@@ -1506,68 +1574,129 @@ function toggleAddCommentField() {
   }
 }
 
+function getSettleButtonEl() {
+  // We only animate the "Mark as Settled" button, not the Unmark one.
+  // We'll mark it with data-settle-btn="mark" when rendering.
+  return document.querySelector('button.action-button[data-settle-btn="mark"]');
+}
+
+function setSettleButtonState(state) {
+  const btn = getSettleButtonEl();
+  if (!btn) return;
+
+  // reset classes
+  btn.classList.remove('is-animating', 'is-success');
+
+  if (state === 'idle') {
+    btn.disabled = false;
+    btn.innerHTML = `<span class="btn-label"><i class="fa-solid fa-check"></i> Mark as Settled</span>`;
+    btn.style.pointerEvents = '';
+  }
+
+  if (state === 'saving') {
+    btn.disabled = true;
+    btn.classList.add('is-animating');
+    btn.innerHTML = `<span class="btn-label"><i class="fa-solid fa-circle-notch"></i> Settling…</span>`;
+  }
+
+  if (state === 'success') {
+    btn.disabled = true;
+    btn.classList.add('is-success');
+    btn.innerHTML = `<span class="btn-label"><i class="fa-solid fa-check"></i> Payment Completed</span>`;
+  }
+}
+
+
+
 
   async function markMonthAsSettled(status) {
-    if (!loggedInUserProfile || !loggedInUserProfile.household_id) {
-        alert("You must be logged in and part of a household to mark months as settled.");
-        return;
-    }
+  if (!loggedInUserProfile || !loggedInUserProfile.household_id) {
+    alert("You must be logged in and part of a household to mark months as settled.");
+    return;
+  }
 
-    const householdId = loggedInUserProfile.household_id;
+  // Only animate when marking as settled (true)
+  const shouldAnimate = (status === true);
 
-    const { data: { session }, error: sessionError } = await mySupabaseClient.auth.getSession();
+  if (shouldAnimate) {
+    setSettleButtonState('saving'); // start immediately (Option A)
+  }
 
-    if (sessionError) {
-        console.error("markMonthAsSettled: Error getting session:", sessionError);
-        alert("Error getting user session. Please try logging in again.");
-        return;
-    }
+  const householdId = loggedInUserProfile.household_id;
 
-    if (!session || !session.access_token) {
-        console.error("markMonthAsSettled: No active session or access token found. User might be logged out or session expired.");
-        alert("Your session has expired or you are not logged in. Please log in again.");
-        await handleLogout();
-        return;
-    }
-    console.log("markMonthAsSettled: Active session found, access_token length:", session.access_token.length);
+  const { data: { session }, error: sessionError } = await mySupabaseClient.auth.getSession();
+  if (sessionError) {
+    console.error("markMonthAsSettled: Error getting session:", sessionError);
+    if (shouldAnimate) setSettleButtonState('idle');
+    alert("Error getting user session. Please try logging in again.");
+    return;
+  }
 
-    try {
-        const { data: functionResponse, error: functionInvokeError } = await mySupabaseClient.functions.invoke('mark-month-settled', {
-            body: {
-                household_id: householdId,
-                month_key: activeMonth,
-                is_settled: status
-            },
-        });
+  if (!session || !session.access_token) {
+    console.error("markMonthAsSettled: No active session.");
+    if (shouldAnimate) setSettleButtonState('idle');
+    alert("Your session has expired or you are not logged in. Please log in again.");
+    await handleLogout();
+    return;
+  }
 
-        if (functionInvokeError) {
-            console.error("Error invoking Edge Function 'mark-month-settled':", functionInvokeError);
-            alert("Error communicating with settlement service: " + functionInvokeError.message + ". Please check console.");
-            return;
+  try {
+    const { data: functionResponse, error: functionInvokeError } =
+      await mySupabaseClient.functions.invoke('mark-month-settled', {
+        body: {
+          household_id: householdId,
+          month_key: activeMonth,
+          is_settled: status
         }
+      });
 
-        if (functionResponse && functionResponse.error) {
-            console.error("Edge Function reported an error:", functionResponse.error);
-            alert("Edge Function reported an error: " + functionResponse.error + ". Please check console.");
-            return;
-        }
-
-        if (functionResponse && functionResponse.success) {
-            console.log("Settlement status updated successfully via Edge Function.");
-            data.settlements[activeMonth] = status;
-            await updateAll();
-        } else {
-             console.error("Edge Function invocation failed with unexpected response:", functionResponse);
-             alert("Failed to update settlement status: Unexpected response from service.");
-        }
-
-    } catch (error) {
-        console.error("Unhandled error during Edge Function invocation:", error);
-        alert("An unexpected error occurred while updating settlement status.");
+    if (functionInvokeError) {
+      console.error("Error invoking Edge Function 'mark-month-settled':", functionInvokeError);
+      if (shouldAnimate) setSettleButtonState('idle');
+      alert("Error communicating with settlement service: " + functionInvokeError.message);
+      return;
     }
 
-    data.settlements[activeMonth] = status;
-    await updateAll();
+    if (functionResponse && functionResponse.error) {
+      console.error("Edge Function reported an error:", functionResponse.error);
+      if (shouldAnimate) setSettleButtonState('idle');
+      alert("Settlement service error: " + functionResponse.error);
+      return;
+    }
+
+    if (!(functionResponse && functionResponse.success)) {
+      console.error("Unexpected Edge Function response:", functionResponse);
+      if (shouldAnimate) setSettleButtonState('idle');
+      alert("Failed to update settlement status: Unexpected response from service.");
+      return;
+    }
+
+    // Success:
+    if (shouldAnimate) {
+      setSettleButtonState('success');
+
+      // keep "Payment Completed" visible for 2s AFTER the animation completes
+      // (animation is ~650ms sweep + 380ms check pop; wait ~1.05s then +2s)
+      const animationTimeMs = 1100;
+      const holdTimeMs = 2000;
+
+      setTimeout(async () => {
+        // update local state then render normal settled UI
+        data.settlements[activeMonth] = status;
+        await updateAll();
+      }, animationTimeMs + holdTimeMs);
+
+    } else {
+      // Unmark: no animation, just update immediately
+      data.settlements[activeMonth] = status;
+      await updateAll();
+    }
+
+  } catch (error) {
+    console.error("Unhandled error during Edge Function invocation:", error);
+    if (shouldAnimate) setSettleButtonState('idle');
+    alert("An unexpected error occurred while updating settlement status.");
+  }
 }
 
   function getMonthlyExpenses(personKey, monthKey) {
@@ -1645,10 +1774,10 @@ function toggleAddCommentField() {
         balanceMessage = "All settled";
       } else if (a > b) {
         balanceMessage = `${user02DisplayName} owes ${user01DisplayName} £${diff.toFixed(2)}`;
-        actionButton = `<button class="action-button" onclick="markMonthAsSettled(true)"><i class="fa-solid fa-check"></i> Mark as Settled</button>`;
+        actionButton = `<button class="action-button" data-settle-btn="mark" onclick="markMonthAsSettled(true)"><span class="btn-label"><i class="fa-solid fa-check"></i> Mark as Settled</span></button>`;
       } else {
         balanceMessage = `${user01DisplayName} owes ${user02DisplayName} £${diff.toFixed(2)}`;
-        actionButton = `<button class="action-button" onclick="markMonthAsSettled(true)"><i class="fa-solid fa-check"></i> Mark as Settled</button>`;
+        actionButton = `<button class="action-button" data-settle-btn="mark" onclick="markMonthAsSettled(true)"><span class="btn-label"><i class="fa-solid fa-check"></i> Mark as Settled</span></button>`;
       }
     }
     balanceTextDiv.innerHTML = `
@@ -2263,6 +2392,8 @@ function toggleAddCommentField() {
     ];
     chart.update();
   }
+
+  
   function updateViewModeText() {
     if (!currentViewTextSpan) return;
     if (viewMode === 'monthly') {
