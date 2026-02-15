@@ -2,3030 +2,494 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Home Bill Tracker</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Locker Door</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-:root {
-  --bg: #0e0e11;
-  --card: #1b1b20;
-  --text: #f5f5f7;
-  --muted: #9a9aa0;
-  --accent1: #0a84ff;
-  --accent2: #ff375f;
-  --danger: #b90900;
-  --danger-border: #ff453a;
-  --user01-color: #0a84ff;
-  --user02-color:   #e85a2a;
-  --interactive-bg: #2a2a31;
-  --interactive-bg-current-month:#032950;
-  --interactive-bg-hover: #3a3a41;
-  --white: #ffffff;
-  --shadow-light: rgba(0,0,0,0.2);
-  --shadow-medium: rgba(0,0,0,0.3);
-  --shadow-strong: rgba(0,0,0,0.25);
-  --avatar-border: rgba(255,255,255,0.2);
-  --disabled-bg: #555;  
-  --success: #032950;
-  --success-border: #0a84ff;
-  --tooltip-bg: #1b1b20cc;
-  --radius: 18px;
-}
-* {
-  box-sizing: border-box;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  display: flex; /* Flexbox for sticky footer */
-  flex-direction: column; /* Flexbox for sticky footer */
-  min-height: 100vh; /* Flexbox for sticky footer */
-}
-.container {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 0 20px; /* Added horizontal padding here */
-  width: 100%; /* Ensure it takes full available width */
-}
-h1 {
-  text-align: center;
-  margin-top: 16px;
-  margin-bottom: 6px;
-}
-.balance {
-  text-align: center;
-  color: var(--muted);
-  margin-bottom: 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-.balance .action-button {
-  background: #2a2a31;
-  color: var(--accent1);
-  padding: 6px 16px;
-  border-radius: 10px;
-  font-weight: 500;
-  font-size: 0.85rem;
-  cursor: pointer;
-  border: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: auto;
-  box-shadow: 0 1px 3px var(--shadow-light);
-}
-.balance .action-button:hover {
-  background: #3a3a41;
-}
-.balance .action-button:active {
-  opacity: 0.85;
-}
-.card {
-  background: var(--card);
-  border-radius: var(--radius);
-  padding: 16px;
-  margin-bottom: 16px;
-}
-.chart-wrapper {
-  max-width: 520px;
-  margin: 0 auto;
-}
-canvas {
-  max-height: 160px;
-}
-.month-tabs, .year-tabs {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  justify-content: center;
-  margin-bottom: 8px;
-}
-.year-tabs {
-  margin-bottom: 0;
-}
-.year-month-separator {
-  border-bottom: 1px solid #2a2a31;
-  margin: 8px 0 16px 0;
-}
-.month-tab, .year-tab {
-  padding: 8px 14px;
-  border-radius: 14px;
-  background: #2a2a31;
-  font-size: 0.85rem;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.month-tab.active, .year-tab.active {
-  background: var(--accent1);
-  font-weight: 600;
-}
-.view-switcher {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 15px;
-  margin-top: 10px;
-  margin-bottom: 10px;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-.view-switcher button {
-  background: none;
-  border: none;
-  color: var(--muted);
-  padding: 5px;
-  cursor: pointer;
-  font-size: 1.2rem;
-  width: auto;
-}
-.view-switcher button:hover {
-  color: var(--text);
-}
-.form {
-  display: grid;
-  grid-template-columns: 0.6fr 1.5fr 0.6fr 0.6fr auto;
-  gap: 8px;
-}
-/* NEW: Flex container for note input and comment toggle button */
-.note-input-and-comment-btn-wrapper {
-  display: flex;
-  gap: 8px; /* Space between note input and comment toggle button */
-  align-items: center;
-}
-
-.note-input-and-comment-btn-wrapper .note-input-wrapper {
-  flex-grow: 1; /* Make note input take available space */
-}
-
-/* NEW: Ensure suggestions dropdown aligns correctly within the new wrapper */
-.note-input-and-comment-btn-wrapper .note-input-wrapper .suggestions-dropdown {
-  left: 0; /* Align with the note input */
-  right: auto; /* Allow it to naturally expand */
-  width: 100%; /* Take full width of its parent (.note-input-wrapper) */
-}
-
-/* NEW: Small icon button styling */
-.small-icon-button {
-  background: #2a2a31; /* Same as input background */
-  color: var(--muted); /* Muted color for the icon */
-  padding: 12px; /* Consistent padding with inputs */
-  border-radius: 14px; /* Consistent border radius */
-  cursor: pointer;
-  width: auto; /* Auto width to fit icon */
-  flex-shrink: 0; /* Don't let it shrink */
-  display: flex; /* Center icon */
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 3px var(--shadow-light); /* Consistent shadow */
-  border: none; /* Ensure no default border */
-}
-
-.small-icon-button:hover {
-  background: #3a3a41;
-}
-
-.small-icon-button:active {
-  opacity: 0.85;
-}
-
-.small-icon-button i {
-  font-size: 1.2em; /* Ensure icon is visible */
-}
-
-/* NEW: Style for the active comment toggle button in the form */
-.small-icon-button.active-comment {
-  background: var(--accent1); /* Blue when active */
-  color: var(--white); /* White icon when active */
-}
-
-/* NEW: Full width input for comments */
-.full-width-form-input {
-  grid-column: 1 / -1; /* Span all columns in the grid */
-  /* Inherits styles from input, select */
-}
-
-
-@media (max-width: 600px) {
-  .form {
-    grid-template-columns: 1fr;
-  }
-  /* NEW: Mobile adjustments for the form */
-  .note-input-and-comment-btn-wrapper {
-    flex-direction: row;
-    width: 100%;
-    order: 2; /* Order for mobile stacking */
-  }
-  .note-input-and-comment-btn-wrapper .note-input-wrapper {
-    width: 100%;
-  }
-  .full-width-form-input { /* This is #commentInput */
-    width: 100%;
-    order: 3; /* Move commentInput up in stacking order on mobile */
-  }
-  #amountInput {
-    order: 1; /* First element on mobile */
-  }
-  #recurringInput {
-    order: 4; /* After commentInput on mobile */
-  }
-  #sharedStatusInput {
-    order: 5; /* After recurringInput on mobile */
-  }
-  .form button:last-of-type { /* The addExpense button */
-    order: 6; /* Last element on mobile */
-  }
-  /* ... other mobile styles ... */
-}
-input, select {
-  background: #2a2a31;
-  border: none;
-  border-radius: 14px;
-  padding: 12px;
-  color: var(--text);
-  width: 100%;
-}
-button {
-  border: none;
-  border-radius: 14px;
-  padding: 12px 18px;
-  background: var(--accent1);
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
-  width: 100%;
-}
-button:active {
-  opacity: 0.85;
-}
-button.disabled, .action-button.disabled {
-  background-color: var(--disabled-bg) !important;
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-button i, .action-button i {
-  font-size: 1.2em;
-}
-
-.expense {
-  display: flex;
-  flex-wrap: wrap; /* Allow items to wrap on smaller screens */
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #2a2a31;
-}
-.expense-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-grow: 1; /* Allow it to grow */
-  min-width: 0; /* Important for flex items with overflow content */
-}
-.logo {
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
-}
-.expense-left .fa-receipt {
-  font-size: 20px;
-  width: 20px;
-  text-align: center;
-}
-.actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-shrink: 0; /* Prevent actions from shrinking */
-}
-.action {
-  font-size: 0.8rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.action.delete {
-  color: var(--danger);
-}
-/* NEW: Comment indicator style */
-.comment-indicator {
-  color: var(--muted); /* Same color as personal-indicator */
-  margin-left: 5px; /* Adjust spacing as needed */
-  font-size: 0.85rem; /* Consistent with personal-indicator */
-}
-
-.expand-chart-toggle i {
-  transition: transform 0.2s ease-in-out;
-}
-.expand-chart-toggle.expanded i {
-  transform: rotate(180deg);
-}
-.expense-chart-container {
-  width: 100%;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed #2a2a31;
-  max-width: 100%;
-}
-.expense-chart-container canvas {
-  max-height: 120px;
-  width: 100% !important;
-  height: auto !important;
-}
-/* NEW: Comment section within an expense item */
-.expense-comment-container {
-  width: 100%;
-  padding-top: 10px;
-  padding-bottom: 5px;
-  color: var(--muted);
-  font-size: 0.9rem;
-  line-height: 1.4;
-  word-wrap: break-word; /* Ensure long comments wrap */
-}
-.expense-comment-divider {
-  border: none;
-  border-top: 1px dashed #2a2a31;
-  margin: 10px 0;
-}
-
-.recurring-indicator {
-  color: var(--accent1);
-  margin-left: 5px;
-  font-size: 0.75rem;
-}
-.personal-indicator {
-  color: var(--muted);
-  margin-left: 5px;
-  font-size: 0.85rem;
-}
-.profiles {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 24px;
-  margin-top: 12px;
-  margin-bottom: 16px;
-}
-.profile {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    border: 3px solid transparent;
-    cursor: pointer;
-    transition: border-color 0.25s ease;
-}
-
-.profile.active {
-    border-color: var(--user01-color);
-}
-
-#user02Btn.active {
-    border-color: var(--user02-color);
-}
-.export {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-}
-.export button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-.note-input-wrapper {
-  position: relative;
-}
-.suggestions-dropdown {
-  position: absolute;
-  top: calc(100% + 5px);
-  left: 0;
-  right: 0;
-  background: var(--card);
-  border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-  max-height: 120px;
-  overflow-y: auto;
-  z-index: 100;
-  width: 100%; /* Ensured it takes full width of its parent */
-  display: none;
-}
-.suggestions-dropdown div {
-  padding: 8px 12px;
-  cursor: pointer;
-}
-.suggestions-dropdown div:hover {
-  background: #2a2a31;
-}
-.expense-header-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-  font-weight: 600;
-}
-.expense-header-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.expense-header-info .desktop-display {
-  display: flex;
-  align-items: center;
-}
-.expense-header-info .mobile-display {
-  display: none;
-  flex-direction: column;
-  align-items: flex-start;
-  line-height: 1.2;
-}
-.expense-header-info .mobile-display .person-name-line {
-  margin-bottom: 2px;
-}
-
-.expense-header-actions {
-  display: flex;
-  gap: 8px;
-}
-.expense-header-actions .action-button.delete-selected {
-  background-color: var(--danger);
-  color: white;
-}
-.expense-header-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-.expense-separator {
-  border-bottom: 1px solid #2a2a31;
-  margin-bottom: 10px;
-}
-input[type="checkbox"].expense-select-checkbox {
-  appearance: none;
-  background-color: #2a2a31;
-  margin: 0;
-  font: inherit;
-  color: var(--text);
-  width: 0.7em;
-  height: 0.7em;
-  border: 0.08em solid currentColor;
-  border-radius: 0.08em;
-  transform: translateY(-0.075em);
-  display: grid;
-  place-content: center;
-  cursor: pointer;
-  vertical-align: middle;
-  margin-right: 6px;
-}
-input[type="checkbox"].expense-select-checkbox::before {
-  content: "";
-  width: 0.4em;
-  height: 0.4em;
-  transform: scale(0);
-  transition: transform 120ms ease-in-out;
-  box-shadow: inset 1em 1em var(--accent1);
-  background-color: CanvasText;
-  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
-}
-input[type="checkbox"].expense-select-checkbox:checked::before {
-  transform: scale(1);
-}
-input[type="checkbox"].expense-select-checkbox:focus {
-  outline: max(2px, 0.15em) solid currentColor;
-  outline-offset: max(2px, 0.15em);
-}
-.footer {
-  margin-top: 20px;
-  padding-bottom: 20px;
-  text-align: center;
-  font-size: 0.9em;
-  color: var(--muted);
-  line-height: 1;
-}
-.footer-link {
-  color: var(--muted);
-  text-decoration: none;
-  display: inline-block;
-  vertical-align: middle;
-}
-.footer-link:hover {
-  color: var(--text);
-}
-.footer-link .footer-icon {
-  font-size: 1.5em;
-  padding: 0 5px;
-  color: inherit;
-}
-.footer span {
-  vertical-align: middle;
-}
-.action.delete.disabled,
-.action.delete.disabled:hover {
-  color: var(--muted);
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-.action.delete.disabled:active {
-  opacity: 0.6;
-}
-
-.form button .add-button-text {
-  display: none;
-}
-
-/* Auth Inputs Layout */
-.auth-inputs {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-.auth-inputs input {
-  flex-grow: 1;
-  width: auto; /* Important: Allows flex-grow to work */
-  margin-bottom: 0; /* Clear any residual margin from previous inline styles */
-}
-
-/* Auth Container Centering */
-#authContainer {
-  text-align: center;
-  max-width: 540px;
-  margin: auto; /* Centers it horizontally and vertically within the flex body */
-  z-index: 1000;
-  width: 90%;
-  box-sizing: border-box;
-}
-
-.auth-buttons {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  margin-bottom: 16px;
-}
-
-.auth-buttons button {
-  flex-grow: 1;
-}
-
-/* New Top Bar Container to hold the User Menu */
-.top-bar-container {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start; /* Default to left for desktop */
-  margin-top: 0;   /* Reset top margin */
-  padding-top: 20px; /* Add top padding to match original vertical position */
-  padding-right: 20px; /* Add right padding */
-  margin-bottom: 16px;
-}
-
-/* User Menu Styles */
-#user-menu {
-  z-index: 500;
-  height: 48px;
-  border-radius: 25px;
-  overflow: hidden;
-  background: var(--card);
-  box-shadow: 0 4px 15px var(--shadow-strong);
-  transition: width 0.4s ease;
-  width: fit-content; /* Let it adapt to menu-content width */
-  position: relative; /* Crucial for absolute positioning of toggle */
-}
-
-#userMenuToggle {
-  display: block;
-  cursor: pointer;
-  opacity: 0;
-  z-index: 999;
-  margin: 0;
-  width: 180px; /* Fixed width for clickable area (desktop and mobile) */
-  height: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-
-.menu-content {
-  display: flex;
-  align-items: center;
-  height: 48px;
-  width: 180px;          /* enough space for avatar + greeting + username */
-  min-width: 180px;
-  transition: width 0.4s ease;
-  background: var(--card);
-  color: var(--text);
-}
-
-/* Expanded state */
-#userMenuToggle:checked ~ .menu-content {
-  width: 220px;          /* extra ~70px for logout area */
-}
-
-.avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
-  margin: 0 12px 0 8px;
-  border: 2px solid var(--avatar-border);
-  flex-shrink: 0;
-}
-
-.user-info {
-  flex: 1;
-  min-width: 0;
-  padding-right: 5px;
-  padding-left: 5px;
-}
-
-.greeting {
-  font-size: 0.84rem;
-  font-weight: 400;
-  color: var(--muted);
-  line-height: 1.1;
-}
-
-.username {
-  font-size: 1.02rem;
-  font-weight: 600;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.logout-area {
-  width: 0;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--danger);
-  color: var(--text);
-  overflow: hidden;
-  transition: width 0.4s ease;
-  flex-shrink: 0;
-}
-
-#userMenuToggle:checked ~ .menu-content .logout-area {
-  width: 40px;           /* becomes visible only when expanded */
-}
-
-.logout-area:hover {
-  background: var(--danger);
-  opacity: 0.85; /* Add a slight opacity change on hover */
-}
-
-.logout-btn {
-  width: 100%;
-  height: 100%;
-  background: transparent;
-  border: none;
-  color: inherit;
-  font-size: 1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0; /* Remove default button padding */
-}
-
-/* Optional: tiny avatar zoom on open */
-#userMenuToggle:checked ~ .menu-content .avatar {
-  transform: scale(1.06);
-  transition: transform 0.5s ease;
-}
-
-@media (max-width: 600px) {
-  .expense-header-info .desktop-display {
-    display: none;
-  }
-  .expense-header-info .mobile-display {
-    display: flex;
-  }
-  .expense-header-info .mobile-display .month-year-line {
-    font-size: 0.85em;
-  }
-  .form button .add-button-text {
-    display: inline;
-    margin-left: 5px;
-  }
-  .auth-buttons button {
-    flex-grow: 1;
-  }
-  .auth-inputs {
-    flex-direction: column; /* Stack inputs vertically on mobile */
-    gap: 8px; /* Adjust gap for stacked inputs */
-  }
-  .top-bar-container {
-    justify-content: center;
-    margin-top: 0;
-    padding-top: 10px;
-    padding-left: 10px;
-    padding-right: 10px;
-  }
-
-  #user-menu {
-    margin: 10px auto;
-    height: 40px;
-    border-radius: 20px;
-    overflow: hidden;           /* Important: clips the logout when closed */
-  }
-
-  .menu-content {
-    height: 40px;
-    width: fit-content;         /* ← Key change: shrink to content */
-    min-width: 160px;           /* smallest comfortable size with name visible */
-    max-width: 170px;           /* closed state */
-    padding: 0 12px 0 0;        /* right padding only when expanded */
-    transition: max-width 0.4s ease, padding 0.4s ease;
-    overflow: hidden;
-  }
-
-  #userMenuToggle:checked ~ .menu-content {
-    max-width: 190px;           /* enough for avatar + name + logout button */
-    padding-right: 0;
-  }
-
-  .avatar {
-    width: 30px;
-    height: 30px;
-    margin: 0 8px 0 6px;
-  }
-
-  .greeting {
-    font-size: 0.75rem;
-  }
-
-  .username {
-    font-size: 0.9rem;
-    max-width: 90px;            /* prevent text overflow when closed */
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .logout-area {
-    width: 0;                   /* hidden when closed */
-    opacity: 0;
-    transition: width 0.4s ease, opacity 0.3s ease 0.1s;
-    pointer-events: none;
-  }
-
-  #userMenuToggle:checked ~ .menu-content .logout-area {
-    width: 36px;
-    opacity: 1;
-    pointer-events: all;
-  }
-
-  .logout-btn {
-    font-size: 1.1rem;
-  }
-
-  /* Optional: slight hover/tap feedback on mobile too */
-  #user-menu:active .menu-content {
-    max-width: 190px;
-  }
-
-  #user-menu:active .logout-area {
-    width: 36px;
-    opacity: 1;
-    pointer-events: all;
-  }
-
-  h1 {
-    margin-top: 16px;
-  }
-  #userMenuToggle {
-    width: 150px; /* Adjust this value to match your desired closed menu width */
-  }
-
-  /* NEW: Mobile specific styles for expense list item content */
-  .expense-text-content {
-    flex-grow: 1;
-    min-width: 0; /* Important for flex items with nowrap content */
-  }
-  .expense-note-container {
-    max-width: 12ch; /* Constrain the visible width of the note to ~14 characters */
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: clip; /* Hide ellipsis when scrolling */
-    /* Use CSS variables for dynamic animation properties */
-    --marquee-offset: 0px;
-    --marquee-duration: 3s;
-  }
-
-  /* Keyframes for the bounce effect */
-  @keyframes marquee-bounce {
-    0% { transform: translateX(0); }
-    33% { transform: translateX(var(--marquee-offset)); } /* Move left */
-    66% { transform: translateX(0); }
-    100% { transform: translateX(0); }
-  }
-
-  .expense-note-marquee {
-    display: inline-block; /* Essential for transform */
-    white-space: nowrap; /* Prevent wrapping */
-  }
-
-  .expense-note-marquee.scroll-active {
-    animation: marquee-bounce var(--marquee-duration) ease-in-out infinite alternate;
-  }
-} /* End @media (max-width: 600px) */
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.month-tab.real-current,
-.year-tab.real-current {
-  background: var(--accent1);
-  color: var(--white);
-  font-weight: 600;
-}
-
-.month-tab.settled {
-  background: var(--card);
-  color: #0a84ff;
-  font-weight: 600;
-  box-shadow: inset 0 0 0 1px var(--success-border);
-}
-
-
-.month-tab.unsettled-past-month {
-  background: var(--danger);
-  color: white;
-  font-weight: 600;
-  box-shadow: inset 0 0 0 1px var(--danger-border);
-  animation: blink 1.5s infinite ease-in-out;
-}
-
-.month-tab.current-real-month-not-selected,
-.year-tab.current-real-month-not-selected {
-  background: var(--interactive-bg-current-month);  /* explicitly same as normal unselected tabs */
-  box-shadow: inset 0 0 0 1px var(--accent1); /* blue inset border */
-  color: var(--text);
-  transition: box-shadow 0.4s ease, background 0.3s ease;
-}
-
-/* Very slow, subtle pulse — only affects the border glow */
-@keyframes gentle-border-pulse {
-  0%, 100% {
-    box-shadow: inset 0 0 0 1px var(--accent1);
-  }
-  50% {
-    box-shadow: inset 0 0 0 1px rgba(10, 132, 255, 0.35); /* softer blue at mid-point */
-  }
-}
-
-.month-tab.current-real-month-not-selected.pulse,
-.year-tab.current-real-month-not-selected.pulse {
-  animation: gentle-border-pulse 2s ease-in-out infinite;
-}
-
-.month-tab.settled.current-real-month-not-selected,
-.month-tab.unsettled-past-month.current-real-month-not-selected {
-  box-shadow: none !important;
-  animation: none !important;
-}
-
-
-
-
-
-/* --- Settle button animation state --- */
-.action-button {
-  position: relative;
-  overflow: hidden;
-}
-
-/* prevent layout jump when swapping label */
-.action-button .btn-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.action-button.is-animating {
-  background: #2a2a31 !important;      /* stays neutral during "saving" */
-  color: var(--muted) !important;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.action-button.is-animating i {
-  animation: settle-spin 0.8s linear infinite;
-}
-
-@keyframes settle-spin {
-  to { transform: rotate(360deg); }
-}
-
-.action-button.is-success {
-  background: #78B348 !important; /* green */
-  color: white !important;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.action-button.is-success i {
-  animation: settle-check-pop 380ms ease-out both;
-}
-
-@keyframes settle-check-pop {
-  0%   { transform: scale(0.6); opacity: 0; }
-  60%  { transform: scale(1.15); opacity: 1; }
-  100% { transform: scale(1); }
-}
-
-/* subtle sweep */
-.action-button.is-success::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    110deg,
-    rgba(255,255,255,0) 0%,
-    rgba(255,255,255,0.20) 45%,
-    rgba(255,255,255,0) 70%
-  );
-  transform: translateX(-120%);
-  animation: settle-sweep 650ms ease-out both;
-  pointer-events: none;
-}
-
-@keyframes settle-sweep {
-  to { transform: translateX(120%); }
-}
-
+    * {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    html {
+        overflow: hidden;
+        height: 100%;
+        width: 100%;
+        position: fixed;
+    }
+
+    body {
+        margin: 0;
+        height: 100vh;
+        width: 100vw;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: #111;
+        font-family: Arial, sans-serif;
+        overflow: hidden;
+        position: fixed;
+        overscroll-behavior: none;
+    }
+
+    .logo {
+        position: absolute;
+        top: 40px;
+        left: 50%;
+        transform: translateX(-50%) scale(0.2);
+        z-index: 10;
+    }
+
+    .logo img {
+        height: 120px;
+        width: auto;
+    }
+
+    .lockers-container {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        position: relative;
+    }
+
+    .locker {
+        width: 280px;
+        height: 600px;
+        background: linear-gradient(
+            to bottom,
+            #d7a27a 0%,
+            #e2b18b 30%,
+            #d19a73 60%,
+            #c48763 100%
+        );
+        border-radius: 6px;
+        box-shadow: inset 0 0 30px rgba(0,0,0,0.15),
+                    0 10px 25px rgba(0,0,0,0.4);
+        position: relative;
+        overflow: hidden;
+        transition: opacity 0.3s;
+        flex-shrink: 0;
+    }
+
+    .locker.side {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+
+    .locker.hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    /* subtle vertical brushed texture */
+    .locker::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+            to right,
+            rgba(255,255,255,0.05) 0px,
+            rgba(255,255,255,0.05) 1px,
+            transparent 1px,
+            transparent 3px
+        );
+        opacity: 0.3;
+        pointer-events: none;
+    }
+
+    .number {
+        position: absolute;
+        bottom: 200px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 42px;
+        font-weight: bold;
+        color: #2b1a12;
+        text-shadow: 0 2px 3px rgba(0,0,0,0.2);
+        letter-spacing: 3px;
+        cursor: pointer;
+        user-select: none;
+        transition: transform 0.1s;
+        touch-action: manipulation;
+    }
+
+    .locker:not(.side) .number:hover {
+        transform: translateX(-50%) scale(1.05);
+    }
+
+    .locker:not(.side) .number:active {
+        transform: translateX(-50%) scale(0.95);
+    }
+
+    .locker.side .number {
+        cursor: default;
+    }
+
+    .keypad-container {
+        position: absolute;
+        bottom: 70px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .keypad {
+        width: 60px;
+        height: 95px;
+        background: #1b1b1b;
+        border-radius: 4px;
+        padding: 6px;
+        box-shadow: inset 0 0 6px rgba(255,255,255,0.1);
+        position: relative;
+    }
+
+    .status-light {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        width: 5px;
+        height: 5px;
+        background: #0f0;
+        border-radius: 50%;
+        box-shadow: 0 0 6px rgba(0, 255, 0, 0.9);
+        z-index: 1;
+        transition: opacity 0.1s, box-shadow 0.1s;
+    }
+
+    .locker.side .status-light {
+        background: #f00;
+        box-shadow: 0 0 6px rgba(255, 0, 0, 0.9);
+    }
+
+    .status-light.off {
+        opacity: 0;
+        box-shadow: none;
+    }
+
+    .keys-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(4, 1fr);
+        gap: 4px;
+        height: 80px;
+        margin-top: 9px;
+    }
+
+    .key {
+        background: #333;
+        border-radius: 2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #606060;
+        font-size: 10px;
+        font-weight: bold;
+    }
+
+    .key i {
+        font-size: 8px;
+        color: #606060;
+    }
+
+    .edit-prompt {
+        position: absolute;
+        bottom: 250px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.5);
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .locker:not(.side):hover .edit-prompt {
+        opacity: 1;
+    }
+
+    /* Mobile responsive styles */
+    @media (max-width: 768px) {
+        body {
+            justify-content: flex-start;
+            padding-top: 20px;
+        }
+
+        .logo {
+            position: relative;
+            top: 0;
+            left: 0;
+            transform: scale(0.20);
+            margin-bottom: 30px;
+        }
+
+        .lockers-container {
+            margin-top: 0;
+            gap: 8px;
+        }
+
+        .locker {
+            width: 240px;
+            height: 500px;
+        }
+
+        .number {
+            bottom: 170px;
+            font-size: 36px;
+        }
+
+        .keypad-container {
+            bottom: 60px;
+        }
+
+        .keypad {
+            width: 55px;
+            height: 85px;
+        }
+
+        .keys-grid {
+            height: 70px;
+        }
+
+        .edit-prompt {
+            bottom: 210px;
+            font-size: 11px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .lockers-container {
+            gap: 5px;
+        }
+
+        .locker {
+            width: 200px;
+            height: 420px;
+        }
+
+        .number {
+            bottom: 150px;
+            font-size: 30px;
+        }
+
+        .keypad-container {
+            bottom: 50px;
+        }
+
+        .keypad {
+            width: 50px;
+            height: 75px;
+        }
+
+        .keys-grid {
+            height: 60px;
+        }
+
+        .edit-prompt {
+            bottom: 175px;
+            font-size: 10px;
+        }
+    }
 </style>
-
-
-
-
 </head>
 <body>
-<div id="appContentWrapper" class="container" style="display: none;">
-  <div class="top-bar-container">
-    <div id="user-menu">
-      <input type="checkbox" id="userMenuToggle" />
-      <div class="menu-content">
-        <img id="userMenuAvatar" class="avatar" src="" alt="User Avatar">
-        <div class="user-info">
-          <div id="userMenuGreeting" class="greeting"></div>
-          <div id="userMenuUsername" class="username"></div>
-        </div>
-        <div class="logout-area">
-          <button class="logout-btn" onclick="handleLogout()">
-            <i class="fa-solid fa-right-from-bracket"></i>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <!-- End New Top Bar Container -->
 
-  <h1>Bills Overview</h1>
-  <div class="balance" id="balanceText"></div>
-
-  <div class="profiles">
-    <img src="assets/person001.png" id="user01Btn" class="profile active" onclick="selectPerson('user01')">
-    <img src="assets/person002.png" id="user02Btn" class="profile" onclick="selectPerson('user02')">
-  </div>
-
-  <div class="view-switcher">
-    <button id="prevViewBtn" onclick="toggleViewMode()"><i class="fa-solid fa-chevron-left"></i></button>
-    <span id="currentViewText">Monthly View</span>
-    <button id="nextViewBtn" onclick="toggleViewMode()"><i class="fa-solid fa-chevron-right"></i></button>
-  </div>
-  <div class="card">
-    <div class="chart-wrapper">
-      <canvas id="billChart"></canvas>
-    </div>
-  </div>
-  <div class="card">
-    <div class="year-tabs" id="yearTabs"></div>
-    <div class="year-month-separator"></div>
-    <div class="month-tabs" id="monthTabs"></div>
-  </div>
-  <div class="card">
-  <div class="form">
-    <input id="amountInput" type="number" step="0.01" placeholder="£ amount">
-    <div class="note-input-and-comment-btn-wrapper">
-      <div class="note-input-wrapper">
-        <input id="noteInput" type="text" placeholder="Description or brand">
-        <div id="suggestions" class="suggestions-dropdown"></div>
-      </div>
-      <button id="toggleCommentBtn" type="button" class="small-icon-button" title="Add/Remove Comment Field">
-        <i class="fa-solid fa-comment-slash"></i> <!-- Initial icon: comment-slash -->
-      </button>
-    </div>
-    <select id="recurringInput">
-      <option value="no">One-off</option>
-      <option value="yes">Recurring</option>
-    </select>
-    <select id="sharedStatusInput">
-      <option value="shared">Shared</option>
-      <option value="personal">Personal</option>
-    </select>
-    <button onclick="addExpense()"><i class="fa-solid fa-circle-plus"></i> <span class="add-button-text">Add</span></button>
-    <!-- This is the correct HTML position for commentInput for this approach -->
-    <input id="commentInput" type="text" placeholder="Add a comment (optional)" class="full-width-form-input" style="display: none;">
-  </div>
+<div class="logo">
+    <img src="https://www.thirdspace.london/wp-content/uploads/2024/07/art_1.svg" alt="Third Space">
 </div>
 
-
-
-  <div class="card">
-    <div id="expenseHeader"></div>
-    <div id="expenseList"></div>
-  </div>
-</div>
-
-<div class="card container" id="authContainer" style="display: none; text-align: center;">
-    <h2>Login / Sign Up</h2>
-    <div class="auth-inputs">
-      <input type="email" id="authEmail" placeholder="Email">
-      <input type="password" id="authPassword" placeholder="Password">
-    </div>
-    <div class="auth-buttons">
-      <!--<button onclick="handleAuth('signup')">Sign Up</button>-->
-      <button onclick="handleAuth('login')">Login</button>
-    </div>
-    <p id="authMessage" style="color: var(--danger); margin-top: 10px;"></p>
-</div>
-
-
-<div class="footer">
-<a href="https://www.linkedin.com/in/francisarcas/" target="_blank" class="footer-link" title="Francis Arcas LinkedIn">
-<i class="fa-brands fa-linkedin footer-icon"></i>
-</a>
-<span style="margin: 0 10px;">|</span>
-<a href="https://github.com/francisarcas/homebills" target="_blank" class="footer-link" title="Home Bills GitHub Repository">
-<i class="fa-brands fa-github footer-icon"></i>
-</a>
-</div>
+<div class="lockers-container" id="lockersContainer"></div>
 
 <script>
-  let toggleCommentBtn;
-  let commentInput;
-  let isCommentInputVisible = false;
-  let mySupabaseClient;
-  let currentUser = null;
-  let loggedInUserProfile = null;
-  let householdProfilesMap = new Map();
-  let authContainer, authEmail, authPassword, authMessage;
-  let appContentWrapper;
-
-  // NEW User Menu elements
-  let userMenu, userMenuToggle, userMenuAvatar, userMenuGreeting, userMenuUsername;
-
-  // Keep track of which chart/comment section is currently open for single-open behavior
-  let activeExpandedUUID = null;
-
-  const SUPABASE_URL = "https://qkbzkswjzzhrvqtssfxt.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFrYnprc3dqenpocnZxdHNzZnh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MTIzNzAsImV4cCI6MjA4NTI4ODM3MH0.BiDcAO2TDdIMIi888Uq7NQE7Bj-ZnjwI7sDMu6Erk6g";
-
-  try {
-    mySupabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  } catch (e) {
-    console.error("Failed to initialize Supabase client. Is the Supabase CDN script loaded correctly and defining 'supabase' (lowercase)?", e);
-    alert("Error: Supabase library failed to load. Please check your internet connection, browser console for network errors, or try disabling ad-blockers.");
-  }
-
-  const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-  const SUGGESTION_BRANDS = [
-    "apple", "amex", "affinity water", "amazon", "b&q", "barclays", "british airways", "costco", "council tax", "eurostar", "google",
-    "hsbc", "hyperoptic", "iberia", "insite energy", "itsu", "john lewis", "klarna", "lidl", "lottery", "lner", "m&s", "morrisons", "leads building society", "netflix",
-    "octopus energy", "play station", "prime", "renfe", "revolut", "rent", "ryanair", "sainsbury's", "sky", "strava", "tfl", "tk.max", "third space"
-  ].sort();
-  const BRAND_LOGO_RULES = [
-    { keywords: ["affinity water"], logo: "assets/logos/affinitywater.png" },
-    { keywords: ["apple"], logo: "assets/logos/apple.png" },
-    { keywords: ["amex"], logo: "assets/logos/amex.png" },
-    { keywords: ["amazon"], logo: "assets/logos/amazon.png" },
-    { keywords: ["b&q"], logo: "assets/logos/bandq.png" },
-    { keywords: ["barclays"], logo: "assets/logos/barclays.png" },
-    { keywords: ["british airways"], logo: "assets/logos/britishairways.png" },
-    { keywords: ["costco"], logo: "assets/logos/costco.png" },
-    { keywords: ["google"], logo: "assets/logos/google.png" },
-    { keywords: ["hyperoptic"], logo: "assets/logos/hyperoptic.png" },
-    { keywords: ["hsbc"], logo: "assets/logos/hsbc.png" },
-    { keywords: ["iberia"], logo: "assets/logos/iberia.png" },
-    { keywords: ["insite energy"], logo: "assets/logos/insiteenergy.png" },
-    { keywords: ["itsu"], logo: "assets/logos/itsu.png" },
-    { keywords: ["john lewis"], logo: "assets/logos/johnlewis.png" },
-    { keywords: ["klarna"], logo: "assets/logos/klarna.png" },
-    { keywords: ["lottery"], logo: "assets/logos/lottery.png" },
-    { keywords: ["lidl"], logo: "assets/logos/lidl.png" },
-    { keywords: ["lner"], logo: "assets/logos/lner.png" },
-    { keywords: ["m&s"], logo: "assets/logos/mands.png" },
-    { keywords: ["morrisons"], logo: "assets/logos/morrisons.png" },
-    { keywords: ["leads building society"], logo: "assets/logos/leadsbuildingsociety.png" },
-    { keywords: ["netflix"], logo: "assets/logos/netflix.png" },
-    { keywords: ["octopus energy"], logo: "assets/logos/octopusenergy.png" },
-    { keywords: ["play station"], logo: "assets/logos/playstation.png" },
-    { keywords: ["prime"], logo: "assets/logos/prime.png" },
-    { keywords: ["renfe"], logo: "assets/logos/renfe.png" },
-    { keywords: ["revolut"], logo: "assets/logos/revolut.png" },
-    { keywords: ["rent"], logo: "assets/logos/rent.png" },
-    { keywords: ["ryanair"], logo: "assets/logos/ryanair.png" },
-    { keywords: ["sainsbury's"], logo: "assets/logos/sainsburys.png" },
-    { keywords: ["sky"], logo: "assets/logos/sky.png" },
-    { keywords: ["strava"], logo: "assets/logos/strava.png" },
-    { keywords: ["tfl"], logo: "assets/logos/tfl.png" },
-    { keywords: ["tk.max"], logo: "assets/logos/tkmax.png" },
-    { keywords: ["eurostar"], logo: "assets/logos/eurostar.png" },
-    { keywords: ["council tax", "council-tax", "brent council", "brent"], logo: "assets/logos/brent.png" },
-    { keywords: ["booking.com"], logo: "assets/logos/booking.png" },
-    { keywords: ["third space"], logo: "assets/logos/thirdspace.png" }
-  ];
-
-  const today = new Date();
-  let activeYear = today.getFullYear();
-  let activeMonth = `${activeYear}-${MONTHS[today.getMonth()]}`;
-  let activePerson = "user01";
-  let viewMode = 'monthly';
-  const data = {
-    user01: [],
-    user02: [],
-    settlements: {}
-  };
-
-  let editMode = false;
-  let selectedExpenses = [];
-  const expenseChartInstances = {};
-
-  let noteInput, suggestionsDiv, yearTabsDiv, expenseHeaderDiv, balanceTextDiv,
-    currentViewTextSpan, sharedStatusInput, amountInput, recurringInput, expenseListDiv,
-    user01Btn, user02Btn;
-
-function getGreeting(userName) {
-    const hour = new Date().getHours();
-    let greetingPhrase;
-
-    if (hour >= 6 && hour < 12) {
-        greetingPhrase = "Good morning";
-    } else if (hour >= 12 && hour < 18) {
-        greetingPhrase = "Good afternoon";
-    } else if (hour >= 18 && hour < 24) {
-        greetingPhrase = "Good evening";
-    } else {
-        greetingPhrase = "Good night";
-    }
-    return `${greetingPhrase},`;
-}
-
-async function handleAuth(type) {
-    authMessage.textContent = '';
-    const email = authEmail.value;
-    const password = authPassword.value;
-
-    if (!email || !password) {
-        authMessage.textContent = 'Please enter both email and password.';
-        return;
-    }
-
-    let response;
-    if (type === 'signup') {
-        authMessage.textContent = 'Signing up... Please wait.';
-        response = await mySupabaseClient.auth.signUp({ email, password });
-    } else {
-        authMessage.textContent = 'Logging in...';
-        response = await mySupabaseClient.auth.signInWithPassword({ email, password });
-    }
-
-    if (response.error) {
-        authMessage.textContent = response.error.message;
-        console.error("Auth error:", response.error);
-    } else {
-        if (type === 'signup' && !response.data.user?.identities?.length) {
-            authMessage.textContent = 'Sign up successful! Please check your email for confirmation to log in.';
-        } else {
-            authMessage.textContent = 'Login successful!';
-            authEmail.value = '';
-            authPassword.value = '';
-            currentUser = response.data.user;
-
-            const { data: profileData, error: profileError } = await mySupabaseClient
-                .from('profiles')
-                .select('*')
-                .eq('user_id', currentUser.id)
-                .single();
-
-            if (profileError) {
-                console.error("Error fetching user profile after auth:", profileError);
-                await mySupabaseClient.auth.signOut();
-                currentUser = null;
-                loggedInUserProfile = null;
-                authMessage.textContent = 'Login failed: Could not retrieve user profile. Please ensure you have a profile entry.';
-                updateAuthUI();
-            } else {
-                loggedInUserProfile = profileData;
-                updateAuthUI();
-                await updateAll();
-            }
+    const container = document.getElementById('lockersContainer');
+    const LOCKERS_PER_SIDE = 5; // Number of lockers on each side
+    let isUpdating = false;
+    let lightIntervals = [];
+    
+    // Prevent scrolling on mobile
+    document.addEventListener('touchmove', function(e) {
+        if (e.target.id !== 'lockerNumber') {
+            e.preventDefault();
         }
+    }, { passive: false });
+    
+    function padNumber(num, length) {
+        return String(num).padStart(length, '0');
     }
-}
-
-
-async function handleLogout() {
-    const { error } = await mySupabaseClient.auth.signOut();
-    if (error) {
-        console.error("Logout error:", error);
-        alert("Error logging out: " + error.message);
-    } else {
-        currentUser = null;
-        loggedInUserProfile = null;
-        householdProfilesMap.clear(); // Clear household profiles on logout
-        data.user01 = [];
-        data.user02 = [];
-        data.settlements = {};
-        updateAuthUI();
-        updateAll();
-        alert("Logged out successfully!");
-    }
-}
-
-function updateAuthUI() {
-    const profilesDiv = document.querySelector('.profiles');
-
-    if (currentUser && loggedInUserProfile) {
-        authContainer.style.display = 'none';
-        appContentWrapper.style.display = 'block';
-        profilesDiv.style.display = 'flex';
-        userMenu.style.display = 'block'; // Show the new user menu
-
-        const personName = loggedInUserProfile.display_name; // Fallback to email prefix
-        const personKey = loggedInUserProfile.role;
-        const avatarSrc = loggedInUserProfile.avatar_url || (personKey === 'user01' ? "assets/person001.png" : "assets/person002.png"); // Fallback avatar
-
-        selectPerson(personKey); // Initialize active person
-
-        userMenuAvatar.src = avatarSrc;
-        userMenuGreeting.textContent = getGreeting(personName);
-        userMenuUsername.textContent = personName;
-        userMenuToggle.checked = false; // Ensure menu is closed on login/refresh
-
-    } else {
-        authContainer.style.display = 'block';
-        appContentWrapper.style.display = 'none';
-        profilesDiv.style.display = 'none';
-        userMenu.style.display = 'none'; // Hide the new user menu
-
-        userMenuAvatar.src = "";
-        userMenuGreeting.textContent = "";
-        userMenuUsername.textContent = "";
-        userMenuToggle.checked = false; // Ensure menu is closed
-    }
-}
-
-  function initializeDOMElements() {
-    noteInput = document.getElementById('noteInput');
-    suggestionsDiv = document.getElementById('suggestions');
-    yearTabsDiv = document.getElementById('yearTabs');
-    expenseHeaderDiv = document.getElementById('expenseHeader');
-    balanceTextDiv = document.getElementById('balanceText');
-    currentViewTextSpan = document.getElementById('currentViewText');
-    sharedStatusInput = document.getElementById('sharedStatusInput');
-    amountInput = document.getElementById('amountInput');
-    recurringInput = document.getElementById('recurringInput');
-    expenseListDiv = document.getElementById('expenseList');
-    authContainer = document.getElementById('authContainer');
-    authEmail = document.getElementById('authEmail');
-    authPassword = document.getElementById('authPassword');
-    authMessage = document.getElementById('authMessage');
-    user01Btn = document.getElementById('user01Btn');
-    user02Btn = document.getElementById('user02Btn');
-    appContentWrapper = document.getElementById('appContentWrapper');
-    userMenu = document.getElementById('user-menu');
-    userMenuToggle = document.getElementById('userMenuToggle');
-    userMenuAvatar = document.getElementById('userMenuAvatar');
-    userMenuGreeting = document.getElementById('userMenuGreeting');
-    userMenuUsername = document.getElementById('userMenuUsername');
-    toggleCommentBtn = document.getElementById('toggleCommentBtn');
-    commentInput = document.getElementById('commentInput');
-  }
-
-  function generateUUID() {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      return crypto.randomUUID();
-    }
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0;
-      const v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
-  }
-  function getMonthNum(monthKey) {
-    const year = parseInt(monthKey.substring(0, 4));
-    const monthAbbr = monthKey.substring(5, 8);
-    const monthIdx = MONTHS.indexOf(monthAbbr);
-    if (monthIdx === -1) throw new Error(`Invalid month abbreviation: ${monthAbbr}`);
-    return year * 12 + monthIdx;
-  }
-
-  function showSuggestions() {
-    if (!noteInput || !suggestionsDiv) return;
-    const inputValue = noteInput.value.toLowerCase();
-    suggestionsDiv.innerHTML = '';
-    if (inputValue.length === 0 && document.activeElement !== noteInput) {
-      suggestionsDiv.style.display = 'none';
-      return;
-    }
-    const matchingBrands = SUGGESTION_BRANDS.filter(brandItem =>
-      brandItem.includes(inputValue)
-    );
-    if (matchingBrands.length > 0) {
-      matchingBrands.forEach(brandItem => {
-        const suggestionItem = document.createElement('div');
-        let displayText = brandItem.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-        if (brandItem === "m&s") displayText = "M&S";
-        if (brandItem === "b&q") displayText = "B&Q";
-        if (brandItem === "hsbc") displayText = "HSBC";
-        if (brandItem === "lner") displayText = "LNER";
-        if (brandItem === "tfl") displayText = "TFL";
-        if (brandItem === "amex") displayText = "AMEX";
-        if (brandItem === "tk.max") displayText = "TK.MAX";
-        suggestionItem.textContent = displayText;
-        suggestionItem.onmousedown = (event) => {
-          event.preventDefault();
-          selectSuggestion(brandItem);
-        };
-        suggestionsDiv.appendChild(suggestionItem);
-      });
-      suggestionsDiv.style.display = 'block';
-    } else {
-      suggestionsDiv.style.display = 'none';
-    }
-  }
-  function selectSuggestion(brandName) {
-    if (!noteInput || !suggestionsDiv) return;
-    let capitalizedBrand = brandName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-    if (brandName === "m&s") capitalizedBrand = "M&S";
-    if (brandName === "b&q") capitalizedBrand = "B&Q";
-    if (brandName === "hsbc") capitalizedBrand = "HSBC";
-    if (brandName === "lner") capitalizedBrand = "LNER";
-    if (brandName === "tfl") capitalizedBrand = "TFL";
-    if (brandName === "amex") capitalizedBrand = "AMEX";
-    if (brandName === "tk.max") capitalizedBrand = "TK.MAX";
-    noteInput.value = capitalizedBrand;
-    suggestionsDiv.style.display = 'none';
-  }
-  function hideSuggestions() {
-    if (!noteInput || !suggestionsDiv) return;
-    setTimeout(() => {
-      if (document.activeElement !== noteInput && !suggestionsDiv.contains(document.activeElement)) {
-        suggestionsDiv.style.display = 'none';
-      }
-    }, 100);
-  }
-
-  function normalizeMonthKey(monthKey) {
-    if (monthKey && monthKey.match(/^\d{4}-\d{2}$/)) {
-      const [year, monthNum] = monthKey.split('-');
-      const monthIndex = parseInt(monthNum, 10) - 1;
-      if (monthIndex >= 0 && monthIndex < 12) {
-        return `${year}-${MONTHS[monthIndex]}`;
-      }
-    }
-    return monthKey;
-    }
-
-
-  function capitalise(name) {
-    return name.charAt(0).toUpperCase() + name.slice(1);
-  }
-  function detectLogo(note) {
-    const lowerCaseNote = note.toLowerCase();
-    for (const rule of BRAND_LOGO_RULES) {
-      for (const keyword of rule.keywords) {
-        if (lowerCaseNote.includes(keyword)) {
-          return rule.logo;
-        }
-      }
-    }
-    return null;
-  }
-  function updateLogosForAllExpenses() {
-    let changed = false;
-    ["user01", "user02"].forEach(p => {
-      data[p].forEach(e => {
-        const newLogo = detectLogo(e.note);
-        if (e.logo !== newLogo) {
-          e.logo = newLogo;
-          changed = true;
-        }
-      });
-    });
-  }
-  function getYears() {
-    const years = new Set();
-    years.add(new Date().getFullYear().toString());
-    ["user01", "user02"].forEach(p => {
-      data[p].forEach(e => {
-        if (e.month) {
-          years.add(e.month.substring(0, 4));
-        }
-      });
-    });
-    return [...years].sort((a, b) => parseInt(a) - parseInt(b));
-  }
-  function renderYears() {
-  if (!yearTabsDiv) return;
-  yearTabsDiv.innerHTML = "";
-
-  const now = new Date();
-  const currentRealYear = now.getFullYear();
-
-  getYears().forEach(year => {
-    const tab = document.createElement("div");
-    const yearInt = parseInt(year, 10);
-
-    tab.className = "year-tab";
-
-    const isSelectedYear = (yearInt === activeYear);
-    const isRealCurrentYear = (yearInt === currentRealYear);
-
-    // Selected tab (what you're viewing)
-    if (isSelectedYear) tab.classList.add("active");
-
-    // Real current year always blue
-    if (isRealCurrentYear) tab.classList.add("real-current");
-
-    // If you selected a year that's NOT the real current year, show the pulse/border
-    if (isSelectedYear && !isRealCurrentYear) {
-      tab.classList.add("current-real-month-not-selected", "pulse");
-    }
-
-    tab.textContent = year;
-
-    tab.onclick = () => {
-      activeYear = yearInt;
-
-      // keep the currently selected month abbreviation when switching year
-      const currentMonthAbbr = activeMonth.substring(5, 8);
-      activeMonth = `${activeYear}-${currentMonthAbbr}`;
-
-      updateAll();
-    };
-
-    yearTabsDiv.appendChild(tab);
-  });
-
-  // Optional: scroll active year into view
-  const activeYearTab = yearTabsDiv.querySelector('.year-tab.active');
-  if (activeYearTab) {
-    requestAnimationFrame(() => {
-      activeYearTab.scrollIntoView({ behavior: 'smooth', inline: 'center' });
-    });
-  }
-}
-
-function renderMonths() {
-  const monthTabsElement = document.getElementById('monthTabs');
-  if (!monthTabsElement) return;
-  monthTabsElement.innerHTML = "";
-
-  const now = new Date();
-  const currentRealYear  = now.getFullYear();
-  const currentRealMonthIndex = now.getMonth();
-  const currentRealMonthAbbr = MONTHS[currentRealMonthIndex];
-
-  MONTHS.forEach((m, index) => {
-    const tab = document.createElement("div");
-    const monthKey = `${activeYear}-${m}`;
-
-    tab.className = "month-tab"; // set base class FIRST
-
-    const isRealCurrentMonth = (activeYear === currentRealYear && m === currentRealMonthAbbr);
-    if (isRealCurrentMonth) {
-      tab.classList.add("real-current"); // now it won't be overwritten
-    }
-
-    const isSelected = (monthKey === activeMonth);
-    if (isSelected) {
-      tab.classList.add("active");
-    }
-
-    const isViewingNonCurrentMonth =
-      activeYear !== currentRealYear || m !== currentRealMonthAbbr;
-
-    if (isSelected && isViewingNonCurrentMonth) {
-      tab.classList.add("current-real-month-not-selected", "pulse");
-    }
-
-    const isSettled = data.settlements[monthKey] === true;
-    const isPastMonth =
-      (activeYear < currentRealYear) ||
-      (activeYear === currentRealYear && index < currentRealMonthIndex);
-
-    if (isSettled) {
-      tab.classList.add("settled");
-      tab.classList.remove("current-real-month-not-selected", "pulse");
-    } else if (isPastMonth) {
-      tab.classList.add("unsettled-past-month");
-    }
-
-    tab.textContent = m;
-
-    tab.onclick = () => {
-      activeMonth = monthKey;
-      updateAll();
-    };
-
-    monthTabsElement.appendChild(tab);
-  });
-
-  const activeTab = monthTabsElement.querySelector('.month-tab.active');
-  if (activeTab) {
-    requestAnimationFrame(() => {
-      activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center' });
-    });
-  }
-}
-
-// Function to toggle the comment input field (Corrected to apply active class)
-function toggleAddCommentField() {
-  isCommentInputVisible = !isCommentInputVisible;
-  if (isCommentInputVisible) {
-    commentInput.style.display = 'block';
-    toggleCommentBtn.innerHTML = '<i class="fa-solid fa-comment"></i>'; // Change icon to solid comment
-    toggleCommentBtn.classList.add('active-comment'); // Add active class
-    commentInput.focus();
-  } else {
-    commentInput.style.display = 'none';
-    toggleCommentBtn.innerHTML = '<i class="fa-solid fa-comment-slash"></i>'; // Change icon back to slash
-    toggleCommentBtn.classList.remove('active-comment'); // Remove active class
-    commentInput.value = ''; // Clear comment when hiding
-  }
-}
-
-function getSettleButtonEl() {
-  // We only animate the "Mark as Settled" button, not the Unmark one.
-  // We'll mark it with data-settle-btn="mark" when rendering.
-  return document.querySelector('button.action-button[data-settle-btn="mark"]');
-}
-
-function setSettleButtonState(state) {
-  const btn = getSettleButtonEl();
-  if (!btn) return;
-
-  // reset classes
-  btn.classList.remove('is-animating', 'is-success');
-
-  if (state === 'idle') {
-    btn.disabled = false;
-    btn.innerHTML = `<span class="btn-label"><i class="fa-solid fa-check"></i> Mark as Settled</span>`;
-    btn.style.pointerEvents = '';
-  }
-
-  if (state === 'saving') {
-    btn.disabled = true;
-    btn.classList.add('is-animating');
-    btn.innerHTML = `<span class="btn-label"><i class="fa-solid fa-circle-notch"></i> Settling…</span>`;
-  }
-
-  if (state === 'success') {
-    btn.disabled = true;
-    btn.classList.add('is-success');
-    btn.innerHTML = `<span class="btn-label"><i class="fa-solid fa-check"></i> Payment Completed</span>`;
-  }
-}
-
-
-
-
-  async function markMonthAsSettled(status) {
-  if (!loggedInUserProfile || !loggedInUserProfile.household_id) {
-    alert("You must be logged in and part of a household to mark months as settled.");
-    return;
-  }
-
-  // Only animate when marking as settled (true)
-  const shouldAnimate = (status === true);
-
-  if (shouldAnimate) {
-    setSettleButtonState('saving'); // start immediately (Option A)
-  }
-
-  const householdId = loggedInUserProfile.household_id;
-
-  const { data: { session }, error: sessionError } = await mySupabaseClient.auth.getSession();
-  if (sessionError) {
-    console.error("markMonthAsSettled: Error getting session:", sessionError);
-    if (shouldAnimate) setSettleButtonState('idle');
-    alert("Error getting user session. Please try logging in again.");
-    return;
-  }
-
-  if (!session || !session.access_token) {
-    console.error("markMonthAsSettled: No active session.");
-    if (shouldAnimate) setSettleButtonState('idle');
-    alert("Your session has expired or you are not logged in. Please log in again.");
-    await handleLogout();
-    return;
-  }
-
-  try {
-    const { data: functionResponse, error: functionInvokeError } =
-      await mySupabaseClient.functions.invoke('mark-month-settled', {
-        body: {
-          household_id: householdId,
-          month_key: activeMonth,
-          is_settled: status
-        }
-      });
-
-    if (functionInvokeError) {
-      console.error("Error invoking Edge Function 'mark-month-settled':", functionInvokeError);
-      if (shouldAnimate) setSettleButtonState('idle');
-      alert("Error communicating with settlement service: " + functionInvokeError.message);
-      return;
-    }
-
-    if (functionResponse && functionResponse.error) {
-      console.error("Edge Function reported an error:", functionResponse.error);
-      if (shouldAnimate) setSettleButtonState('idle');
-      alert("Settlement service error: " + functionResponse.error);
-      return;
-    }
-
-    if (!(functionResponse && functionResponse.success)) {
-      console.error("Unexpected Edge Function response:", functionResponse);
-      if (shouldAnimate) setSettleButtonState('idle');
-      alert("Failed to update settlement status: Unexpected response from service.");
-      return;
-    }
-
-    // Success:
-    if (shouldAnimate) {
-      setSettleButtonState('success');
-
-      // keep "Payment Completed" visible for 2s AFTER the animation completes
-      // (animation is ~650ms sweep + 380ms check pop; wait ~1.05s then +2s)
-      const animationTimeMs = 1100;
-      const holdTimeMs = 2000;
-
-      setTimeout(async () => {
-        // update local state then render normal settled UI
-        data.settlements[activeMonth] = status;
-        await updateAll();
-      }, animationTimeMs + holdTimeMs);
-
-    } else {
-      // Unmark: no animation, just update immediately
-      data.settlements[activeMonth] = status;
-      await updateAll();
-    }
-
-  } catch (error) {
-    console.error("Unhandled error during Edge Function invocation:", error);
-    if (shouldAnimate) setSettleButtonState('idle');
-    alert("An unexpected error occurred while updating settlement status.");
-  }
-}
-
-  function getMonthlyExpenses(personKey, monthKey) {
-    const expenses = data[personKey].filter(e => normalizeMonthKey(e.month) === monthKey);
-    const shared = expenses.filter(e => !e.isPersonal).reduce((sum, e) => sum + e.amount, 0);
-    const personal = expenses.filter(e => e.isPersonal).reduce((sum, e) => sum + e.amount, 0);
-    return { shared, personal };
-  }
-
-  function calculateAnnualTotals() {
-    const annualTotals = {
-      user01: { shared: 0, personal: 0 }
-    };
-    if (data.user02) {
-      annualTotals.user02 = { shared: 0, personal: 0 };
-    }
-    const yearPrefix = activeYear.toString();
-    ["user01", "user02"].forEach(personKey => {
-      if (!data[personKey]) return;
-      // We need to re-aggregate here for annual totals, similar to applyRecurring logic
-      const expensesForYear = data[personKey].filter(e => e.month.startsWith(yearPrefix));
-
-      const aggregatedMonthlyExpenses = {}; // { 'YYYY-MMM': { 'note_isPersonal': { amount: N, comment: S } } }
-
-      expensesForYear.forEach(e => {
-          const seriesKey = `${e.note.toLowerCase()}_${e.isPersonal}`;
-          if (!aggregatedMonthlyExpenses[e.month]) {
-              aggregatedMonthlyExpenses[e.month] = {};
-          }
-          if (!aggregatedMonthlyExpenses[e.month][seriesKey]) {
-              aggregatedMonthlyExpenses[e.month][seriesKey] = { amount: 0, comments: [] };
-          }
-          aggregatedMonthlyExpenses[e.month][seriesKey].amount += e.amount;
-          if (e.comment && e.comment.trim() !== '') {
-              aggregatedMonthlyExpenses[e.month][seriesKey].comments.push(e.comment.trim());
-          }
-      });
-
-      for (const monthKey in aggregatedMonthlyExpenses) {
-          for (const seriesKey in aggregatedMonthlyExpenses[monthKey]) {
-              const aggregated = aggregatedMonthlyExpenses[monthKey][seriesKey];
-              if (seriesKey.endsWith('_false')) { // Shared
-                  annualTotals[personKey].shared += aggregated.amount;
-              } else { // Personal
-                  annualTotals[personKey].personal += aggregated.amount;
-              }
-          }
-      }
-    });
-    return annualTotals;
-  }
-
-  function updateBalance() {
-    if (!balanceTextDiv) return;
-
-    const user01Profile = householdProfilesMap.get('user01');
-    const user02Profile = householdProfilesMap.get('user02');
-    const user01DisplayName = user01Profile ? user01Profile.display_name : 'User 1';
-    const user02DisplayName = user02Profile ? user02Profile.display_name : 'User 2';
-
-
-    const user01Monthly = getMonthlyExpenses("user01", activeMonth);
-    const user02Monthly = getMonthlyExpenses("user02", activeMonth);
-    const a = user01Monthly.shared;
-    const b = user02Monthly.shared;
-    const diff = Math.abs(a - b) / 2;
-    let balanceMessage = "";
-    let actionButton = "";
-    const isSettled = data.settlements[activeMonth];
-    if (isSettled) {
-      balanceMessage = `All settled for ${activeMonth}!`;
-      actionButton = `<button class="action-button" onclick="markMonthAsSettled(false)"><i class="fa-solid fa-undo"></i> Unmark as Settled</button>`;
-    } else {
-      if (a === b) {
-        balanceMessage = "All settled";
-      } else if (a > b) {
-        balanceMessage = `${user02DisplayName} owes ${user01DisplayName} £${diff.toFixed(2)}`;
-        actionButton = `<button class="action-button" data-settle-btn="mark" onclick="markMonthAsSettled(true)"><span class="btn-label"><i class="fa-solid fa-check"></i> Mark as Settled</span></button>`;
-      } else {
-        balanceMessage = `${user01DisplayName} owes ${user02DisplayName} £${diff.toFixed(2)}`;
-        actionButton = `<button class="action-button" data-settle-btn="mark" onclick="markMonthAsSettled(true)"><span class="btn-label"><i class="fa-solid fa-check"></i> Mark as Settled</span></button>`;
-      }
-    }
-    balanceTextDiv.innerHTML = `
-      <span>${balanceMessage}</span>
-      ${actionButton}
-    `;
-  }
-  function renderExpenseHeader() {
-    if (!expenseHeaderDiv) return;
-
-    const activePersonProfile = householdProfilesMap.get(activePerson);
-    const activePersonDisplayName = activePersonProfile ? activePersonProfile.display_name : capitalise(activePerson);
-    const avatarImgSrc = activePersonProfile ? activePersonProfile.avatar_url : (activePerson === "user01" ? "assets/person001.png" : "assets/person002.png");
-
-
-    let actionButtonsHtml = '';
-    if (!editMode) {
-      actionButtonsHtml = `<button class="action-button" onclick="toggleEditMode()"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`;
-    } else {
-      const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
-      const allSelected = expensesForMonth.length > 0 && expensesForMonth.every(e => selectedExpenses.includes(e.id));
-      const deleteButtonDisabled = selectedExpenses.length === 0 ? 'disabled' : '';
-      actionButtonsHtml = `
-        <button class="action-button" onclick="cancelEditMode()" title="Cancel Edit"><i class="fa-solid fa-xmark"></i></button>
-        <button class="action-button" onclick="toggleSelectAll()" title="${allSelected ? 'Deselect All' : 'Select All'}"><i class="fa-regular fa-square-check"></i></button>
-        <button class="action-button delete-selected ${deleteButtonDisabled}" onclick="confirmDeleteSelected()" ${deleteButtonDisabled} title="Delete Selected Expenses"><i class="fa-solid fa-trash"></i></button>
-      `;
-    }
-
-    expenseHeaderDiv.innerHTML = `
-      <div class="expense-header-content">
-        <div class="expense-header-info">
-          <img src="${avatarImgSrc}" class="expense-header-avatar">
-          <div class="desktop-display">
-            <span>${activePersonDisplayName} – ${activeMonth}</span>
-          </div>
-          <div class="mobile-display">
-            <span class="person-name-line">${activePersonDisplayName}</span>
-            <span class="month-year-line">${activeMonth}</span>
-          </div>
-        </div>
-        <div class="expense-header-actions">
-          ${actionButtonsHtml}
-        </div>
-      </div>
-      <div class="expense-separator"></div>
-    `;
-  }
-  function getExpenseByUUID(uuid) {
-    return data[activePerson].find(e => e.id === uuid);
-  }
-  function getExpenseIndexByUUID(uuid) {
-    return data[activePerson].findIndex(e => e.id === uuid);
-  }
-
-  function renderExpenses() {
-    if (!expenseListDiv) return;
-
-    // Destroy existing chart instances before clearing the list
-    for (const uuid in expenseChartInstances) {
-      if (expenseChartInstances.hasOwnProperty(uuid)) {
-        expenseChartInstances[uuid].destroy();
-      }
-    }
-    // Clear the object of chart instances
-    Object.keys(expenseChartInstances).forEach(key => delete expenseChartInstances[key]);
-
-    expenseListDiv.innerHTML = ""; // Clear the expense list
-
-    const expensesForMonth = data[activePerson]
-      .filter(e => normalizeMonthKey(e.month) === activeMonth)
-      .sort((a, b) => {
-        if (a.isProjected && !b.isProjected) return 1; // Projected at the bottom
-        if (!a.isProjected && b.isProjected) return -1;
-        if (a.amount < b.amount) return 1; // Sort by amount descending
-        if (a.amount > b.amount) return -1;
-        return a.note.localeCompare(b.note); // Then by note alphabetically
-      });
-
-    expensesForMonth.forEach((e) => {
-      const expenseUuid = e.id; // Use e.id as the unique identifier
-      const row = document.createElement("div");
-      row.className = "expense";
-
-      const iconContent = e.logo ? `<img class="logo" src="${e.logo}" onerror="this.remove()">` : `<i class="fa-solid fa-receipt"></i>`;
-      // We will now include the recurring indicator outside the marquee container
-      const recurringIndicatorHtml = e.recurring ? `<i class="fa-solid fa-repeat recurring-indicator" title="Recurring expense"></i>` : '';
-      const personalIndicator = e.isPersonal ? `<i class="fa-solid fa-user personal-indicator" title="Personal expense (not shared)"></i>` : '';
-      const projectedIndicator = e.isProjected ? `<i class="fa-solid fa-clock recurring-indicator" title="This is a forecast based on your recurring bill – not yet paid"></i>` : '';
-
-      let actionsHtml = '';
-      let checkboxHtml = '';
-
-      // Conditional comment icon HTML (indicator only, no onclick)
-      const commentIconHtml = e.comment && e.comment.trim() !== '' ?
-          `<span class="action comment-indicator" title="${e.comment.trim()}"><i class="fa-solid fa-comment"></i></span>` : '';
-
-      if (editMode) {
-        const isChecked = selectedExpenses.includes(expenseUuid) ? 'checked' : '';
-        checkboxHtml = `<input type="checkbox" class="expense-select-checkbox" ${isChecked} onchange="toggleExpenseSelection(this, '${expenseUuid}')">`;
-      } else {
-        actionsHtml = `
-          ${commentIconHtml} <!-- Display comment icon conditionally as an indicator -->
-          ${personalIndicator}
-          ${projectedIndicator}
-          <span class="action expand-chart-toggle" data-uuid="${expenseUuid}" onclick="toggleExpenseChart(this, '${expenseUuid}')"><i class="fa-solid fa-chevron-down"></i></span>
-          <span class="action" onclick="editExpenseByUUID('${expenseUuid}')"><i class="fa-solid fa-pencil"></i></span>
-          <span class="action delete ${e.isProjected ? 'disabled' : ''}"
-                onclick="${e.isProjected ? '' : `deleteExpenseByUUID('${expenseUuid}')`}">
-            <i class="fa-solid fa-trash"></i>
-          </span>
+    
+    function createLocker(number, isCenter = false, shouldHide = false) {
+        const locker = document.createElement('div');
+        locker.className = isCenter ? 'locker' : (shouldHide ? 'locker side hidden' : 'locker side');
+        
+        locker.innerHTML = `
+            ${isCenter ? '<div class="edit-prompt">Click to edit</div>' : ''}
+            <div class="number" ${isCenter ? 'id="lockerNumber" contenteditable="true" inputmode="numeric"' : ''}>${number}</div>
+            <div class="keypad-container">
+                <div class="keypad">
+                    <div class="status-light"></div>
+                    <div class="keys-grid">
+                        <div class="key">1</div>
+                        <div class="key">2</div>
+                        <div class="key">3</div>
+                        <div class="key">4</div>
+                        <div class="key">5</div>
+                        <div class="key">6</div>
+                        <div class="key">7</div>
+                        <div class="key">8</div>
+                        <div class="key">9</div>
+                        <div class="key">*</div>
+                        <div class="key">0</div>
+                        <div class="key"><i class="fa-solid fa-key"></i></div>
+                    </div>
+                </div>
+            </div>
         `;
-      }
-            const expenseTextContentHtml = `
-        <div class="expense-text-content">
-          <div class="expense-note-container">
-            <span class="expense-note-marquee">${e.note}</span>
-          </div>
-          <small>£${e.amount.toFixed(2)}</small>
-          ${recurringIndicatorHtml} <!-- Moved after the small tag -->
-        </div>
-      `;
-
-
-      row.innerHTML = `
-        <div class="expense-left">
-          ${iconContent}
-          ${expenseTextContentHtml}
-        </div>
-        <div class="actions">
-          ${checkboxHtml}
-          ${actionsHtml}
-        </div>
-        <!-- Comment display container -->
-        <div id="expenseCommentWrapper_${expenseUuid}" class="expense-comment-container" style="display:none;">
-            <p>${e.comment ? e.comment.trim() : ''}</p>
-        </div>
-        <!-- Divider between comment and chart -->
-        <hr id="expenseCommentChartDivider_${expenseUuid}" class="expense-comment-divider" style="display:none;">
-        <div id="expenseChartWrapper_${expenseUuid}" class="expense-chart-container" style="display:none;">
-          <canvas id="expenseChartCanvas_${expenseUuid}"></canvas>
-        </div>
-      `;
-      expenseListDiv.appendChild(row);
-
-      // Apply scrolling logic for long notes on mobile
-      const expenseNoteContainer = row.querySelector('.expense-note-container');
-      const expenseNoteText = row.querySelector('.expense-note-marquee');
-
-      if (expenseNoteContainer && expenseNoteText && window.matchMedia("(max-width: 600px)").matches) {
-          // Temporarily set overflow to visible to get scrollWidth, then revert.
-          expenseNoteContainer.style.overflow = 'visible';
-          const textWidth = expenseNoteText.scrollWidth;
-          expenseNoteContainer.style.overflow = 'hidden'; // Revert to hidden for clipping
-
-          const containerWidth = expenseNoteContainer.clientWidth; // This will be the 14ch width from CSS
-
-          if (textWidth > containerWidth) {
-              expenseNoteText.classList.add('scroll-active');
-              const offset = -(textWidth - containerWidth + 2); // +2 for a small buffer
-              expenseNoteContainer.style.setProperty('--marquee-offset', `${offset}px`);
-
-              const duration = Math.max(3, textWidth / 15) + 's';
-              expenseNoteContainer.style.setProperty('--marquee-duration', duration);
-              expenseNoteContainer.style.textOverflow = 'clip';
-          } else {
-              expenseNoteText.classList.remove('scroll-active');
-              expenseNoteContainer.style.textOverflow = 'ellipsis';
-          }
-      }
-    });
-  }
-
-
-  // MODIFIED toggleExpenseChart function to handle comments and charts together
-  function toggleExpenseChart(toggleButtonElement, uuid) {
-    if (editMode) return;
-    const chartWrapper = document.getElementById(`expenseChartWrapper_${uuid}`);
-    const commentWrapper = document.getElementById(`expenseCommentWrapper_${uuid}`);
-    const divider = document.getElementById(`expenseCommentChartDivider_${uuid}`);
-    const expense = getExpenseByUUID(uuid); // Get expense to check for comment existence
-    const chevronIcon = toggleButtonElement.querySelector('i');
-
-    // Close any other open expanded sections
-    if (activeExpandedUUID && activeExpandedUUID !== uuid) {
-        const prevChartWrapper = document.getElementById(`expenseChartWrapper_${activeExpandedUUID}`);
-        const prevCommentWrapper = document.getElementById(`expenseCommentWrapper_${activeExpandedUUID}`);
-        const prevDivider = document.getElementById(`expenseCommentChartDivider_${activeExpandedUUID}`);
-        const prevToggleButton = document.querySelector(`.expand-chart-toggle[data-uuid='${activeExpandedUUID}']`);
-
-        if (prevChartWrapper) prevChartWrapper.style.display = 'none';
-        if (prevCommentWrapper) prevCommentWrapper.style.display = 'none';
-        if (prevDivider) prevDivider.style.display = 'none';
-        if (prevToggleButton) prevToggleButton.classList.remove('expanded');
-    }
-
-    // Toggle the current section
-    if (chartWrapper.style.display === 'none') {
-        // Open the section
-        chartWrapper.style.display = 'block';
-        toggleButtonElement.classList.add('expanded');
-        activeExpandedUUID = uuid;
-
-        // If there's a comment, display it and the divider
-        if (expense && expense.comment && expense.comment.trim() !== '') {
-            if (commentWrapper) commentWrapper.style.display = 'block';
-            if (divider) divider.style.display = 'block';
-        }
-
-        if (expense) {
-            drawExpenseHistoryChart(expense, `expenseChartCanvas_${uuid}`, uuid);
-        } else {
-            console.error("Expense not found for chart with UUID:", uuid);
-        }
-    } else {
-        // Close the section
-        chartWrapper.style.display = 'none';
-        toggleButtonElement.classList.remove('expanded');
-        activeExpandedUUID = null;
-
-        // Hide comment and divider as well
-        if (commentWrapper) commentWrapper.style.display = 'none';
-        if (divider) divider.style.display = 'none';
-
-        if (expenseChartInstances[uuid]) {
-            expenseChartInstances[uuid].destroy();
-            delete expenseChartInstances[uuid];
-        }
-    }
-  }
-  // Removed toggleExpenseComment function as its logic is now merged into toggleExpenseChart
-
-  async function addExpense() {
-    if (!amountInput || !noteInput || !recurringInput || !sharedStatusInput) {
-      console.error("DOM elements not initialized for addExpense. This should not happen if initApp() ran correctly.");
-      alert("Application not fully loaded. Please refresh the page.");
-      return;
-    }
-
-    const amount = parseFloat(amountInput.value);
-    const note = noteInput.value.trim();
-    const isRecurring = recurringInput.value === "yes";
-    const isPersonal = sharedStatusInput.value === "personal";
-
-    if (!amount || !note) {
-      alert("Please enter both amount and description.");
-      return;
-    }
-    if (amount <= 0) {
-      alert("Amount must be greater than zero.");
-      return;
-    }
-    if (amount > 999999) {
-      alert("Amount seems too large. Please check.");
-      return;
-    }
-
-    // --- IMPORTANT CHECK: Ensure user is logged in and profile data is available ---
-    if (!currentUser || !loggedInUserProfile || !loggedInUserProfile.household_id) {
-        alert("You must be logged in and part of a household to add an expense.");
-        // Consider forcing a re-authentication or showing a more prominent login prompt
-        await handleLogout(); // This will clear the session and prompt re-login
-        return;
-    }
-    // --- END IMPORTANT CHECK ---
-
-    const newExpenseForSupabase = {
-      month: activeMonth,
-      amount: amount,
-      note: note,
-      logo: detectLogo(note),
-      recurring: isRecurring,
-      isPersonal: isPersonal,
-      isProjected: false,
-      person: activePerson,
-      comment: isCommentInputVisible && commentInput.value.trim() !== '' ? commentInput.value.trim() : null,
-      // --- FIX: Explicitly set user_id and household_id ---
-      user_id: currentUser.id,                 // From the authenticated user session
-      household_id: loggedInUserProfile.household_id // From the user's profile
-      // --- END FIX ---
-    };
-
-    const { data: insertedData, error } = await mySupabaseClient
-      .from('expenses')
-      .insert([newExpenseForSupabase])
-      .select();
-
-    if (error) {
-      console.error("Error adding expense to Supabase:", error);
-      alert("Error adding expense. Please check the console.");
-      return;
-    }
-
-    amountInput.value = "";
-    noteInput.value = "";
-    recurringInput.value = "no";
-    sharedStatusInput.value = "shared";
-    suggestionsDiv.style.display = 'none';
-
-    if (isCommentInputVisible) {
-      toggleAddCommentField();
-    }
-
-    updateAll();
-}
-
-
-  async function editExpenseByUUID(uuid) {
-  if (editMode) {
-    cancelEditMode();
-    setTimeout(() => editExpenseByUUID(uuid), 100);
-    return;
-  }
-  const expense = getExpenseByUUID(uuid);
-  if (!expense) {
-    console.error("Expense not found for editing with UUID:", uuid);
-    return;
-  }
-  if (expense.isProjected) {
-    alert("Projected expenses cannot be edited directly. Please edit an actual entry for this recurring series.");
-    return;
-  }
-
-  const newNote = prompt("Description", expense.note);
-  if (newNote === null) return;
-  const newAmountStr = prompt("Amount", expense.amount);
-  if (newAmountStr === null) return;
-  const newComment = prompt("Comment", expense.comment || ''); // Prompt for comment
-
-  if (!newNote.trim() || !newAmountStr.trim()) {
-    alert("Description and Amount cannot be empty.");
-    return;
-  }
-  const newAmount = parseFloat(newAmountStr);
-  if (isNaN(newAmount) || newAmount <= 0) {
-    alert("Please enter a valid amount greater than zero");
-    return;
-  }
-  if (newAmount > 999999) {
-    alert("Amount seems too large. Please check.");
-    return;
-  }
-
-  const originalAmount = expense.amount;
-  const originalNote = expense.note;
-
-  const updatedFields = {
-    note: newNote.trim(),
-    amount: newAmount,
-    logo: detectLogo(newNote.trim()),
-    comment: newComment.trim() !== '' ? newComment.trim() : null
-  };
-
-  if (expense.recurring && newNote.trim().toLowerCase() !== originalNote.toLowerCase()) {
-    if (confirm("You changed the description for a recurring expense. Do you want to update the description for all occurrences of this series?")) {
-      const { error: updateSeriesError } = await mySupabaseClient
-        .from('expenses')
-        .update({ note: newNote.trim(), logo: detectLogo(newNote.trim()), comment: newComment.trim() !== '' ? newComment.trim() : null })
-        .eq('note', originalNote)
-        .eq('isPersonal', expense.isPersonal)
-        .eq('recurring', true)
-        .eq('person', activePerson);
-
-      if (updateSeriesError) {
-        console.error("Error updating recurring series description:", updateSeriesError);
-        alert("Error updating recurring series description. Please check console.");
-        return;
-      }
-    }
-  }
-
-  if (expense.recurring && newAmount !== originalAmount) {
-    if (confirm("Do you want to update all future occurrences of this recurring expense to the new amount?")) {
-      const { error: updateFutureError } = await mySupabaseClient
-        .from('expenses')
-        .update({ amount: newAmount })
-        .eq('note', updatedFields.note)
-        .eq('isPersonal', expense.isPersonal)
-        .eq('recurring', true)
-        .gte('month', expense.month)
-        .eq('person', activePerson);
-
-      if (updateFutureError) {
-        console.error("Error updating future recurring amounts:", updateFutureError);
-        alert("Error updating future recurring amounts. Please check console.");
-        return;
-      }
-    }
-  }
-
-  const { error: updateError } = await mySupabaseClient
-    .from('expenses')
-    .update(updatedFields)
-    .eq('id', uuid)
-    .eq('person', activePerson);
-
-  if (updateError) {
-    console.error("Error updating expense in Supabase:", updateError);
-    alert("Error updating expense. Please check the console.");
-    return;
-  }
-
-  updateAll();
-}
-
-  async function deleteExpenseByUUID(uuid) {
-    if (editMode) {
-      cancelEditMode();
-      setTimeout(() => deleteExpenseByUUID(uuid), 100);
-      return;
-    }
-    const expenseToDelete = getExpenseByUUID(uuid);
-    if (!expenseToDelete) {
-      console.error("Expense not found for deletion with UUID:", uuid);
-      return;
-    }
-    if (expenseToDelete.isProjected) {
-      alert("Projected expenses cannot be deleted directly. Please delete an actual entry for this recurring series to stop its projection.");
-      return;
-    }
-
-    let confirmMessage = "Delete expense?";
-    if (expenseToDelete.recurring) {
-      if (confirm("This is a recurring expense. Do you want to delete ONLY this specific occurrence? (Click 'Cancel' to be asked about deleting the series)")) {
-        const { error } = await mySupabaseClient
-          .from('expenses')
-          .delete()
-          .eq('id', uuid)
-          .eq('person', activePerson);
-
-        if (error) {
-          console.error("Error deleting expense from Supabase:", error);
-          alert("Error deleting expense. Please check the console.");
-          return;
-        }
-        updateAll();
-        return;
-      } else {
-        if (!confirm("Okay, do you want to delete this expense AND ALL FUTURE recurring instances of this series?")) {
-          return;
-        }
-      }
-      const { error } = await mySupabaseClient
-        .from('expenses')
-        .delete()
-        .eq('note', expenseToDelete.note)
-        .eq('isPersonal', expenseToDelete.isPersonal)
-        .gte('month', expenseToDelete.month)
-        .eq('person', activePerson);
-
-      if (error) {
-        console.error("Error deleting recurring series from Supabase:", error);
-        alert("Error deleting recurring series. Please check the console.");
-        return;
-      }
-      updateAll();
-      return;
-    }
-
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
-    const { error: singleDeleteError } = await mySupabaseClient
-      .from('expenses')
-      .delete()
-      .eq('id', uuid)
-      .eq('person', activePerson);
-
-    if (singleDeleteError) {
-      console.error("Error deleting expense from Supabase:", singleDeleteError);
-      alert("Error deleting expense. Please check the console.");
-      return;
-    }
-    updateAll();
-  }
-
-  function selectPerson(p) {
-    activePerson = p;
-    const user01Btn = document.getElementById('user01Btn');
-    const user02Btn = document.getElementById('user02Btn');
-
-    if (user01Btn) {
-        user01Btn.classList.toggle("active", p === 'user01');
-        user01Btn.style.borderColor = (p === 'user01') ? 'var(--user01-color)' : 'transparent';
-    }
-    if (user02Btn) {
-        user02Btn.classList.toggle("active", p === 'user02');
-        user02Btn.style.borderColor = (p === 'user02') ? 'var(--user02-color)' : 'transparent';
+        
+        return locker;
     }
     
-    // Ensure the other button is not active and its border is transparent
-    if (p === 'user01' && user02Btn) {
-        user02Btn.classList.remove('active');
-        user02Btn.style.borderColor = 'transparent';
-    } else if (p === 'user02' && user01Btn) {
-        user01Btn.classList.remove('active');
-        user01Btn.style.borderColor = 'transparent';
+    function startRandomBlinking() {
+        // Clear any existing intervals
+        lightIntervals.forEach(interval => clearInterval(interval));
+        lightIntervals = [];
+        
+        // Get all status lights (excluding hidden lockers)
+        const lights = document.querySelectorAll('.locker:not(.hidden) .status-light');
+        
+        lights.forEach((light, index) => {
+            // Random interval between 0.8 and 2 seconds for each light
+            const randomInterval = Math.random() * 1200 + 800;
+            
+            // Random initial delay to desynchronize lights
+            const initialDelay = Math.random() * 1500;
+            
+            setTimeout(() => {
+                const interval = setInterval(() => {
+                    // Random blink duration between 150ms and 400ms (much shorter)
+                    const blinkDuration = Math.random() * 500 + 500;
+                    
+                    light.classList.add('off');
+                    
+                    setTimeout(() => {
+                        light.classList.remove('off');
+                    }, blinkDuration);
+                }, randomInterval);
+                
+                lightIntervals.push(interval);
+            }, initialDelay);
+        });
     }
-
-    cancelEditMode();
-    updateAll();
-  }
-  const chart = new Chart(document.getElementById("billChart"), {
-    type: "bar",
-    data: {
-      labels: ["user01", "user02"],
-      datasets: []
-    },
-    options: {
-      indexAxis: "y",
-      plugins: {
-        legend: {
-          display: false
-        },
-        tooltip: {
-          mode: 'index',
-          intersect: false,
-          callbacks: {
-            label: function(context) {
-              let label = context.dataset.label || '';
-              if (label) {
-                label += ': ';
-              }
-              if (context.parsed.x !== null) {
-                label += new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(context.parsed.x);
-              }
-              return label;
-            },
-            footer: function(tooltipItems) {
-              let total = 0;
-              tooltipItems.forEach(function(tooltipItem) {
-                total += tooltipItem.parsed.x;
-              });
-              return 'Total: ' + new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(total);
-            }
-          },
-          titleColor: 'white',
-          bodyColor: 'white',
-          backgroundColor: 'var(--tooltip-bg)'
-        }
-      },
-      scales: {
-        x: {
-          stacked: true,
-          ticks: { color: "#f5f5f7" },
-          grid: { color: "#2a2a31" }
-        },
-        y: {
-          stacked: true,
-          ticks: { color: "#f5f5f7" },
-          grid: { display: false }
-        }
-      },
-      elements: {
-        bar: {
-          borderRadius: 0
-        }
-      }
-    }
-  });
-  function updateChart() {
-    const user01DisplayName = householdProfilesMap.get('user01')?.display_name || 'User 1';
-    const user02DisplayName = householdProfilesMap.get('user02')?.display_name || 'User 2';
-
-    let user01Shared, user01Personal, user02Shared, user02Personal;
-    if (viewMode === 'monthly') {
-      const user01Monthly = getMonthlyExpenses("user01", activeMonth);
-      const user02Monthly = getMonthlyExpenses("user02", activeMonth);
-      user01Shared = user01Monthly.shared;
-      user01Personal = user01Monthly.personal;
-      user02Shared = user02Monthly.shared;
-      user02Personal = user02Monthly.personal;
-    } else {
-      const annualTotals = calculateAnnualTotals();
-      user01Shared = annualTotals.user01.shared;
-      user01Personal = annualTotals.user01.personal;
-      user02Shared = annualTotals.user02 ? annualTotals.user02.shared : 0;
-      user02Personal = annualTotals.user02 ? annualTotals.user02.personal : 0;
-    }
-    const user01BarRoundingPersonal = (user01Shared === 0 && user01Personal > 0) ? 12 : { topLeft: 12, bottomLeft: 12, topRight: 0, bottomRight: 0 };
-    const user01BarRoundingShared = (user01Personal === 0 && user01Shared > 0) ? 12 : { topLeft: 0, bottomLeft: 0, topRight: 12, bottomRight: 12 };
-    const user02BarRoundingPersonal = (user02Shared === 0 && user02Personal > 0) ? 12 : { topLeft: 12, bottomLeft: 12, topRight: 0, bottomRight: 0 };
-    const user02BarRoundingShared = (user02Personal === 0 && user02Shared > 0) ? 12 : { topLeft: 0, bottomLeft: 0, topRight: 12, bottomRight: 12 };
     
-    chart.data.labels = [user01DisplayName, user02DisplayName];
-    chart.data.datasets = [
-      {
-        label: 'Personal',
-        data: [user01Personal, user02Personal],
-        backgroundColor: (ctx) => {
-          if (ctx.dataIndex === 0) return "#0a84ff80";
-          if (ctx.dataIndex === 1) return "#d14d2180";
-          return 'transparent';
-        },
-        stack: 'expenses',
-        borderRadius: [user01BarRoundingPersonal, user02BarRoundingPersonal],
-        borderSkipped: false
-      },
-      {
-        label: 'Shared',
-        data: [user01Shared, user02Shared],
-        backgroundColor: (ctx) => {
-          if (ctx.dataIndex === 0) return "#0a84ff";
-          if (ctx.dataIndex === 1) return "#d14d21";
-          return 'transparent';
-        },
-        stack: 'expenses',
-        borderRadius: [user01BarRoundingShared, user02BarRoundingShared],
-        borderSkipped: false
-      }
-    ];
-    chart.update();
-  }
-
-  
-  function updateViewModeText() {
-    if (!currentViewTextSpan) return;
-    if (viewMode === 'monthly') {
-      currentViewTextSpan.textContent = "Monthly View";
-    } else {
-      currentViewTextSpan.textContent = `Annual View (${activeYear})`;
-    }
-  }
-  function toggleViewMode() {
-    if (viewMode === 'monthly') {
-      viewMode = 'annual';
-    } else {
-      viewMode = 'monthly';
-    }
-    cancelEditMode();
-    updateViewModeText();
-    updateChart();
-  }
-
-function applyRecurring() {
-    let changed = false;
-    // 1. Clear existing projected expenses
-    ["user01", "user02"].forEach(p => {
-        if (data[p]) {
-            const initialLength = data[p].length;
-            data[p] = data[p].filter(e => !e.isProjected);
-            if (data[p].length !== initialLength) {
-                changed = true;
-            }
-        }
-    });
-
-    ["user01", "user02"].forEach(p => {
-        if (!data[p]) return;
-
-        // Map to store aggregated recurring info for each unique series (note + isPersonal)
-        // Key: `${note.toLowerCase()}_${isPersonal}`
-        // Value: { latestAggregated: { amount: number, comment: string, month: string, note: string, logo: string, isPersonal: boolean }, firstActualMonth: string }
-        const recurringSeriesAggregatedInfo = new Map();
-
-        // Group actual recurring expenses by month and then by series key
-        const actualRecurringExpensesByMonth = {}; // { 'YYYY-MMM': { 'note_isPersonal': [expense1, expense2] } }
-        data[p].filter(e => e.recurring && !e.isProjected).forEach(e => {
-            const seriesKey = `${e.note.toLowerCase()}_${e.isPersonal}`;
-            if (!actualRecurringExpensesByMonth[e.month]) {
-                actualRecurringExpensesByMonth[e.month] = {};
-            }
-            if (!actualRecurringExpensesByMonth[e.month][seriesKey]) {
-                actualRecurringExpensesByMonth[e.month][seriesKey] = [];
-            }
-            actualRecurringExpensesByMonth[e.month][seriesKey].push(e);
-        });
-
-        // Iterate through months to find the latest aggregated state for each series
-        const sortedMonths = Object.keys(actualRecurringExpensesByMonth).sort((a, b) => getMonthNum(a) - getMonthNum(b));
-
-        for (const monthKey of sortedMonths) {
-            const seriesInMonth = actualRecurringExpensesByMonth[monthKey];
-            for (const seriesKey in seriesInMonth) {
-                const expensesForThisSeriesInMonth = seriesInMonth[seriesKey];
-
-                const aggregatedAmount = expensesForThisSeriesInMonth.reduce((sum, exp) => sum + exp.amount, 0);
-                // For the *actual* aggregated state of a month, we still combine comments
-                // as it represents the full picture of that month's actual expenses for the series.
-                const aggregatedCommentsForMonth = expensesForThisSeriesInMonth
-                                            .map(exp => exp.comment)
-                                            .filter(c => c && c.trim() !== '')
-                                            .join(' | ');
-
-                // Use the first expense in the group to get base details like note, logo, isPersonal
-                const baseExpense = expensesForThisSeriesInMonth[0];
-
-                const currentAggregatedState = {
-                    amount: aggregatedAmount,
-                    note: baseExpense.note, // Keep original casing for projection
-                    logo: baseExpense.logo,
-                    isPersonal: baseExpense.isPersonal,
-                    comment: aggregatedCommentsForMonth, // This comment is for the actual month's aggregation
-                    month: monthKey // This is the month where this aggregation occurred
-                };
-
-                let seriesInfo = recurringSeriesAggregatedInfo.get(seriesKey);
-                if (!seriesInfo) {
-                    seriesInfo = {
-                        latestAggregated: currentAggregatedState,
-                        firstActualMonth: monthKey
-                    };
-                    recurringSeriesAggregatedInfo.set(seriesKey, seriesInfo);
-                } else {
-                    // Update latestAggregated if this month is newer
-                    if (getMonthNum(monthKey) > getMonthNum(seriesInfo.latestAggregated.month)) {
-                        seriesInfo.latestAggregated = currentAggregatedState;
-                    }
-                    // Ensure firstActualMonth is truly the earliest
-                    if (getMonthNum(monthKey) < getMonthNum(seriesInfo.firstActualMonth)) {
-                        seriesInfo.firstActualMonth = monthKey;
-                    }
-                }
-            }
-        }
-
-        // Now, project based on the latest aggregated state for each series
-        recurringSeriesAggregatedInfo.forEach(series => {
-            const { latestAggregated, firstActualMonth } = series;
-            const [firstYear, firstMonthAbbr] = firstActualMonth.split('-');
-            const firstMonthIndex = MONTHS.indexOf(firstMonthAbbr);
-            const startYear = parseInt(firstYear);
-            const currentYear = new Date().getFullYear();
-            const endYear = currentYear + 3; // Project up to 3 years in advance
-
-            for (let year = startYear; year <= endYear; year++) {
-                const startMonth = (year === startYear) ? firstMonthIndex : 0;
-                const endMonth = 11;
-
-                for (let monthIndex = startMonth; monthIndex <= endMonth; monthIndex++) {
-                    const targetMonthKey = `${year}-${MONTHS[monthIndex]}`;
-
-                    // Check if an actual expense already exists for this series in this targetMonthKey
-                    const actualExistingEntriesForSeriesInMonth = data[p].filter(e =>
-                        e.month === targetMonthKey &&
-                        e.recurring &&
-                        e.note.toLowerCase() === latestAggregated.note.toLowerCase() &&
-                        e.isPersonal === latestAggregated.isPersonal &&
-                        !e.isProjected
-                    );
-
-                    // If there are actual entries, we don't project for this month.
-                    if (actualExistingEntriesForSeriesInMonth.length === 0) {
-                        // Only project if no actual entry exists for this month for this series
-                        data[p].push({
-                            id: generateUUID(), // Generate a new UUID for the projected entry
-                            month: targetMonthKey,
-                            amount: latestAggregated.amount,
-                            note: latestAggregated.note,
-                            logo: latestAggregated.logo,
-                            recurring: true,
-                            isPersonal: latestAggregated.isPersonal,
-                            isProjected: true,
-                            // FIX: For projected expenses, set comment to null.
-                            // Carrying forward an aggregated comment string can be misleading for forecasts.
-                            comment: latestAggregated.comment,
-                            person: p,
-                            user_id: currentUser.id,
-                            household_id: loggedInUserProfile.household_id
-                        });
-                        changed = true;
-                    }
-                }
-            }
-        });
-    });
-
-    if (changed) {
-        // Sort the data after adding projected expenses
-        data.user01.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.id.localeCompare(b.id));
-        if (data.user02) {
-            data.user02.sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month) || a.id.localeCompare(b.id));
-        }
-    }
-}
-
-
-  function getExpenseHistoryData(currentExpense, personKey, year) {
-    const amountsByMonth = new Array(12).fill(0);
-    const yearPrefix = year.toString();
-    const expenseIsPersonal = currentExpense.isPersonal;
-
-    // Determine the matcher for the series
-    let matcher;
-    if (currentExpense.recurring) {
-        matcher = e => e.recurring && e.note.toLowerCase() === currentExpense.note.toLowerCase() && e.isPersonal === expenseIsPersonal;
-    } else {
-        // For non-recurring, it's just the specific expense
-        matcher = e => e.id === currentExpense.id;
-    }
-
-    // Filter all expenses (actual and projected) that belong to this series and year
-    const entriesForChartYearAndSeries = data[personKey].filter(e => {
-        const expenseYear = e.month.substring(0, 4);
-        return expenseYear === yearPrefix && matcher(e);
-    });
-
-    // Aggregate amounts for each month
-    const monthlyAggregates = {}; // { monthIndex: totalAmount }
-    entriesForChartYearAndSeries.forEach(e => {
-        const monthIndex = MONTHS.indexOf(e.month.substring(5, 8));
-        if (monthIndex !== -1) {
-            if (!monthlyAggregates[monthIndex]) {
-                monthlyAggregates[monthIndex] = 0;
-            }
-            monthlyAggregates[monthIndex] += e.amount;
-        }
-    });
-
-    // Populate amountsByMonth array
-    for (let i = 0; i < 12; i++) {
-        amountsByMonth[i] = monthlyAggregates[i] || 0;
-    }
-
-    // --- START OF MODIFIED LOGIC FOR chartSeriesStartMonthIndex ---
-    let chartSeriesStartMonthIndex = 0; // Default to January
-
-    if (currentExpense.recurring) {
-        // Find the earliest month (actual or projected) for this recurring series in the entire dataset
-        const allSeriesExpenses = data[personKey].filter(matcher).sort((a, b) => getMonthNum(a.month) - getMonthNum(b.month));
-
-        if (allSeriesExpenses.length > 0) {
-            const seriesFirstMonthKey = allSeriesExpenses[0].month;
-            const [firstSeriesYear, firstSeriesMonthAbbr] = seriesFirstMonthKey.split('-');
-            const firstSeriesYearInt = parseInt(firstSeriesYear);
-
-            if (firstSeriesYearInt === year) {
-                chartSeriesStartMonthIndex = MONTHS.indexOf(firstSeriesMonthAbbr);
-            } else if (firstSeriesYearInt > year) {
-                chartSeriesStartMonthIndex = 12; // Series starts completely after this chart year, so nothing in this year
-            }
-            // If firstSeriesYearInt < year, chartSeriesStartMonthIndex remains 0 (series started before this year, so it's active from Jan)
-        } else {
-            // This case should ideally not happen if a 'currentExpense' exists for a recurring series
-            // but if it does, it means the currentExpense is the *only* entry for this series
-            // and maybe it's a projected one far in the future.
-            const [currentExpenseYear, currentExpenseMonthAbbr] = currentExpense.month.split('-');
-            if (parseInt(currentExpenseYear) === year) {
-                chartSeriesStartMonthIndex = MONTHS.indexOf(currentExpenseMonthAbbr);
-            } else if (parseInt(currentExpenseYear) > year) {
-                chartSeriesStartMonthIndex = 12;
-            }
-        }
-    } else {
-        // For non-recurring, only the month of the expense itself is relevant
-        const [currentExpenseYear, currentExpenseMonthAbbr] = currentExpense.month.split('-');
-        if (parseInt(currentExpenseYear) === year) {
-            chartSeriesStartMonthIndex = MONTHS.indexOf(currentExpenseMonthAbbr);
-        } else {
-            chartSeriesStartMonthIndex = 12; // Non-recurring expense is not in this year
-        }
-    }
-    // --- END OF MODIFIED LOGIC ---
-
-    // Zero out amounts before the series start month
-    for (let i = 0; i < chartSeriesStartMonthIndex; i++) {
-        amountsByMonth[i] = 0;
-    }
-
-    return amountsByMonth;
-}
-  function drawExpenseHistoryChart(expense, canvasId, uuid) {
-    const ctx = document.getElementById(canvasId);
-    if (expenseChartInstances[uuid]) {
-      expenseChartInstances[uuid].destroy();
-    }
-    const amounts = getExpenseHistoryData(expense, activePerson, activeYear);
-    expenseChartInstances[uuid] = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: MONTHS,
-        datasets: [{
-          data: amounts,
-          backgroundColor: (context) => {
-            if (expense.isPersonal) {
-              return activePerson === 'user01' ? '#0a84ff80' : '#d14d2180';
+    function updateSideLockers(centerNumberStr) {
+        const centerNum = parseInt(centerNumberStr);
+        const numLength = centerNumberStr.length;
+        
+        const sideLockers = document.querySelectorAll('.locker.side');
+        const leftLockers = Array.from(sideLockers).slice(0, LOCKERS_PER_SIDE);
+        const rightLockers = Array.from(sideLockers).slice(LOCKERS_PER_SIDE);
+        
+        leftLockers.forEach((locker, index) => {
+            const newNum = centerNum - (LOCKERS_PER_SIDE - index);
+            const numberElement = locker.querySelector('.number');
+            
+            if (newNum < 0) {
+                locker.classList.add('hidden');
             } else {
-              return activePerson === 'user01' ? '#0a84ff' : '#d14d21';
+                locker.classList.remove('hidden');
+                numberElement.textContent = padNumber(newNum, numLength);
             }
-          },
-          borderColor: 'transparent',
-          borderRadius: 4,
-          barPercentage: 0.8,
-          categoryPercentage: 0.8
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: false
-          },
-          tooltip: {
-            callbacks: {
-              label: function(context) {
-                let label = context.dataset.label || '';
-                if (label) {
-                  label += ': ';
-                }
-                if (context.parsed.y !== null) {
-                  label += new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(context.parsed.y);
-                }
-                return label;
-              }
-            },
-            titleColor: 'white',
-            bodyColor: 'white',
-            backgroundColor: 'var(--tooltip-bg)'
-          }
-        },
-        scales: {
-          x: {
-            grid: {
-              display: false,
-            },
-            ticks: {
-              color: 'white',
-              font: {
-                size: 10
-              }
-            }
-          },
-          y: {
-            beginAtZero: true,
-            grid: {
-              color: '#2a2a31',
-            },
-            ticks: {
-              color: 'white',
-              font: {
-                size: 10
-              },
-              callback: function(value) {
-                return '£' + value.toFixed(0);
-              }
-            }
-          }
-        }
-      }
-    });
-  }
-  function toggleEditMode() {
-    editMode = !editMode;
-    selectedExpenses = [];
-    updateAll();
-  }
-  function cancelEditMode() {
-    editMode = false;
-    selectedExpenses = [];
-    updateAll();
-  }
-  function toggleExpenseSelection(checkboxElement, uuid) {
-    if (checkboxElement.checked) {
-      if (!selectedExpenses.includes(uuid)) {
-        selectedExpenses.push(uuid);
-      }
-    } else {
-      selectedExpenses = selectedExpenses.filter(id => id !== uuid);
-    }
-    renderExpenseHeader();
-  }
-  function toggleSelectAll() {
-    const expensesForMonth = data[activePerson].filter(e => normalizeMonthKey(e.month) === activeMonth);
-    const allUUIDsForMonth = expensesForMonth.map(e => e.id);
-    const allCurrentlySelected = allUUIDsForMonth.length > 0 && allUUIDsForMonth.every(uuid => selectedExpenses.includes(uuid));
-    if (allCurrentlySelected) {
-      selectedExpenses = selectedExpenses.filter(id => !allUUIDsForMonth.includes(id));
-    } else {
-      allUUIDsForMonth.forEach(uuid => {
-        if (!selectedExpenses.includes(uuid)) {
-          selectedExpenses.push(uuid);
-        }
-      });
-    }
-    renderExpenses();
-    renderExpenseHeader();
-  }
-  async function confirmDeleteSelected() {
-    if (selectedExpenses.length === 0) {
-      alert("No expenses selected for deletion.");
-      return;
-    }
-    const actualSelected = [];
-    const projectedSelected = [];
-    selectedExpenses.forEach(uuid => {
-      const expense = getExpenseByUUID(uuid);
-      if (expense) {
-        if (expense.isProjected) {
-          projectedSelected.push(uuid);
-        } else {
-          actualSelected.push(uuid);
-        }
-      }
-    });
-    if (projectedSelected.length > 0) {
-      alert("You have selected projected expenses. Projected expenses cannot be deleted directly. Please deselect them or delete their actual entry to stop their projection.");
-      return;
-    }
-    const hasActualRecurringSelected = actualSelected.some(uuid => {
-      const expense = getExpenseByUUID(uuid);
-      return expense && expense.recurring;
-    });
-    let confirmationMessage = `Are you sure you want to delete ${actualSelected.length} selected expense(s)?`;
-    if (hasActualRecurringSelected) {
-      confirmationMessage += "\n\n(Note: If any of these are recurring, only the selected occurrence(s) will be deleted, not future ones. To stop a recurring series, use the single delete button on one of its actual entries.)";
-    }
-    if (!confirm(confirmationMessage)) {
-      return;
-    }
-
-    const { error } = await mySupabaseClient
-      .from('expenses')
-      .delete()
-      .in('id', actualSelected)
-      .eq('person', activePerson);
-
-    if (error) {
-      console.error("Error deleting selected expenses from Supabase:", error);
-      alert("Error deleting selected expenses. Please check the console.");
-      return;
-    }
-
-    data[activePerson] = data[activePerson].filter(e => !actualSelected.includes(e.id));
-    cancelEditMode();
-  }
-
-  async function fetchExpensesFromSupabase() {
-    if (!mySupabaseClient) {
-        console.error("Supabase client is not initialized. Cannot fetch expenses.");
-        alert("Application error: Supabase connection not established. Please refresh.");
-        return;
-    }
-    if (!currentUser) {
-        data.user01 = [];
-        data.user02 = [];
-        return;
-    }
-
-    let { data: allHouseholdExpenses, error: fetchError } = await mySupabaseClient
-        .from('expenses')
-        .select('*')
-        .order('month', { ascending: true })
-        .order('created_at', { ascending: true });
-
-    if (fetchError) {
-        console.error("Error fetching household expenses:", fetchError);
-        alert("Error loading household expenses. Please check the console.");
-        return;
-    }
-
-    data.user01 = allHouseholdExpenses.filter(e => e.person === 'user01').map(e => ({
-        ...e,
-        uuid: e.id, // Keep uuid for consistency with old code, but use id for Supabase
-        isPersonal: e.isPersonal,
-        isProjected: e.isProjected,
-        amount: parseFloat(e.amount)
-    }));
-    data.user02 = allHouseholdExpenses.filter(e => e.person === 'user02').map(e => ({
-        ...e,
-        uuid: e.id, // Keep uuid for consistency with old code, but use id for Supabase
-        isPersonal: e.isPersonal,
-        isProjected: e.isProjected,
-        amount: parseFloat(e.amount)
-    }));
-
-    updateLogosForAllExpenses();
-}
-
-  async function updateAll() {
-    if (!loggedInUserProfile || !loggedInUserProfile.household_id) {
-        console.warn("updateAll: Not logged in or household_id is missing. Clearing local data and rendering defaults.");
-        data.user01 = [];
-        data.user02 = [];
-        data.settlements = {};
-        renderYears();
-        renderMonths();
-        updateViewModeText();
-        updateChart();
-        updateBalance();
-        renderExpenseHeader();
-        renderExpenses();
-        return;
-    }
-
-    const householdId = loggedInUserProfile.household_id;
-    console.log(`updateAll: Attempting to fetch profiles for household_id: ${householdId}`);
-
-    const { data: profiles, error: profilesError } = await mySupabaseClient
-        .from('profiles')
-        .select('*')
-        .eq('household_id', householdId);
-
-    if (profilesError) {
-        console.error("updateAll: Error fetching household profiles:", profilesError);
-        alert("Error fetching household profiles: " + profilesError.message + ". Check console for details.");
-        householdProfilesMap.clear();
-    } else {
-        householdProfilesMap.clear();
-        if (profiles && profiles.length > 0) {
-            profiles.forEach(profile => {
-                if (profile.role) {
-                    householdProfilesMap.set(profile.role, profile);
-                } else {
-                    console.warn("updateAll: Profile found without a 'role' property:", profile);
-                }
-            });
-            console.log("updateAll: Successfully fetched household profiles:", profiles);
-            console.log("updateAll: Populated householdProfilesMap:", householdProfilesMap);
-        } else {
-            console.warn("updateAll: No profiles found for household_id:", householdId, "or empty data returned.");
-        }
-    }
-
-    console.log(`updateAll: Attempting to fetch settlements for household_id: ${householdId}`);
-    const { data: settlementsData, error: settlementsError } = await mySupabaseClient
-        .from('month_settlements')
-        .select('month_key, is_settled')
-        .eq('household_id', householdId);
-
-    if (settlementsError) {
-        console.error("updateAll: Error fetching month settlements:", settlementsError);
-        alert("Error loading month settlements. Please try again. Check console for details.");
-        data.settlements = {};
-    } else {
-        data.settlements = {};
-        settlementsData.forEach(s => {
-            data.settlements[s.month_key] = s.is_settled;
         });
-        console.log("updateAll: Successfully fetched month settlements:", data.settlements);
+        
+        rightLockers.forEach((locker, index) => {
+            const newNum = centerNum + (index + 1);
+            const numberElement = locker.querySelector('.number');
+            numberElement.textContent = padNumber(newNum, numLength);
+            locker.classList.remove('hidden');
+        });
+        
+        // Restart blinking for visible lights only
+        startRandomBlinking();
     }
-
-    await fetchExpensesFromSupabase();
-
-    // The logic to filter out projected expenses before applying recurring is now handled
-    // at the beginning of applyRecurring to ensure a clean slate for projection.
-    applyRecurring();
-
-    renderYears();
-    renderMonths();
-    updateViewModeText();
-    updateChart();
-    updateBalance();
-    renderExpenseHeader();
-    renderExpenses();
-
-}
-
-
-  function migrateData() {
-    let changed = false;
-    ["user01", "user02"].forEach(p => {
-      data[p].forEach(e => {
-        const normalized = normalizeMonthKey(e.month);
-        if (normalized !== e.month) {
-          e.month = normalized;
-          changed = true;
+    
+    function renderLockers(centerNumberStr) {
+        container.innerHTML = '';
+        
+        const centerNum = parseInt(centerNumberStr);
+        const numLength = centerNumberStr.length;
+        
+        // Create left lockers (in reverse order)
+        for (let i = LOCKERS_PER_SIDE; i >= 1; i--) {
+            const lockerNum = centerNum - i;
+            const shouldHide = lockerNum < 0;
+            const displayNum = shouldHide ? '0' : padNumber(lockerNum, numLength);
+            container.appendChild(createLocker(displayNum, false, shouldHide));
         }
-      });
-    });
-  }
-  function normalizeExpenseData() {
-    let changed = false;
-    ["user01", "user02"].forEach(p => {
-      data[p].forEach(e => {
-        if (!e.id) {
-          e.id = generateUUID();
-          changed = true;
+        
+        // Create center locker
+        container.appendChild(createLocker(centerNumberStr, true, false));
+        
+        // Create right lockers
+        for (let i = 1; i <= LOCKERS_PER_SIDE; i++) {
+            const lockerNum = centerNum + i;
+            const displayNum = padNumber(lockerNum, numLength);
+            container.appendChild(createLocker(displayNum, false, false));
         }
-        if (!e.uuid) {
-          e.uuid = e.id;
-        }
-        const wasRecurringString = e.recurring === "yes";
-        e.recurring = (e.recurring === true || wasRecurringString);
-        if (wasRecurringString) changed = true;
-        if (e.baseId) {
-          delete e.baseId;
-          changed = true;
-        }
-        if (e.isPersonal === undefined) {
-          e.isPersonal = false;
-          changed = true;
-        }
-        if (e.isProjected === undefined) {
-          e.isProjected = false;
-          changed = true;
-        }
-        if (e.comment === undefined) {
-            e.comment = null;
-            changed = true;
-        }
-      });
-    });
-  }
-
-async function initApp() {
-    if (!mySupabaseClient) {
-        console.error("initApp: Supabase client is not available. Aborting initialization.");
-        return;
+        
+        // Re-attach event listeners to the center locker
+        attachEventListeners();
+        
+        // Start random blinking for all lights
+        startRandomBlinking();
     }
-
-    initializeDOMElements();
-
-    noteInput.addEventListener('input', showSuggestions);
-    noteInput.addEventListener('focus', showSuggestions);
-    noteInput.addEventListener('blur', hideSuggestions);
-
-    if (toggleCommentBtn) {
-        toggleCommentBtn.addEventListener('click', toggleAddCommentField);
-    }
-
-    if (!currentUser) {
-        const { data: { session }, error } = await mySupabaseClient.auth.getSession();
-        if (session) {
-            currentUser = session.user;
-            const { data: profileData, error: profileError } = await mySupabaseClient
-                .from('profiles')
-                .select('*')
-                .eq('user_id', currentUser.id)
-                .single();
-
-            if (profileError) {
-                console.error("Error fetching user profile during initApp:", profileError);
-                await mySupabaseClient.auth.signOut();
-                currentUser = null;
-                loggedInUserProfile = null;
-            } else {
-                loggedInUserProfile = profileData;
+    
+    function attachEventListeners() {
+        const lockerNumber = document.getElementById('lockerNumber');
+        
+        // Save to localStorage when number changes
+        lockerNumber.addEventListener('blur', function() {
+            const value = this.textContent.trim();
+            if (value) {
+                localStorage.setItem('lockerNumber', value);
             }
-        }
+        });
+        
+        // Update side lockers on input without re-rendering
+        lockerNumber.addEventListener('input', function() {
+            if (isUpdating) return;
+            
+            isUpdating = true;
+            this.textContent = this.textContent.replace(/[^0-9]/g, '');
+            const value = this.textContent.trim();
+            if (value) {
+                updateSideLockers(value);
+            }
+            
+            // Move cursor to end
+            setTimeout(() => {
+                const range = document.createRange();
+                const sel = window.getSelection();
+                range.selectNodeContents(this);
+                range.collapse(false);
+                sel.removeAllRanges();
+                sel.addRange(range);
+                isUpdating = false;
+            }, 0);
+        });
+        
+        // Select all text when clicked
+        lockerNumber.addEventListener('focus', function() {
+            const range = document.createRange();
+            range.selectNodeContents(this);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+        });
     }
-
-    updateAuthUI();
-
-    if (currentUser && loggedInUserProfile) {
-        migrateData();
-        normalizeExpenseData();
-        await updateAll();
-    } else {
-        appContentWrapper.style.display = 'none';
-        authContainer.style.display = 'block';
-    }
-}
-
-  document.addEventListener('DOMContentLoaded', initApp);
+    
+    // Load saved number on page load
+    window.addEventListener('load', function() {
+        const savedNumber = localStorage.getItem('lockerNumber');
+        const initialNumber = savedNumber || '732';
+        renderLockers(initialNumber);
+    });
 </script>
-
 
 </body>
 </html>
