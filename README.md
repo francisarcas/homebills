@@ -15,10 +15,12 @@ Home Bill Tracker is a sophisticated web application designed for couples or roo
 
 **⚠️ Important Note**: This application uses **Supabase** as its backend database. To use this application, you'll need to set up your own Supabase project or connect it to another database provider of your choice.
 
+**👥 Household Size**: The application currently supports **2 users** by default, but can be easily extended to support more household members (see [Expanding to More Users](#-expanding-to-more-users) section below).
+
 ## ✨ Features
 
 ### Core Functionality
-- **👥 Multi-User Support**: Track expenses for two household members with distinct profiles
+- **👥 Multi-User Support**: Track expenses for household members with distinct profiles (2 users by default, expandable)
 - **💰 Shared & Personal Expenses**: Differentiate between shared bills and personal spending
 - **🔄 Recurring Bill Management**: Automatic projection of recurring expenses up to 3 years ahead
 - **📊 Visual Analytics**: Interactive charts showing spending breakdowns and expense history
@@ -284,12 +286,186 @@ Upload all files to your web server or use a service like:
 - Vercel
 - Any static hosting service
 
+## 👥 Expanding to More Users
+
+The application is designed for 2 users by default, but can be extended to support more household members (e.g., 3-4 roommates). Here's how:
+
+### Database Changes
+
+1. **Update the profiles table constraint**:
+
+```sql
+-- Remove the old CHECK constraint
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+
+-- Add new constraint with additional users
+ALTER TABLE profiles ADD CONSTRAINT profiles_role_check 
+  CHECK (role IN ('user01', 'user02', 'user03', 'user04'));
+```
+
+2. **Update the expenses table constraint**:
+
+```sql
+-- Remove the old CHECK constraint
+ALTER TABLE expenses DROP CONSTRAINT IF EXISTS expenses_person_check;
+
+-- Add new constraint with additional users
+ALTER TABLE expenses ADD CONSTRAINT expenses_person_check 
+  CHECK (person IN ('user01', 'user02', 'user03', 'user04'));
+```
+
+3. **Add new user profiles**:
+
+```sql
+INSERT INTO profiles (user_id, household_id, role, display_name, avatar_url)
+VALUES 
+  ('user-uuid-3', 'household-uuid', 'user03', 'Person 3', 'assets/person003.png'),
+  ('user-uuid-4', 'household-uuid', 'user04', 'Person 4', 'assets/person004.png');
+```
+
+### Code Changes
+
+1. **Add CSS color variables** for new users (in the `:root` section):
+
+```css
+:root {
+  /* ... existing variables ... */
+  --user03-color: #30d158;  /* Green for user03 */
+  --user04-color: #ffd60a;  /* Yellow for user04 */
+}
+```
+
+2. **Add profile buttons** in the HTML (in the `.profiles` div):
+
+```html
+<div class="profiles">
+  <img src="assets/person001.png" id="user01Btn" class="profile active" onclick="selectPerson('user01')">
+  <img src="assets/person002.png" id="user02Btn" class="profile" onclick="selectPerson('user02')">
+  <img src="assets/person003.png" id="user03Btn" class="profile" onclick="selectPerson('user03')">
+  <img src="assets/person004.png" id="user04Btn" class="profile" onclick="selectPerson('user04')">
+</div>
+```
+
+3. **Update JavaScript data initialization** (around line 1030):
+
+```javascript
+const data = {
+  user01: [],
+  user02: [],
+  user03: [],  // Add new users
+  user04: [],
+  settlements: {}
+};
+```
+
+4. **Update the chart labels** in `updateChart()` function:
+
+```javascript
+function updateChart() {
+  const user01DisplayName = householdProfilesMap.get('user01')?.display_name || 'User 1';
+  const user02DisplayName = householdProfilesMap.get('user02')?.display_name || 'User 2';
+  const user03DisplayName = householdProfilesMap.get('user03')?.display_name || 'User 3';
+  const user04DisplayName = householdProfilesMap.get('user04')?.display_name || 'User 4';
+  
+  // Update chart data accordingly
+  chart.data.labels = [user01DisplayName, user02DisplayName, user03DisplayName, user04DisplayName];
+  // ... rest of chart update logic
+}
+```
+
+5. **Update loops** that iterate over users (search for `["user01", "user02"]` and extend):
+
+```javascript
+["user01", "user02", "user03", "user04"].forEach(p => {
+  // ... existing logic
+});
+```
+
+6. **Update `selectPerson()` function** to handle new users:
+
+```javascript
+function selectPerson(p) {
+  activePerson = p;
+  const buttons = ['user01Btn', 'user02Btn', 'user03Btn', 'user04Btn'];
+  const colors = {
+    user01: 'var(--user01-color)',
+    user02: 'var(--user02-color)',
+    user03: 'var(--user03-color)',
+    user04: 'var(--user04-color)'
+  };
+  
+  buttons.forEach(btnId => {
+    const btn = document.getElementById(btnId);
+    if (btn) {
+      const userKey = btnId.replace('Btn', '');
+      btn.classList.toggle("active", p === userKey);
+      btn.style.borderColor = (p === userKey) ? colors[userKey] : 'transparent';
+    }
+  });
+  
+  cancelEditMode();
+  updateAll();
+}
+```
+
+7. **Update chart colors** in the `updateChart()` function to include new user colors:
+
+```javascript
+backgroundColor: (ctx) => {
+  if (ctx.dataIndex === 0) return "#0a84ff80";      // user01
+  if (ctx.dataIndex === 1) return "#d14d2180";      // user02
+  if (ctx.dataIndex === 2) return "#30d15880";      // user03
+  if (ctx.dataIndex === 3) return "#ffd60a80";      // user04
+  return 'transparent';
+}
+```
+
+8. **Add avatar images** for new users:
+   - `assets/person003.png`
+   - `assets/person004.png`
+
+### Settlement Logic Considerations
+
+For more than 2 users, the settlement calculation becomes more complex. You may need to:
+
+1. **Implement a more sophisticated settlement algorithm** (e.g., minimize number of transactions)
+2. **Update the `updateBalance()` function** to handle multiple debtors/creditors
+3. **Consider using a settlement matrix** to show who owes whom
+
+Example settlement calculation for multiple users:
+
+```javascript
+function calculateSettlements() {
+  const users = ['user01', 'user02', 'user03', 'user04'];
+  const balances = {};
+  
+  // Calculate each user's balance
+  users.forEach(user => {
+    const expenses = getMonthlyExpenses(user, activeMonth);
+    const totalShared = expenses.shared;
+    balances[user] = totalShared;
+  });
+  
+  // Calculate average shared expense
+  const totalShared = Object.values(balances).reduce((sum, val) => sum + val, 0);
+  const averageShare = totalShared / users.length;
+  
+  // Calculate who owes/is owed
+  const settlements = {};
+  users.forEach(user => {
+    settlements[user] = balances[user] - averageShare;
+  });
+  
+  return settlements; // Positive = owed money, Negative = owes money
+}
+```
+
 ## 💡 Usage
 
 ### Getting Started
 
 1. **Sign Up/Login**: Create an account or log in with existing credentials
-2. **Select Profile**: Choose which household member you are (User 1 or User 2)
+2. **Select Profile**: Choose which household member you are
 3. **Add Expenses**: 
    - Enter amount and description
    - Mark as recurring if it's a regular bill
@@ -395,6 +571,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - Projected expenses cannot be edited directly (by design)
 - Maximum 3-year projection for recurring bills
 - Requires manual profile creation in database
+- Settlement calculation for 2 users only (requires custom logic for 3+ users)
 
 ## 📞 Contact
 
@@ -414,11 +591,12 @@ Repository: [https://github.com/francisarcas/homebills](https://github.com/franc
 ## 💼 Use Cases
 
 - Couples managing shared household expenses
-- Roommates splitting bills
+- Roommates splitting bills (2-4 people)
 - Family budget tracking
 - Personal finance management
 - Subscription tracking
 - Recurring bill forecasting
+- Student house expense sharing
 
 ---
 
