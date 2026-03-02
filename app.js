@@ -1121,63 +1121,83 @@ function applyRecurring() {
     const actualRecurring = data[p].filter(e => e.recurring && !e.isProjected);
 
     // 3. Group by series key (note + isPersonal, case-insensitive)
-    //    Within each series, collect all "versions" (real rows with valid_from)
+    //    Then within each series, group by valid_from to aggregate amounts
+    //    This handles the case where multiple real rows share the same
+    //    note + isPersonal + valid_from (e.g. two Apple subscriptions)
     const seriesMap = new Map();
-    // key = "note_lower|isPersonal"
-    // value = array of { valid_from, amount, note, logo, isPersonal, comment }
+    // key   = "note_lower|isPersonal"
+    // value = Map of { valid_from → { amount, note, logo, isPersonal, comment } }
 
     actualRecurring.forEach(e => {
-      const key        = `${e.note.toLowerCase()}|${e.isPersonal}`;
-      const validFrom  = e.valid_from || e.month; // fallback to month if no valid_from
-      if (!seriesMap.has(key)) seriesMap.set(key, []);
-      seriesMap.get(key).push({
-        valid_from: validFrom,
-        amount:     e.amount,
-        note:       e.note,
-        logo:       e.logo,
-        isPersonal: e.isPersonal,
-        comment:    e.comment || null
-      });
+      const seriesKey  = `${e.note.toLowerCase()}|${e.isPersonal}`;
+      const validFrom  = e.valid_from || e.month;
+
+      if (!seriesMap.has(seriesKey)) seriesMap.set(seriesKey, new Map());
+      const versionMap = seriesMap.get(seriesKey);
+
+      if (!versionMap.has(validFrom)) {
+        // First entry for this version — initialise it
+        versionMap.set(validFrom, {
+          valid_from: validFrom,
+          amount:     e.amount,
+          note:       e.note,       // keep original casing
+          logo:       e.logo,
+          isPersonal: e.isPersonal,
+          comment:    e.comment || null
+        });
+      } else {
+        // Another entry with the same series key AND same valid_from
+        // → aggregate (e.g. Apple £10.99 + Apple £8.99 = £19.98)
+        const existing  = versionMap.get(validFrom);
+        existing.amount += e.amount;
+
+        // Combine comments if both have one
+        if (e.comment?.trim()) {
+          existing.comment = existing.comment
+            ? `${existing.comment} | ${e.comment.trim()}`
+            : e.comment.trim();
+        }
+      }
     });
 
-    // 4. For each series, sort versions by valid_from ascending
-    seriesMap.forEach((versions, key) => {
-      versions.sort((a, b) => getMonthNum(a.valid_from) - getMonthNum(b.valid_from));
-    });
-
-    // 5. Determine projection range
+    // 4. For each series, convert version map to sorted array
+    //    sorted by valid_from ascending so we can walk through them
     const currentYear = new Date().getFullYear();
     const endYear     = currentYear + 3;
 
-    // 6. For each series, find the earliest valid_from to know when to start
-    seriesMap.forEach((versions, key) => {
+    seriesMap.forEach((versionMap, seriesKey) => {
+      // Sort versions by valid_from ascending
+      const versions = [...versionMap.values()]
+        .sort((a, b) => getMonthNum(a.valid_from) - getMonthNum(b.valid_from));
+
+      // 5. Determine where the series starts
       const firstValidFrom = versions[0].valid_from;
       const [fy, fm]       = firstValidFrom.split('-');
       const startYear      = parseInt(fy);
       const startMonthIdx  = MONTHS.indexOf(fm);
 
-      // Walk every month from series start to endYear
+      // 6. Walk every month from series start to endYear
       for (let year = startYear; year <= endYear; year++) {
         const fromMonth = (year === startYear) ? startMonthIdx : 0;
 
         for (let mi = fromMonth; mi <= 11; mi++) {
           const targetMonthKey = `${year}-${MONTHS[mi]}`;
 
-          // ── Find which version applies to this month ──────────────────────
-          // The applicable version is the latest one whose valid_from
-          // is <= targetMonthKey
+          // ── Find which version applies to this month ────────────────────
+          // Latest version whose valid_from <= targetMonthKey
           let applicableVersion = null;
           for (const v of versions) {
             if (getMonthNum(v.valid_from) <= getMonthNum(targetMonthKey)) {
               applicableVersion = v;
             } else {
-              break; // versions are sorted, no point continuing
+              break; // sorted ascending, safe to stop
             }
           }
           if (!applicableVersion) continue;
 
-          // ── Check if a real entry already exists for this month ───────────
-          const hasRealEntry = data[p].some(e =>
+          // ── Check if real entries already exist for this month ──────────
+          // Sum of all real entries for this series in this month
+          const realEntriesForMonth = data[p].filter(e =>
             e.month === targetMonthKey &&
             e.recurring &&
             e.note.toLowerCase() === applicableVersion.note.toLowerCase() &&
@@ -1185,24 +1205,26 @@ function applyRecurring() {
             !e.isProjected
           );
 
-          // Only project if no real entry exists for this month
-          if (!hasRealEntry) {
-            data[p].push({
-              id:           generateUUID(),
-              month:        targetMonthKey,
-              valid_from:   applicableVersion.valid_from,
-              amount:       applicableVersion.amount,
-              note:         applicableVersion.note,
-              logo:         applicableVersion.logo,
-              recurring:    true,
-              isPersonal:   applicableVersion.isPersonal,
-              isProjected:  true,
-              comment:      applicableVersion.comment,
-              person:       p,
-              user_id:      currentUser?.id,
-              household_id: loggedInUserProfile?.household_id
-            });
-          }
+          // If any real entry exists, skip projection for this month
+          // The real entries will show as-is in the list
+          if (realEntriesForMonth.length > 0) continue;
+
+          // ── No real entry → project one aggregated entry ────────────────
+          data[p].push({
+            id:           generateUUID(),
+            month:        targetMonthKey,
+            valid_from:   applicableVersion.valid_from,
+            amount:       applicableVersion.amount,  // already aggregated
+            note:         applicableVersion.note,
+            logo:         applicableVersion.logo,
+            recurring:    true,
+            isPersonal:   applicableVersion.isPersonal,
+            isProjected:  true,
+            comment:      applicableVersion.comment, // already combined
+            person:       p,
+            user_id:      currentUser?.id,
+            household_id: loggedInUserProfile?.household_id
+          });
         }
       }
     });
@@ -1212,6 +1234,7 @@ function applyRecurring() {
       getMonthNum(a.month) - getMonthNum(b.month) || a.id.localeCompare(b.id));
   });
 }
+
 
 /* ─── Per-expense History Chart ───────────────────────────── */
 function getExpenseHistoryData(expense, personKey, year) {
