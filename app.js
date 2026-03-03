@@ -27,13 +27,14 @@ try {
 const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 
 const SUGGESTION_BRANDS = [
-  "apple","amex","affinity water","amazon","b&q","barclays","british airways",
-  "costco","council tax","eurostar","google","hsbc","hyperoptic","iberia",
-  "insite energy","itsu","john lewis","klarna","lidl","lottery","lner","m&s",
-  "morrisons","leads building society","netflix","octopus energy","play station",
-  "prime","renfe","revolut","rent","ryanair","sainsbury's","sky","strava","tfl",
-  "tk.max","third space"
+  "affinity water","amazon","amex","apple","b&q","barclays","booking.com",
+  "british airways","costco","council tax","eurostar","google","hsbc",
+  "hyperoptic","iberia","insite energy","itsu","john lewis","klarna","lidl",
+  "lner","lottery","leads building society","m&s","morrisons","netflix",
+  "octopus energy","play station","prime","renfe","rent","revolut","ryanair",
+  "sainsbury's","sky","strava","tfl","third space","tk.max"
 ].sort();
+
 
 const BRAND_LOGO_RULES = [
   { keywords: ["affinity water"],         logo: "assets/logos/affinitywater.png" },
@@ -296,12 +297,19 @@ function showSuggestions() {
 
 function formatBrandDisplay(brand) {
   const overrides = {
-    "m&s":"M&S","b&q":"B&Q","hsbc":"HSBC","lner":"LNER",
-    "tfl":"TFL","amex":"AMEX","tk.max":"TK.MAX"
+    "m&s":      "M&S",
+    "b&q":      "B&Q",
+    "hsbc":     "HSBC",
+    "lner":     "LNER",
+    "tfl":      "TFL",
+    "amex":     "AMEX",
+    "tk.max":   "TK.MAX",
+    "booking.com": "Booking.com"  // ← added
   };
   return overrides[brand] ||
     brand.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
+
 
 function selectSuggestion(brand) {
   if (!noteInput || !suggestionsDiv) return;
