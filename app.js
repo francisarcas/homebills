@@ -32,7 +32,7 @@ const SUGGESTION_BRANDS = [
   "hyperoptic","iberia","insite energy","itsu","john lewis","klarna","lidl",
   "lner","lottery","leads building society","m&s","morrisons","netflix",
   "octopus energy","play station","prime","renfe","rent","revolut","ryanair",
-  "sainsbury's","sky","strava","tfl","third space","tk.max"
+  "sainsbury's","sky","strava","tfl","trainline","third space","tk.max"
 ].sort();
 
 
@@ -71,6 +71,7 @@ const BRAND_LOGO_RULES = [
   { keywords: ["sky"],                    logo: "assets/logos/sky.png" },
   { keywords: ["strava"],                 logo: "assets/logos/strava.png" },
   { keywords: ["tfl"],                    logo: "assets/logos/tfl.png" },
+  { keywords: ["trainline"],              logo: "assets/logos/trainline.png" },
   { keywords: ["tk.max"],                 logo: "assets/logos/tkmax.png" },
   { keywords: ["eurostar"],               logo: "assets/logos/eurostar.png" },
   { keywords: ["council tax","council-tax","brent council","brent"], logo: "assets/logos/brent.png" },
