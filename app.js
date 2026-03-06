@@ -28,8 +28,8 @@ const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV
 
 const SUGGESTION_BRANDS = [
   "adobe","affinity water","amazon","amex","american airlines","apple",
-  "b&q","barclays","booking.com","british airways",
-  "chatgpt","costco","council tax",
+  "b&q","barclays","booking.com","british airways","brent",
+  "chatgpt","costco",
   "deliveroo","domino's",
   "easy jet","ebay","eurostar","el corte ingles",
   "formula1",
@@ -65,7 +65,7 @@ const BRAND_LOGO_RULES = [
   { keywords: ["british airways"],        logo: "assets/logos/britishairways.png" },
   { keywords: ["chatgpt"],                logo: "assets/logos/chatgpt.png" },
   { keywords: ["costco"],                 logo: "assets/logos/costco.png" },
-  { keywords: ["council tax","council-tax","brent council","brent"], logo: "assets/logos/brent.png" },
+  { keywords: ["brent"],                  logo: "assets/logos/brent.png" },
   { keywords: ["deliveroo"],              logo: "assets/logos/deliveroo.png" },
   { keywords: ["domino's"],               logo: "assets/logos/dominospizza.png" },
   { keywords: ["easy jet"],               logo: "assets/logos/easyjet.png" },
