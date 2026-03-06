@@ -355,7 +355,19 @@ button i,
 #user02Btn.active { border-color: var(--user02-color); }
 
 /* ─── Suggestions ─────────────────────────────────────────── */
-.note-input-wrapper { position: relative; }
+.note-input-wrapper { 
+  position: relative; 
+}
+
+.suggestions-dropdown img.suggestion-logo {
+  display: block !important;
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 4px !important;
+  object-fit: contain !important;
+  flex-shrink: 0 !important;
+}
+
 
 .suggestions-dropdown {
   position: absolute;
