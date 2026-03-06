@@ -365,12 +365,13 @@ button i,
   background: var(--card);
   border-radius: 10px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-  max-height: 200px;
+  max-height: 216px;
   overflow-y: auto;
   z-index: 100;
   width: 100%;
   display: none;
 }
+
 
 .suggestion-item {
   display: flex;
@@ -799,6 +800,10 @@ input[type="checkbox"].expense-select-checkbox:focus {
     width: 100%;
     order: 3;
   }
+  .suggestions-dropdown {
+  max-height: 252px;
+}
+
 
   #amountInput { order: 1; }
   #recurringInput { order: 4; }
