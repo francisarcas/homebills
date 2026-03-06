@@ -208,11 +208,18 @@ function detectLogo(note) {
   const lower = note.toLowerCase();
   for (const rule of BRAND_LOGO_RULES) {
     for (const keyword of rule.keywords) {
-      if (lower.includes(keyword)) return rule.logo;
+      // Use word-boundary regex for short or easily-embedded keywords
+      const regex = new RegExp(`(?<![a-z0-9])${escapeRegex(keyword)}(?![a-z0-9])`, 'i');
+      if (regex.test(lower)) return rule.logo;
     }
   }
   return null;
 }
+
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 
 function updateLogosForAllExpenses() {
   ["user01","user02"].forEach(p => {
