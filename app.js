@@ -27,11 +27,11 @@ try {
 const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 
 const SUGGESTION_BRANDS = [
-  "adobe","affinity water","alo","amazon","amex","american airlines","apple",
-  "b&q","barclays","booking.com","british airways","brent",
+  "adobe","affinity water","aldi","alo","amazon","amex","american airlines","apple","asda",
+  "b&q","barclays","booking.com","boots","brent","british airways","bupa",
   "chatgpt","costco",
   "deliveroo","domino's",
-  "easy jet","ebay","eurostar","el corte ingles",
+  "easy jet","ebay","el corte ingles","eurostar",
   "formula1",
   "google","grok","grind",
   "hsbc","hyperoptic",
@@ -45,7 +45,7 @@ const SUGGESTION_BRANDS = [
   "paramount+","paypal","play station","prime",
   "renfe","rent","revolut","ryanair",
   "sainsbury's","sky","strava","starbucks",
-  "tfl","third space","tk.max","trainline",
+  "tesco","tfl","third space","tk.max","trainline",
   "vue cinemas","vueling",
   "x",
   "zwift"
@@ -55,18 +55,22 @@ const SUGGESTION_BRANDS = [
 const BRAND_LOGO_RULES = [
   { keywords: ["adobe"],                  logo: "assets/logos/adobe.png" },
   { keywords: ["affinity water"],         logo: "assets/logos/affinitywater.png" },
+  { keywords: ["aldi"],                   logo: "assets/logos/aldi.png" },
+  { keywords: ["alo"],                    logo: "assets/logos/alo.png" },
   { keywords: ["amazon"],                 logo: "assets/logos/amazon.png" },
   { keywords: ["amex"],                   logo: "assets/logos/amex.png" },
   { keywords: ["american airlines"],      logo: "assets/logos/americanairlines.png" },
-  { keywords: ["alo"],                    logo: "assets/logos/alo.png" },
   { keywords: ["apple"],                  logo: "assets/logos/apple.png" },
+  { keywords: ["asda"],                   logo: "assets/logos/asda.png" },
   { keywords: ["b&q"],                    logo: "assets/logos/bandq.png" },
   { keywords: ["barclays"],               logo: "assets/logos/barclays.png" },
   { keywords: ["booking.com"],            logo: "assets/logos/booking.png" },
+  { keywords: ["boots"],                  logo: "assets/logos/boots.png" },
+  { keywords: ["brent"],                  logo: "assets/logos/brent.png" },
   { keywords: ["british airways"],        logo: "assets/logos/britishairways.png" },
+  { keywords: ["bupa"],                   logo: "assets/logos/bupa.png" },
   { keywords: ["chatgpt"],                logo: "assets/logos/chatgpt.png" },
   { keywords: ["costco"],                 logo: "assets/logos/costco.png" },
-  { keywords: ["brent"],                  logo: "assets/logos/brent.png" },
   { keywords: ["deliveroo"],              logo: "assets/logos/deliveroo.png" },
   { keywords: ["domino's"],               logo: "assets/logos/dominospizza.png" },
   { keywords: ["easy jet"],               logo: "assets/logos/easyjet.png" },
@@ -111,6 +115,7 @@ const BRAND_LOGO_RULES = [
   { keywords: ["sky"],                    logo: "assets/logos/sky.png" },
   { keywords: ["strava"],                 logo: "assets/logos/strava.png" },
   { keywords: ["starbucks"],              logo: "assets/logos/starbucks.png" },
+  { keywords: ["tesco"],                  logo: "assets/logos/tesco.png" },
   { keywords: ["tfl"],                    logo: "assets/logos/tfl.png" },
   { keywords: ["third space"],            logo: "assets/logos/thirdspace.png" },
   { keywords: ["tk.max"],                 logo: "assets/logos/tkmax.png" },
@@ -376,8 +381,11 @@ function formatBrandDisplay(brand) {
     "adobe":             "Adobe",
     "american airlines": "American Airlines",
     "amex":              "AMEX",
+    "asda":              "Asda",
     "b&q":               "B&Q",
     "booking.com":       "Booking.com",
+    "boots":             "Boots",
+    "bupa":              "Bupa",
     "chatgpt":           "ChatGPT",
     "deliveroo":         "Deliveroo",
     "domino's":          "Domino's",
@@ -398,6 +406,7 @@ function formatBrandDisplay(brand) {
     "odeon":             "ODEON",
     "paramount+":        "Paramount+",
     "paypal":            "PayPal",
+    "tesco":             "Tesco",
     "tfl":               "TFL",
     "tk.max":            "TK.MAX",
     "vue cinemas":       "Vue Cinemas",
@@ -405,6 +414,7 @@ function formatBrandDisplay(brand) {
     "x":                 "X",
     "zwift":             "Zwift"
   };
+
   return overrides[brand] ||
     brand.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
