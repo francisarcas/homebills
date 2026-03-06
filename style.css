@@ -781,8 +781,12 @@ input[type="checkbox"].expense-select-checkbox:focus {
   animation: settle-sweep 650ms ease-out both;
   pointer-events: none;
 }
+.suggestion-item {
+    padding: 11px 12px;
+  }
 
-@keyframes settle-sweep { to { transform: translateX(120%); } }
+@keyframes settle-sweep { 
+  to { transform: translateX(120%); } }
 
 /* ─── Mobile ──────────────────────────────────────────────── */
 @media (max-width: 600px) {
@@ -794,7 +798,9 @@ input[type="checkbox"].expense-select-checkbox:focus {
     order: 2;
   }
 
-  .note-input-and-comment-btn-wrapper .note-input-wrapper { width: 100%; }
+  .note-input-and-comment-btn-wrapper 
+  .note-input-wrapper { 
+    width: 100%; }
 
   .full-width-form-input {
     width: 100%;
