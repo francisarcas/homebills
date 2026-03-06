@@ -781,9 +781,6 @@ input[type="checkbox"].expense-select-checkbox:focus {
   animation: settle-sweep 650ms ease-out both;
   pointer-events: none;
 }
-.suggestion-item {
-    padding: 11px 12px;
-  }
 
 @keyframes settle-sweep { 
   to { transform: translateX(120%); } }
@@ -796,6 +793,9 @@ input[type="checkbox"].expense-select-checkbox:focus {
     flex-direction: row;
     width: 100%;
     order: 2;
+  }
+  .suggestion-item {
+    padding: 11px 12px;
   }
 
   .note-input-and-comment-btn-wrapper 
