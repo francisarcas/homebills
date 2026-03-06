@@ -365,21 +365,11 @@ button i,
   background: var(--card);
   border-radius: 10px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-  max-height: 120px;
+  max-height: 200px;
   overflow-y: auto;
   z-index: 100;
   width: 100%;
   display: none;
-}
-
-/* ─── Expense Header ──────────────────────────────────────── */
-.expense-header-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-  font-weight: 600;
 }
 
 .suggestion-item {
@@ -413,6 +403,15 @@ button i,
   color: var(--muted);
 }
 
+/* ─── Expense Header ──────────────────────────────────────── */
+.expense-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
 
 .expense-header-info {
   display: flex;
@@ -782,8 +781,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
   pointer-events: none;
 }
 
-@keyframes settle-sweep { 
-  to { transform: translateX(120%); } }
+@keyframes settle-sweep { to { transform: translateX(120%); } }
 
 /* ─── Mobile ──────────────────────────────────────────────── */
 @media (max-width: 600px) {
@@ -794,13 +792,8 @@ input[type="checkbox"].expense-select-checkbox:focus {
     width: 100%;
     order: 2;
   }
-  .suggestion-item {
-    padding: 11px 12px;
-  }
 
-  .note-input-and-comment-btn-wrapper 
-  .note-input-wrapper { 
-    width: 100%; }
+  .note-input-and-comment-btn-wrapper .note-input-wrapper { width: 100%; }
 
   .full-width-form-input {
     width: 100%;
@@ -815,9 +808,7 @@ input[type="checkbox"].expense-select-checkbox:focus {
 
   .expense-header-info .desktop-display { display: none; }
 
-  .expense-header-info .mobile-display {
-    display: flex;
-  }
+  .expense-header-info .mobile-display { display: flex; }
 
   .expense-header-info .mobile-display .month-year-line { font-size: 0.85em; }
 
@@ -931,4 +922,6 @@ input[type="checkbox"].expense-select-checkbox:focus {
   .expense-note-marquee.scroll-active {
     animation: marquee-bounce var(--marquee-duration) ease-in-out infinite alternate;
   }
+
+  .suggestion-item { padding: 11px 12px; }
 }
