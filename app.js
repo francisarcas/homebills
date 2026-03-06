@@ -327,12 +327,45 @@ function showSuggestions() {
 
   matches.forEach(b => {
     const item = document.createElement('div');
-    item.textContent = formatBrandDisplay(b);
+    item.className = 'suggestion-item';
+
+    const logoPath = detectLogo(b);
+    const logoEl = document.createElement('span');
+    logoEl.className = 'suggestion-logo-wrapper';
+
+    if (logoPath) {
+      const img = document.createElement('img');
+      img.src = logoPath;
+      img.className = 'suggestion-logo';
+      img.onerror = () => {
+        console.warn('Logo failed to load on this device:', logoPath); // ← add this
+        img.remove();
+        logoEl.appendChild(createFallbackIcon());
+      };
+      logoEl.appendChild(img);
+    }
+    else {
+      logoEl.appendChild(createFallbackIcon());
+    }
+
+    const label = document.createElement('span');
+    label.textContent = formatBrandDisplay(b);
+
+    item.appendChild(logoEl);
+    item.appendChild(label);
     item.onmousedown = e => { e.preventDefault(); selectSuggestion(b); };
     suggestionsDiv.appendChild(item);
   });
+
   suggestionsDiv.style.display = 'block';
 }
+
+function createFallbackIcon() {
+  const icon = document.createElement('i');
+  icon.className = 'fa-solid fa-receipt suggestion-fallback-icon';
+  return icon;
+}
+
 
 function formatBrandDisplay(brand) {
   const overrides = {
