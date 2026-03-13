@@ -48,7 +48,7 @@ const SUGGESTION_BRANDS = [
   "tesco","tfl","third space","three","tk.max","trainline",
   "uber",
   "virgin media","vodafone","vue cinemas","vueling",
-  "waitrose",
+  "waitrose", "wembley stadium",
   "x",
   "zwift"
 ].sort();
@@ -146,6 +146,7 @@ const BRAND_LOGO_RULES = [
   { keywords: ["vue cinemas"],            logo: "assets/logos/vuecinemas.png" },
   { keywords: ["vueling"],                logo: "assets/logos/vueling.png" },
   { keywords: ["waitrose"],               logo: "assets/logos/waitrose.png" },
+  { keywords: ["Wembley Stadium"],        logo: "assets/logos/wembleystadium.png" },
   { keywords: ["x"],                      logo: "assets/logos/x.png" },
   { keywords: ["zwift"],                  logo: "assets/logos/zwift.png" }
 ];
@@ -458,6 +459,7 @@ function formatBrandDisplay(brand) {
     "vue cinemas":       "Vue Cinemas",
     "vueling":           "Vueling",
     "waitrose":          "Waitrose",
+    "wembley stadium":   "Wembley Stadium",
     "x":                 "X",
     "zwift":             "Zwift"
   };
