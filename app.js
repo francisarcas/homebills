@@ -28,7 +28,7 @@ const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV
 
 const SUGGESTION_BRANDS = [
   "adobe","affinity water","aldi","alo","amazon","amex","american airlines","apple","argos","arsenal fc","asda",
-  "b&q","barclays","booking.com","bolt","boots","brent","british airways","bt","bupa",
+  "b&q","bambu lab","barclays","booking.com","bolt","boots","brent","british airways","bt","bupa",
   "carrefour", "cercanias","chelsea fc","chatgpt","co-op","costco","currys",
   "deliveroo","domino's",
   "easy jet","ebay","ee","el corte ingles","eurostar","enterprise", "elgato",
@@ -66,6 +66,7 @@ const BRAND_LOGO_RULES = [
   { keywords: ["arsenal fc"],             logo: "assets/logos/arsenal.png" },
   { keywords: ["asda"],                   logo: "assets/logos/asda.png" },
   { keywords: ["b&q"],                    logo: "assets/logos/bandq.png" },
+  { keywords: ["bambu lab"],              logo: "assets/logos/bambulab.png" },
   { keywords: ["barclays"],               logo: "assets/logos/barclays.png" },
   { keywords: ["booking.com"],            logo: "assets/logos/booking.png" },
   { keywords: ["bolt"],                   logo: "assets/logos/bolt.png" },
