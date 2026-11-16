@@ -157,7 +157,7 @@ canvas { max-height: 160px; }
 /* ─── Form ────────────────────────────────────────────────── */
 .form {
   display: grid;
-  grid-template-columns: 0.6fr 1.5fr 0.6fr 0.6fr auto;
+  grid-template-columns: 0.6fr 1.5fr minmax(145px, 0.75fr) 0.6fr auto;
   gap: 8px;
 }
 
@@ -200,6 +200,14 @@ canvas { max-height: 160px; }
 }
 
 .full-width-form-input { grid-column: 1 / -1; }
+
+#recurringInput { min-width: 0; }
+
+#paymentCountField label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+}
 
 input,
 select {
@@ -280,6 +288,13 @@ button i,
 }
 
 .action.delete { color: var(--danger); }
+
+.action.end-recurring {
+  width: auto;
+  padding: 5px;
+  background: transparent;
+  color: inherit;
+}
 
 .comment-indicator {
   color: var(--muted);
@@ -819,9 +834,10 @@ input[type="checkbox"].expense-select-checkbox:focus {
 
   #amountInput { order: 1; }
   #recurringInput { order: 4; }
-  #sharedStatusInput { order: 5; }
+  #paymentCountField { order: 5; }
+  #sharedStatusInput { order: 6; }
 
-  .form button:last-of-type { order: 6; }
+  .form button:last-of-type { order: 7; }
 
   .expense-header-info .desktop-display { display: none; }
 

@@ -180,7 +180,7 @@ const expenseChartInstances = {};
 
 let noteInput, suggestionsDiv, yearTabsDiv, expenseHeaderDiv, balanceTextDiv,
     currentViewTextSpan, sharedStatusInput, amountInput, recurringInput,
-    expenseListDiv, user01Btn, user02Btn;
+    paymentCountField, paymentCountInput, addExpenseButton, expenseListDiv, user01Btn, user02Btn;
 
 /* ─── Helpers ─────────────────────────────────────────────── */
 function getGreeting() {
@@ -213,6 +213,31 @@ function normalizeMonthKey(monthKey) {
     if (monthIndex >= 0 && monthIndex < 12) return `${year}-${MONTHS[monthIndex]}`;
   }
   return monthKey;
+}
+
+function monthNumberToDate(monthNumber) {
+  const year = Math.floor(monthNumber / 12);
+  const month = String(monthNumber % 12 + 1).padStart(2, '0');
+  return `${String(year).padStart(4, '0')}-${month}-01`;
+}
+
+function recurringSeriesKey(expense) {
+  return expense.recurrence_id
+    ? `id:${expense.recurrence_id}`
+    : `legacy:${expense.note.toLowerCase()}|${expense.isPersonal}`;
+}
+
+function savedRecurringSeries(expense) {
+  const key = recurringSeriesKey(expense);
+  return data[expense.person].filter(e =>
+    e.recurring && !e.isProjected && recurringSeriesKey(e) === key);
+}
+
+function earliestEndMonth(expenses) {
+  return expenses.reduce((end, expense) => {
+    const month = expense.recurring_end_month;
+    return month && (!end || month < end) ? month : end;
+  }, null);
 }
 
 function capitalise(name) {
@@ -349,6 +374,9 @@ function initializeDOMElements() {
   sharedStatusInput   = document.getElementById('sharedStatusInput');
   amountInput         = document.getElementById('amountInput');
   recurringInput      = document.getElementById('recurringInput');
+  paymentCountField   = document.getElementById('paymentCountField');
+  paymentCountInput   = document.getElementById('paymentCountInput');
+  addExpenseButton    = document.getElementById('addExpenseButton');
   expenseListDiv      = document.getElementById('expenseList');
   authContainer       = document.getElementById('authContainer');
   authEmail           = document.getElementById('authEmail');
@@ -808,8 +836,12 @@ function renderExpenses() {
     const iconContent     = e.logo
       ? `<img class="logo" src="${e.logo}" onerror="this.remove()">`
       : `<i class="fa-solid fa-receipt"></i>`;
-    const recurringHtml   = e.recurring
-      ? `<i class="fa-solid fa-repeat recurring-indicator" title="Recurring expense"></i>` : '';
+    const endDate = e.isProjected ? e.recurring_end_month
+      : e.recurring ? earliestEndMonth(savedRecurringSeries(e)) : null;
+    const endMonth = endDate && normalizeMonthKey(endDate.slice(0, 7));
+    const canEndRecurring = e.recurring && (!endDate || monthNumberToDate(getMonthNum(e.month)) < endDate);
+    const recurringHtml = e.recurring
+      ? `<i class="fa-solid fa-repeat recurring-indicator" title="${endMonth ? `Last payment month ${endMonth}` : 'Monthly until stopped'}"></i>` : '';
     const personalHtml    = e.isPersonal
       ? `<i class="fa-solid fa-user personal-indicator" title="Personal expense"></i>` : '';
     const projectedHtml   = e.isProjected
@@ -838,6 +870,9 @@ function renderExpenses() {
         <span class="action" onclick="editExpenseByUUID('${uuid}')">
           <i class="fa-solid fa-pencil"></i>
         </span>
+        ${canEndRecurring ? `<button type="button" class="action end-recurring"
+          title="End after this month" aria-label="End after this month"
+          onclick="endRecurringByUUID('${uuid}')"><i class="fa-solid fa-calendar-xmark" aria-hidden="true"></i></button>` : ''}
         <span class="action delete ${e.isProjected ? 'disabled' : ''}"
           onclick="${e.isProjected ? '' : `deleteExpenseByUUID('${uuid}')`}">
           <i class="fa-solid fa-trash"></i>
@@ -941,15 +976,34 @@ function toggleExpenseChart(toggleBtn, uuid) {
 }
 
 /* ─── Add Expense ─────────────────────────────────────────── */
+function updatePaymentCountField() {
+  const fixed = recurringInput.value === 'fixed';
+  paymentCountField.hidden = !fixed;
+  paymentCountInput.disabled = !fixed;
+}
+
 async function addExpense() {
+  if (addExpenseButton.disabled) return;
   const amount      = parseFloat(amountInput.value);
   const note        = noteInput.value.trim();
-  const isRecurring = recurringInput.value === "yes";
+  const isRecurring = recurringInput.value !== "no";
   const isPersonal  = sharedStatusInput.value === "personal";
 
   if (!amount || !note) { alert("Please enter both amount and description."); return; }
   if (amount <= 0)       { alert("Amount must be greater than zero."); return; }
   if (amount > 999999)   { alert("Amount seems too large. Please check."); return; }
+
+  let endMonth = null;
+  if (recurringInput.value === 'fixed') {
+    const count = paymentCountInput.valueAsNumber;
+    const lastMonth = getMonthNum(activeMonth) + count - 1;
+    if (!Number.isSafeInteger(count) || count < 2 || lastMonth >= 10000 * 12) {
+      alert("Enter a whole number of payments of at least 2 within the supported calendar.");
+      paymentCountInput.focus();
+      return;
+    }
+    endMonth = monthNumberToDate(lastMonth);
+  }
 
   if (!currentUser || !loggedInUserProfile?.household_id) {
     alert("You must be logged in and part of a household to add an expense.");
@@ -970,12 +1024,17 @@ async function addExpense() {
                     ? commentInput.value.trim() : null,
     user_id:      currentUser.id,
     household_id: loggedInUserProfile.household_id,
-    // ── Option B: set valid_from for recurring entries ──
-    valid_from:   isRecurring ? activeMonth : null
+    valid_from:   isRecurring ? activeMonth : null,
+    ...(isRecurring && { recurrence_id: generateUUID(), recurring_end_month: endMonth })
   };
 
-  const { error } = await mySupabaseClient
-    .from('expenses').insert([newExpense]).select();
+  addExpenseButton.disabled = true;
+  let error;
+  try {
+    ({ error } = await mySupabaseClient.from('expenses').insert([newExpense]).select());
+  } finally {
+    addExpenseButton.disabled = false;
+  }
   if (error) {
     console.error("Error adding expense:", error);
     alert("Error adding expense.");
@@ -985,6 +1044,8 @@ async function addExpense() {
   amountInput.value        = "";
   noteInput.value          = "";
   recurringInput.value     = "no";
+  paymentCountInput.value  = "";
+  updatePaymentCountField();
   sharedStatusInput.value  = "shared";
   suggestionsDiv.style.display = 'none';
   if (isCommentInputVisible) toggleAddCommentField();
@@ -1030,29 +1091,25 @@ async function editExpenseByUUID(uuid) {
     comment: newComment?.trim() || null
   };
 
-  // If description changed on a recurring series, offer to update all
+  const series = expense.recurring ? savedRecurringSeries(expense) : [];
   if (expense.recurring &&
       newNote.trim().toLowerCase() !== expense.note.toLowerCase()) {
     if (confirm("Update description for all occurrences of this recurring series?")) {
-      await mySupabaseClient.from('expenses')
+      const { error } = await mySupabaseClient.from('expenses')
         .update({ note: newNote.trim(), logo: detectLogo(newNote.trim()) })
-        .eq('note', expense.note)
-        .eq('isPersonal', expense.isPersonal)
-        .eq('recurring', true)
-        .eq('person', activePerson);
+        .in('id', series.map(e => e.id));
+      if (error) { alert("Error updating the series description."); return; }
     }
   }
 
   // If amount changed on a recurring real entry, offer to update all future
   if (expense.recurring && newAmount !== expense.amount) {
     if (confirm("Update all future occurrences of this recurring expense to the new amount?")) {
-      await mySupabaseClient.from('expenses')
+      const month = getMonthNum(expense.month);
+      const { error } = await mySupabaseClient.from('expenses')
         .update({ amount: newAmount })
-        .eq('note', updatedFields.note)
-        .eq('isPersonal', expense.isPersonal)
-        .eq('recurring', true)
-        .gte('month', expense.month)
-        .eq('person', activePerson);
+        .in('id', series.filter(e => getMonthNum(e.month) >= month).map(e => e.id));
+      if (error) { alert("Error updating future amounts."); return; }
     }
   }
 
@@ -1105,6 +1162,8 @@ async function editProjectedExpense(expense) {
     note:         newNote.trim(),
     logo:         detectLogo(newNote.trim()),
     recurring:    true,
+    ...(expense.recurrence_id && { recurrence_id: expense.recurrence_id }),
+    ...(expense.recurring_end_month && { recurring_end_month: expense.recurring_end_month }),
     isPersonal:   expense.isPersonal,
     isProjected:  false,              // this is a real row, not a projection
     person:       activePerson,
@@ -1126,6 +1185,34 @@ async function editProjectedExpense(expense) {
   updateAll();
 }
 
+async function endRecurringByUUID(uuid) {
+  const expense = getExpenseByUUID(uuid);
+  if (!expense?.recurring) return;
+
+  const month = monthNumberToDate(getMonthNum(expense.month));
+  const series = savedRecurringSeries(expense);
+  const existingEnd = earliestEndMonth(series);
+  if (!series.length || (existingEnd && existingEnd <= month)) return;
+  if (!confirm(`End "${expense.note}" after ${expense.month}? Saved expenses will be kept.`)) return;
+
+  const update = mySupabaseClient.from('expenses')
+    .update({ recurring_end_month: month })
+    .eq('household_id', expense.household_id)
+    .eq('person', expense.person)
+    .eq('recurring', true)
+    .eq('isProjected', false)
+    .or(`recurring_end_month.is.null,recurring_end_month.gt.${month}`);
+  const matching = expense.recurrence_id
+    ? update.eq('recurrence_id', expense.recurrence_id)
+    : update.in('id', series.map(e => e.id));
+  const { data: updated, error } = await matching.select('id');
+  if (error || !updated?.length) {
+    console.error("Error ending recurring payment:", error);
+    alert("Could not save the end month. Refresh the list and try again if the payment still repeats.");
+  }
+  await updateAll();
+}
+
 /* ─── Delete Expense ──────────────────────────────────────── */
 async function deleteExpenseByUUID(uuid) {
   if (editMode) { cancelEditMode(); setTimeout(() => deleteExpenseByUUID(uuid), 100); return; }
@@ -1133,32 +1220,14 @@ async function deleteExpenseByUUID(uuid) {
   const expense = getExpenseByUUID(uuid);
   if (!expense) return;
   if (expense.isProjected) {
-    alert("Projected expenses cannot be deleted directly. Edit the entry to change its amount, or delete the original recurring entry to stop the series.");
+    alert('To stop future forecasts, use "End after this month".');
     return;
   }
 
-  if (expense.recurring) {
-    if (confirm("Delete ONLY this occurrence?\n(Cancel = delete this AND all future instances)")) {
-      const { error } = await mySupabaseClient.from('expenses')
-        .delete().eq('id', uuid).eq('person', activePerson);
-      if (error) { alert("Error deleting expense."); return; }
-      updateAll();
-      return;
-    }
-    if (!confirm("Delete this AND ALL FUTURE recurring instances?")) return;
-
-    const { error } = await mySupabaseClient.from('expenses')
-      .delete()
-      .eq('note', expense.note)
-      .eq('isPersonal', expense.isPersonal)
-      .gte('month', expense.month)
-      .eq('person', activePerson);
-    if (error) { alert("Error deleting recurring series."); return; }
-    updateAll();
-    return;
-  }
-
-  if (!confirm("Delete expense?")) return;
+  const message = expense.recurring
+    ? 'Delete this saved expense? To stop future forecasts while keeping saved expenses, use "End after this month".'
+    : 'Delete expense?';
+  if (!confirm(message)) return;
 
   const { error } = await mySupabaseClient.from('expenses')
     .delete().eq('id', uuid).eq('person', activePerson);
@@ -1289,52 +1358,35 @@ function applyRecurring() {
     // 2. Get all actual recurring entries for this person
     const actualRecurring = data[p].filter(e => e.recurring && !e.isProjected);
 
-    // 3. Group by series key (note + isPersonal, case-insensitive)
-    //    Then within each series, group by valid_from to aggregate amounts
-    //    This handles the case where multiple real rows share the same
-    //    note + isPersonal + valid_from (e.g. two Apple subscriptions)
+    // New plans have independent IDs. Older entries retain their original grouping.
     const seriesMap = new Map();
-    // key   = "note_lower|isPersonal"
-    // value = Map of { valid_from → { amount, note, logo, isPersonal, comment } }
 
     actualRecurring.forEach(e => {
-      const seriesKey  = `${e.note.toLowerCase()}|${e.isPersonal}`;
-      const validFrom  = e.valid_from || e.month;
-
-      if (!seriesMap.has(seriesKey)) seriesMap.set(seriesKey, new Map());
-      const versionMap = seriesMap.get(seriesKey);
-
-      if (!versionMap.has(validFrom)) {
-        // First entry for this version — initialise it
-        versionMap.set(validFrom, {
-          valid_from: validFrom,
-          amount:     e.amount,
-          note:       e.note,       // keep original casing
-          logo:       e.logo,
-          isPersonal: e.isPersonal,
-          comment:    e.comment || null
-        });
-      } else {
-        // Another entry with the same series key AND same valid_from
-        // → aggregate (e.g. Apple £10.99 + Apple £8.99 = £19.98)
-        const existing  = versionMap.get(validFrom);
-        existing.amount += e.amount;
-
-        // Combine comments if both have one
-        if (e.comment?.trim()) {
-          existing.comment = existing.comment
-            ? `${existing.comment} | ${e.comment.trim()}`
-            : e.comment.trim();
-        }
-      }
+      const seriesKey = recurringSeriesKey(e);
+      if (!seriesMap.has(seriesKey)) seriesMap.set(seriesKey, []);
+      seriesMap.get(seriesKey).push(e);
     });
 
-    // 4. For each series, convert version map to sorted array
-    //    sorted by valid_from ascending so we can walk through them
-    const currentYear = new Date().getFullYear();
-    const endYear     = currentYear + 3;
+    const endYear = new Date().getFullYear() + 3;
+    seriesMap.forEach(expenses => {
+      const endDate = earliestEndMonth(expenses);
+      const endMonth = endDate ? getMonthNum(normalizeMonthKey(endDate.slice(0, 7))) : Infinity;
+      const savedMonths = new Set(expenses.map(e => e.month));
+      const versionMap = new Map();
 
-    seriesMap.forEach((versionMap, seriesKey) => {
+      expenses.forEach(e => {
+        const validFrom = e.valid_from || e.month;
+        const existing = versionMap.get(validFrom);
+        if (!existing) {
+          versionMap.set(validFrom, { ...e, valid_from: validFrom });
+          return;
+        }
+        existing.amount += e.amount;
+        if (e.comment?.trim()) {
+          existing.comment = [existing.comment, e.comment.trim()].filter(Boolean).join(' | ');
+        }
+      });
+
       // Sort versions by valid_from ascending
       const versions = [...versionMap.values()]
         .sort((a, b) => getMonthNum(a.valid_from) - getMonthNum(b.valid_from));
@@ -1345,12 +1397,12 @@ function applyRecurring() {
       const startYear      = parseInt(fy);
       const startMonthIdx  = MONTHS.indexOf(fm);
 
-      // 6. Walk every month from series start to endYear
-      for (let year = startYear; year <= endYear; year++) {
+      for (let year = startYear; year <= endYear && year * 12 <= endMonth; year++) {
         const fromMonth = (year === startYear) ? startMonthIdx : 0;
 
-        for (let mi = fromMonth; mi <= 11; mi++) {
+        for (let mi = fromMonth; mi <= 11 && year * 12 + mi <= endMonth; mi++) {
           const targetMonthKey = `${year}-${MONTHS[mi]}`;
+          if (savedMonths.has(targetMonthKey)) continue;
 
           // ── Find which version applies to this month ────────────────────
           // Latest version whose valid_from <= targetMonthKey
@@ -1364,25 +1416,12 @@ function applyRecurring() {
           }
           if (!applicableVersion) continue;
 
-          // ── Check if real entries already exist for this month ──────────
-          // Sum of all real entries for this series in this month
-          const realEntriesForMonth = data[p].filter(e =>
-            e.month === targetMonthKey &&
-            e.recurring &&
-            e.note.toLowerCase() === applicableVersion.note.toLowerCase() &&
-            e.isPersonal === applicableVersion.isPersonal &&
-            !e.isProjected
-          );
-
-          // If any real entry exists, skip projection for this month
-          // The real entries will show as-is in the list
-          if (realEntriesForMonth.length > 0) continue;
-
-          // ── No real entry → project one aggregated entry ────────────────
           data[p].push({
             id:           generateUUID(),
             month:        targetMonthKey,
             valid_from:   applicableVersion.valid_from,
+            recurrence_id: applicableVersion.recurrence_id,
+            recurring_end_month: endDate,
             amount:       applicableVersion.amount,  // already aggregated
             note:         applicableVersion.note,
             logo:         applicableVersion.logo,
@@ -1392,7 +1431,7 @@ function applyRecurring() {
             comment:      applicableVersion.comment, // already combined
             person:       p,
             user_id:      currentUser?.id,
-            household_id: loggedInUserProfile?.household_id
+            household_id: applicableVersion.household_id
           });
         }
       }
@@ -1410,12 +1449,9 @@ function getExpenseHistoryData(expense, personKey, year) {
   const amounts    = new Array(12).fill(0);
   const yearPrefix = year.toString();
 
-  // Match by series (note + isPersonal) for recurring,
-  // or by exact id for one-off entries
+  const seriesKey = expense.recurring && recurringSeriesKey(expense);
   const matcher = expense.recurring
-    ? e => e.recurring &&
-           e.note.toLowerCase() === expense.note.toLowerCase() &&
-           e.isPersonal === expense.isPersonal
+    ? e => e.recurring && recurringSeriesKey(e) === seriesKey
     : e => e.id === expense.id;
 
   // Sum amounts per month for this year
@@ -1430,11 +1466,7 @@ function getExpenseHistoryData(expense, personKey, year) {
   // For recurring: find the absolute earliest version's valid_from
   let startMi = 0;
   if (expense.recurring) {
-    const allVersions = data[personKey]
-      .filter(e => e.recurring &&
-                   e.note.toLowerCase() === expense.note.toLowerCase() &&
-                   e.isPersonal === expense.isPersonal &&
-                   !e.isProjected)
+    const allVersions = savedRecurringSeries(expense)
       .sort((a, b) => getMonthNum(a.valid_from || a.month) -
                       getMonthNum(b.valid_from || b.month));
 
@@ -1564,6 +1596,7 @@ async function fetchExpensesFromSupabase() {
 
   const { data: rows, error } = await mySupabaseClient
     .from('expenses').select('*')
+    .eq('household_id', loggedInUserProfile.household_id)
     .order('month', { ascending: true })
     .order('created_at', { ascending: true });
 
@@ -1655,6 +1688,8 @@ async function initApp() {
   noteInput.addEventListener('focus', showSuggestions);
   noteInput.addEventListener('blur',  hideSuggestions);
   toggleCommentBtn?.addEventListener('click', toggleAddCommentField);
+  recurringInput.addEventListener('change', updatePaymentCountField);
+  updatePaymentCountField();
 
   if (!currentUser) {
     const { data: { session } } = await mySupabaseClient.auth.getSession();
